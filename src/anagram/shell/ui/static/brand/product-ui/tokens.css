@@ -1,0 +1,25 @@
+/* Load ../tokens.css first. Product roles extend the existing brand palette. */
+.rf-ui {
+  --rf-ui-field: var(--rf-lavender);
+  --rf-ui-surface: var(--rf-paper);
+  --rf-ui-text: var(--rf-ink);
+  --rf-ui-secondary: var(--rf-muted);
+  --rf-ui-boundary: var(--rf-muted);
+  --rf-ui-action: var(--rf-blue);
+  --rf-ui-on-action: var(--rf-paper);
+  --rf-ui-selected: var(--rf-lime);
+  --rf-ui-focus: var(--rf-blue);
+  --rf-ui-error: #922e1c;
+  --rf-ui-target: 44px;
+  --rf-ui-press-time: 100ms;
+  --rf-ui-change-time: 160ms;
+  --rf-ui-number-time: 150ms;
+  --rf-ui-ease: cubic-bezier(.2,.8,.2,1);
+  color: var(--rf-ui-text);
+  background: var(--rf-ui-field);
+  font: 400 1rem/1.5 var(--rf-sans);
+  color-scheme: light;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rf-ui { --rf-ui-press-time: 0ms; --rf-ui-change-time: 0ms; --rf-ui-number-time: 0ms; }
+}

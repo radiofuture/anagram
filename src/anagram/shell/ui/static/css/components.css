@@ -1,0 +1,679 @@
+/* One block for each component of js/components/. Brand classes come first
+   (rf-ui-*, rf-record-card); these rules add only what the product needs.
+   Shapes are square. Selection is lime with ink text in the two appearances. */
+
+/* ---------------------------------------------------------------- TaskPanel */
+
+.ag-proof {
+  margin: 24px var(--rf-layer-offset) calc(28px + var(--rf-layer-offset)) 0;
+  padding: clamp(20px, 4vw, 32px);
+  background: var(--ag-surface);
+  border: 1px solid var(--ag-text);
+  box-shadow: var(--rf-layer-offset) var(--rf-layer-offset) 0 var(--ag-offset);
+}
+.ag-proof > :first-child {
+  margin-top: 0;
+}
+.ag-proof > :last-child {
+  margin-bottom: 0;
+}
+.ag-proof .rf-ui-actions {
+  margin-top: 24px;
+}
+.ag-proof-label {
+  margin: 0;
+  color: var(--ag-muted);
+}
+.ag-proof-date {
+  margin: 4px 0 12px;
+  font-size: clamp(2.25rem, 7vw, 3.5rem);
+  line-height: 1;
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.ag-proof-date[data-waiting="true"] {
+  font-size: clamp(1.5rem, 5vw, 2rem);
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+/* -------------------------------------------------------------- Row, RowList */
+
+.ag-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--ag-rule);
+}
+.ag-rows-item {
+  border-bottom: 1px solid var(--ag-rule);
+}
+.ag-rows-item[data-fresh="true"] {
+  box-shadow: inset 4px 0 0 var(--ag-selected);
+}
+.ag-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 16px;
+  min-width: 0;
+}
+.rf-ui .ag-row-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  min-height: 60px;
+  align-content: center;
+  padding: 12px 12px 12px 16px;
+  color: var(--ag-text);
+  text-decoration: none;
+  outline-offset: -3px;
+}
+.ag-row-title {
+  font-size: 1.0625rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.ag-row-link .ag-row-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+.ag-row-meta {
+  color: var(--ag-muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+.ag-row-note {
+  margin-top: 2px;
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+.ag-row-action {
+  padding: 8px 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ag-row-more {
+  grid-column: 1 / -1;
+  padding: 0 12px 12px 16px;
+  min-width: 0;
+}
+.ag-row-more > :first-child {
+  margin-top: 0;
+}
+.ag-row-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  column-gap: 24px;
+}
+@media (hover: hover) {
+  .rf-ui a.ag-row-link:hover {
+    background: var(--ag-surface);
+  }
+  .rf-ui a.ag-row-link:hover .ag-row-title {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+}
+@media (max-width: 520px) {
+  .ag-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ag-row-action {
+    padding: 0 12px 12px 16px;
+  }
+}
+
+/* ---------------------------------------------------------------- Card, Facts */
+
+.ag-card-title {
+  font-size: 1.125rem;
+  line-height: 1.3;
+  font-weight: 400;
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
+.ag-card-title a {
+  color: inherit;
+}
+.ag-facts {
+  margin: 8px 0;
+}
+.ag-facts > div {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  gap: 4px 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--ag-rule);
+}
+.ag-facts dt {
+  color: var(--ag-muted);
+}
+.ag-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 520px) {
+  .ag-facts > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ------------------------------------------------------------------- Tabs */
+/* Links between the views of one screen (library kinds, sharing). The
+   current view has the lime edge under it, like the rail. The row scrolls
+   on its own at a narrow width; the page does not. */
+
+.ag-tabs {
+  margin: 8px 0;
+  border-bottom: 1px solid var(--ag-rule);
+}
+.ag-tabs ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 4px;
+}
+.rf-ui .ag-tabs a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--ag-muted);
+  text-decoration: none;
+  white-space: nowrap;
+  outline-offset: -3px;
+  box-shadow: inset 0 -4px 0 transparent;
+}
+.rf-ui .ag-tabs a:hover {
+  color: var(--ag-text);
+}
+.rf-ui .ag-tabs a[aria-current="page"] {
+  color: var(--ag-text);
+  box-shadow: inset 0 -4px 0 var(--ag-selected);
+}
+@media (max-width: 760px) {
+  .ag-tabs {
+    margin-right: -16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .ag-tabs ul {
+    flex-wrap: nowrap;
+    padding-right: 16px;
+  }
+}
+.ag-tab-count {
+  font-size: 0.8125rem;
+  color: var(--ag-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------- Field, TextInput, TextArea */
+
+.ag-textarea {
+  resize: vertical;
+  min-height: 7rem;
+}
+.ag-counter {
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+.ag-counter--full {
+  color: var(--ag-text);
+}
+.ag-code-area {
+  font-size: 0.875rem;
+  word-break: break-all;
+  resize: vertical;
+}
+
+/* ------------------------------------------------ ChoiceGroup, CheckList, Switch */
+
+.ag-choices {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0;
+  min-width: 0;
+}
+.ag-choices legend {
+  font-size: 1rem;
+  padding: 0;
+}
+.ag-checks {
+  display: grid;
+  gap: 8px;
+  margin: 24px 0;
+  min-width: 0;
+}
+.ag-checks legend {
+  margin-bottom: 8px;
+  padding: 0;
+}
+.ag-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  min-height: 44px;
+  margin: 0;
+  background: var(--ag-surface);
+  border: 1px solid var(--ag-rule);
+  overflow-wrap: anywhere;
+  min-width: 0;
+  cursor: pointer;
+}
+.ag-check input {
+  margin-top: 3px;
+}
+.ag-check small {
+  display: block;
+}
+.ag-check:has(input:checked) {
+  border-color: var(--ag-muted);
+}
+.ag-check--fixed {
+  padding-left: 42px;
+  background: transparent;
+  cursor: default;
+}
+
+/* ------------------------------------------------------ Button, ActionButton */
+
+.rf-ui .ag-action {
+  display: inline-grid;
+}
+.ag-action-label {
+  grid-area: 1 / 1;
+}
+.ag-action-label[data-on="false"] {
+  visibility: hidden;
+}
+/* A quiet button is underlined text: its text lines up with the column
+   (no side padding), and the 44 px height stays the target. After another
+   button in a row it keeps the same space as two framed buttons. */
+.rf-ui .rf-ui-button--quiet {
+  padding-left: 0;
+  padding-right: 0;
+}
+.rf-ui .rf-ui-actions > .rf-ui-button--quiet:not(:first-child) {
+  margin-left: 12px;
+}
+
+/* --------------------------------------------- ErrorLine, StatusLine, Empty */
+
+.rf-ui .rf-ui-status.ag-status {
+  margin: 16px 0;
+  border-left-width: 4px;
+  border-left-color: var(--ag-rule);
+}
+.rf-ui .ag-status[data-state="pending"] {
+  border-left-color: var(--ag-action);
+}
+.rf-ui .ag-status[data-state="saved"],
+.rf-ui .ag-status[data-state="active"] {
+  border-left-color: var(--ag-selected);
+}
+.rf-ui .ag-status[data-state="outdated"],
+.rf-ui .ag-status[data-state="changed"],
+.rf-ui .ag-status[data-state="paused"] {
+  border-left-color: var(--ag-mark);
+}
+.rf-ui .ag-status[data-state="error"] {
+  border-left-color: var(--ag-error);
+  color: var(--ag-error);
+}
+.ag-status > span {
+  display: block;
+}
+.ag-empty {
+  color: var(--ag-muted);
+  margin: 8px 0 16px;
+}
+.ag-empty p {
+  margin: 0;
+}
+p.ag-empty {
+  margin: 8px 0 16px;
+}
+
+/* ---------------------------------------------------------------- Disclosure */
+
+.ag-disclosure {
+  margin: 16px 0;
+  min-width: 0;
+}
+.ag-disclosure > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+}
+.ag-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+.ag-disclosure > summary:hover > span:last-child {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+/* The sign: a plus that becomes a minus. Two bars; no character. */
+.ag-disclosure-sign {
+  position: relative;
+  flex: none;
+  width: 12px;
+  height: 12px;
+}
+.ag-disclosure-sign::before,
+.ag-disclosure-sign::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 5px;
+  width: 12px;
+  height: 2px;
+  background: currentColor;
+}
+.ag-disclosure-sign::after {
+  transform: rotate(90deg);
+}
+.ag-disclosure[open] > summary .ag-disclosure-sign::after {
+  transform: rotate(0deg);
+}
+.ag-disclosure-body {
+  padding: 4px 0 8px 24px;
+  min-width: 0;
+}
+.ag-disclosure-body > :first-child {
+  margin-top: 0;
+}
+.ag-disclosure--more {
+  margin: 24px 0;
+  border-top: 1px solid var(--ag-rule);
+  padding-top: 4px;
+}
+.ag-disclosure--more > summary {
+  display: flex;
+}
+.ag-disclosure--details {
+  font-size: 0.875rem;
+  color: var(--ag-muted);
+}
+.ag-disclosure--details .ag-facts > div {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  border: 0;
+  padding: 4px 0;
+}
+.ag-disclosure--details dd {
+  color: var(--ag-text);
+}
+.ag-disclosure--add {
+  margin: 8px 0 0;
+}
+.ag-disclosure--add > summary {
+  color: var(--ag-action);
+}
+.ag-disclosure--add[open] {
+  padding: 0 16px 16px;
+  border: 1px solid var(--ag-rule);
+  background: var(--ag-surface);
+}
+.ag-disclosure--add .ag-disclosure-body {
+  padding-left: 0;
+}
+/* A disclosure in a row's links: no margin, and full width when open. */
+.ag-row-links > .ag-disclosure {
+  margin: 0;
+}
+.ag-row-links > .ag-disclosure[open] {
+  flex-basis: 100%;
+}
+
+/* ------------------------------------------------- CopyField, DownloadLink */
+
+.ag-copy .rf-ui-actions {
+  margin-top: 4px;
+}
+
+/* ------------------------------------------------------------------- Sheet */
+
+.rf-ui .rf-ui-sheet.ag-sheet h2 {
+  font-size: 1.5rem;
+  margin: 0 0 12px;
+}
+.rf-ui .ag-sheet h2:focus,
+.rf-ui .ag-sheet h2:focus-visible {
+  outline: none;
+}
+.rf-ui .ag-sheet .rf-ui-actions {
+  margin-top: 24px;
+}
+.rf-ui .ag-sheet .rf-ui-help + fieldset {
+  margin-top: 16px;
+}
+.rf-ui .ag-sheet ul {
+  padding-left: 20px;
+}
+.rf-ui .ag-sheet .ag-menu ul {
+  padding-left: 0;
+}
+.rf-ui .ag-menu .ag-nav-list--foot {
+  border-top: 0;
+}
+@media (max-width: 640px) {
+  .rf-ui .rf-ui-sheet.ag-sheet {
+    margin: auto 0 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 24px 16px max(24px, env(safe-area-inset-bottom));
+  }
+}
+
+/* ------------------------------------------------------------- SearchSelect */
+
+.ag-search {
+  margin-top: 12px;
+  min-width: 0;
+}
+.ag-search[data-quiet="true"] .rf-ui-search > [role="status"] {
+  display: none;
+}
+
+/* ----------------------------------------------------------------- ChipList */
+
+.ag-chips {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 0;
+}
+.ag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0 0 0 12px;
+  background: var(--ag-surface);
+  border: 1px solid var(--ag-muted);
+  max-width: 100%;
+}
+.ag-chip--plain {
+  padding-right: 12px;
+  min-height: 36px;
+}
+.ag-chip > span {
+  overflow-wrap: anywhere;
+}
+.rf-ui .ag-x {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ag-text);
+  outline-offset: -3px;
+}
+.ag-x:hover {
+  background: var(--ag-stock);
+}
+/* The cross: two bars; no character. */
+.ag-x-sign {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 14px;
+  height: 14px;
+}
+.ag-x-sign::before,
+.ag-x-sign::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 14px;
+  height: 2px;
+  background: currentColor;
+}
+.ag-x-sign::before {
+  transform: rotate(45deg);
+}
+.ag-x-sign::after {
+  transform: rotate(-45deg);
+}
+
+/* ------------------------------------------------ Progress, RollingNumber */
+
+.ag-progress {
+  margin: 8px 0;
+  min-width: 0;
+}
+.ag-progress-label {
+  margin: 0 0 8px;
+  font-variant-numeric: tabular-nums;
+}
+.ag-progress-track {
+  height: 6px;
+  background: var(--ag-stock);
+  overflow: hidden;
+}
+.ag-progress-bar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--ag-action);
+  transform-origin: left center;
+  transform: scaleX(var(--ag-progress, 0));
+}
+.ag-progress-detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ag-count {
+  font-variant-numeric: tabular-nums;
+}
+.rf-ui .ag-count .rf-ui-number {
+  min-height: 0;
+  line-height: inherit;
+  vertical-align: top;
+}
+.rf-ui .ag-count .rf-ui-digit {
+  height: 1lh;
+  line-height: inherit;
+  vertical-align: top;
+}
+
+/* ------------------------------------------------- PersonLine, KindLabel */
+
+.ag-person {
+  display: inline-grid;
+  min-width: 0;
+}
+.ag-person small {
+  display: block;
+}
+
+/* -------------------------------------------------------------- FolderPicker */
+
+.ag-picker {
+  margin: 16px 0 24px;
+  padding: clamp(16px, 4vw, 24px);
+  background: var(--ag-surface);
+  border: 1px solid var(--ag-rule);
+}
+.ag-picker .ag-subtitle {
+  margin-top: 0;
+  color: var(--ag-muted);
+  font-size: 0.875rem;
+}
+.rf-ui .ag-picker .ag-subtitle:focus-visible {
+  outline: none;
+}
+.ag-picker-place {
+  margin: 0 0 16px;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+.ag-picker-place small {
+  display: block;
+  letter-spacing: 0;
+}
+.ag-folders {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+  max-height: 22rem;
+  overflow-y: auto;
+  border-top: 1px solid var(--ag-rule);
+}
+.rf-ui .ag-folder {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--ag-rule);
+  color: var(--ag-text);
+  outline-offset: -3px;
+}
+.ag-folder:hover {
+  background: var(--ag-stock);
+}
+
+/* ----------------------------------------------------------- Selection state */
+/* Last in the file: the checked state sets the text colour over the
+   component rules above. */
+
+.rf-ui .rf-ui-search-result:has(input:checked),
+.rf-ui .rf-ui-choice-card:has(input:checked),
+.rf-ui .rf-ui-choice:has(input:checked) {
+  color: var(--ag-on-selected);
+}
+.rf-ui .rf-ui-choice-card:has(input:checked) small,
+.rf-ui .rf-ui-search-result:has(input:checked) small {
+  color: var(--ag-on-selected-muted);
+}

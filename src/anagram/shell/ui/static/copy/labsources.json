@@ -1,0 +1,18 @@
+{
+  "client_title": "{provider} client",
+  "client_state": "Client",
+  "client_set": "Set",
+  "client_not_set": "Not set",
+  "admin_only": "The PI or a lab admin can change this.",
+  "rules_title": "Sources in the lab space",
+  "allowed": "Kinds that members can put in the lab space",
+  "allowed_none": "None",
+  "default": "Start value for a new source",
+  "default_private": "Only you",
+  "default_private_help": "A member chooses the lab space for each source.",
+  "default_lab": "The lab space",
+  "default_lab_help": "A new source goes to the lab space unless the member changes it.",
+  "save": "Save the rules",
+  "saving": "Saving…",
+  "saved": "Saved. Members get the rules with the next lab sync."
+}

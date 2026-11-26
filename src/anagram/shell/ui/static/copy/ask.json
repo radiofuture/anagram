@@ -1,0 +1,35 @@
+{
+  "label": "Ask your library",
+  "label_search": "Search your library",
+  "go": "Ask",
+  "go_search": "Search",
+  "where": "Look in",
+  "everywhere": "All that you can read",
+  "only_you": "Only your library",
+  "lab": "Your lab",
+  "no_model": "Anagram shows the passages that match. {link} to ask questions.",
+  "setup_link": "Set up a model",
+  "try": "From your newest findings",
+  "looking": "Anagram looks for passages.",
+  "searching": "Anagram searches.",
+  "writing": {
+    "one": "The model reads 1 passage.",
+    "other": "The model reads {n} passages."
+  },
+  "sources": "Sources",
+  "passages": "Passages that match",
+  "cite": "Go to source {n}",
+  "untitled": "Item with no title",
+  "third_party": "text of other people, on this computer only",
+  "nothing": "Nothing in your library matches. Try other words.",
+  "not_grounded": "The answer names no source. Read the passages before you use it.",
+  "left_out": {
+    "one": "1 passage stayed out because this model may not read it.",
+    "other": "{n} passages stayed out because this model may not read them."
+  },
+  "title": "Ask",
+  "earlier": "Earlier questions",
+  "clear": "Clear the list",
+  "clearing": "Clearing…",
+  "gone": "This answer is not on this computer now. Ask again."
+}

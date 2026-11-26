@@ -1,0 +1,91 @@
+/* The model of a person (slot `account.sections`) and of a lab (slot
+   `lab.models`), and the kind of an item (track R4, step 11b). */
+
+.ag-model-uses {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
+  max-width: 44rem;
+}
+.ag-model-uses .rf-ui-input,
+.ag-item-kind .rf-ui-input,
+.ag-model-form select.rf-ui-input {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.rf-ui .ag-model-leaves {
+  margin: 4px 0 16px;
+  max-width: 40rem;
+  color: var(--ag-muted);
+}
+.rf-ui .ag-model-note {
+  margin: 8px 0;
+  max-width: 40rem;
+}
+.rf-ui .ag-model-note .rf-ui-button--quiet {
+  padding: 0;
+}
+/* No model: the normal text tone, no rule at the side. */
+.ag-model-none {
+  margin: 8px 0 16px;
+  max-width: 40rem;
+}
+.ag-model-none p {
+  margin: 0;
+}
+
+/* The yes for an outside model: one block with the line of what leaves. */
+.ag-model-ask {
+  margin: 0 0 16px;
+  padding: 16px 20px;
+  max-width: 40rem;
+  background: var(--ag-surface);
+  border-left: 4px solid var(--ag-selected);
+}
+.ag-model-ask p {
+  margin: 0 0 12px;
+}
+.ag-model-ask .rf-ui-actions {
+  margin: 0;
+}
+
+.ag-model-more {
+  padding: 4px 0 8px;
+  max-width: 40rem;
+}
+.rf-ui .ag-model-actions {
+  margin: 8px 0 0;
+  align-items: center;
+}
+.rf-ui .ag-model-actions .rf-ui-button--quiet {
+  padding-left: 0;
+}
+
+.ag-model-form {
+  max-width: 40rem;
+}
+.ag-model-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+}
+.ag-model-pair .rf-ui-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ag-item-kind {
+  max-width: 20rem;
+  margin: 0 0 8px;
+}
+
+@media (max-width: 640px) {
+  .ag-model-uses,
+  .ag-model-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ag-model-ask {
+    padding: 16px;
+  }
+}

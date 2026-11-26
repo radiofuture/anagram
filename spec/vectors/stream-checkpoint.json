@@ -1,0 +1,68 @@
+{
+  "description": "Stream checkpoint over the two evidence roots.",
+  "envelope": {
+    "fields": {
+      "created_at": "2026-10-15T12:00:00Z",
+      "item_count": 2,
+      "items_root": "af628cc7272a3a94e98fa17ce2455572b03d390fb0fb14bf660c1239842c4c42",
+      "owner": {
+        "alg": "ed25519",
+        "key": "f38f67d9eebe985a29c7e28b67ac4138aaeefb2a0070d69f8406c091a68d067a"
+      },
+      "prev": "fc4b608e7fc7558b0d915605e6be06e4ea88faf6cd92cb4eb5199d2c63c8212c",
+      "schema": "anagram.stream_checkpoint.v1",
+      "seq": 1,
+      "start": 10,
+      "stream_id": "c4cb20c45a4ef629f419ee89dd14ca90"
+    },
+    "layout_canonical": "[\"created_at\",\"item_count\",\"items_root\",\"owner\",\"prev\",\"schema\",\"seq\",\"start\",\"stream_id\"]",
+    "leaves": {
+      "created_at": "37f0b1e00fd372efdada4102599423f3c04bde0d29b71d43349297f702388562",
+      "item_count": "148237f17b8f21ee9371a3a023383230019d9418182c73e051287b98996676dc",
+      "items_root": "091c0e19ad40365cd7f8ec5f519d2352036c0460caca05ded2927c375201318f",
+      "owner": "173d0759b62386d9484ee3992204eaa268438615ec65d50d427186478f120e8a",
+      "prev": "c7833bcb34a34aaf87e2fa0dbdd416593b5a52cc4cace49ff40082fcc2a33222",
+      "schema": "58d5ab4f52da8e57b8c3d757d175300140ccc1c2a537485a64858457f312f3ac",
+      "seq": "0b66de4d8d307d4b99200b73008cea4a4ea4fff8ea7d82fc8025e6d7ca23b91e",
+      "start": "9ba56792c842bf5284f3ea43d1bf1094d609f0bd6becb1d733891e2a3fa22ed1",
+      "stream_id": "48c7c2d83ef6aae89d8b157f94fa1f13b6021dce7fb7026fa3025ab223ca17b3"
+    },
+    "mth": "028483e04158227188ade3c78f0148519a52c9cdf8c639f7ec78587ca6fe013f",
+    "order": [
+      "created_at",
+      "item_count",
+      "items_root",
+      "owner",
+      "prev",
+      "schema",
+      "seq",
+      "start",
+      "stream_id"
+    ],
+    "root": "129f7369557c6cf143095a16c4b961b200cf4cf467860ce78c922dcfa25439bd",
+    "salts": {
+      "created_at": "a3312571a4e8552485921b978fe1bd11d6ff160c7b214f693cffb0720bfe4392",
+      "item_count": "f524157bf93918fd0cb7a036b1bc2484e70db8a321a6f52514103defb273f3a4",
+      "items_root": "c5de5a702858e16949099f03f0a27c78abeadbb8cefab76a0c248a92c81b5698",
+      "owner": "66513c8184809e15a6ada9c1b77d381093b7eee90deee118f5258f98050e9095",
+      "prev": "25c632d0e4806a6f5060f2701922efda328c61673cfa5a6f74af0a3fbc0e294f",
+      "schema": "313210155f9f8cc6033a2286a07fb2a4a1a702f30eef196b9487a47bcb99fdf0",
+      "seq": "5de268563709e4e0237a24275b313d61430c00668446ac3e109e68e5de522dac",
+      "start": "b96de9423f4153e2279030d4685a88eb73428c5c01fe77e6842b98b7491e7d20",
+      "stream_id": "c6bd829a15b7fb2720c1c84d82fc1b26dfd858af2c13b5a0ff573619f0817960"
+    }
+  },
+  "item_roots": [
+    "e4695038edfa83159d4207b9b2e7e869e2082e4f67bf26576a4e62c75171654e",
+    "ac921ab72897bc0a087b020f76c65773ebc2a72bce665fcd745c61956c6a783e"
+  ],
+  "subject": {
+    "kind": "stream_checkpoint",
+    "owner": {
+      "alg": "ed25519",
+      "key": "f38f67d9eebe985a29c7e28b67ac4138aaeefb2a0070d69f8406c091a68d067a"
+    },
+    "root": "129f7369557c6cf143095a16c4b961b200cf4cf467860ce78c922dcfa25439bd",
+    "signature": "34dd04a892f7c500b6beadc49bcb519c08271e9f987f616b5a37b2c3d0ca88a5fdaa08efd66550c503e4f2ef5a55fbb2a715f40ecdb7cc4e2f2af4dae3abad0c"
+  }
+}

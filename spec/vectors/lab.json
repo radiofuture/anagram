@@ -1,0 +1,314 @@
+{
+  "description": "Lab roster chain, invite, join request, key package info, lab item, and settings (spec/lab.md). Apply the entries in order; a device is valid if it is the device of `devices` for that person.",
+  "invite": {
+    "auth": {
+      "community": "Vector community",
+      "created_at": "2026-11-16T12:02:00Z",
+      "created_by": "pid:b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+      "creator_device": "bb997d76b0cf41f4054ce63ca2deca89fcab8911eb5ae73fec3020fb6f1da4b0",
+      "expires_at": "2026-11-23T12:02:00Z",
+      "genesis": "70e9490c05611854563bf4d698a795547c8cf7a3b940faab088744871019868d",
+      "invite_pub": "8c3426aaaf73424135cd6f8d5cb34e93b8ba7542a24e13ffcdc72b55a654e2ea",
+      "invite_x25519": "75898f7ac0d2938d17bc5eadfecee0be8f105bdf103a16c9032e35630d451f41",
+      "lab_id": "lab-1a1a1a1a1a1a1a1a",
+      "lab_name": "Vector Lab",
+      "max_uses": 1,
+      "node_key": "9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f",
+      "node_url": "https://node.example",
+      "role": "member",
+      "schema": "anagram.lab_invite.v1",
+      "signature": "01a1937873483c7885f5c628df1df578fe681b136d25cf6296e2ab8adc9c9a65b17a234447b014284c89638cf7dea82c15516c996c0fac3d0bdc5e9e0ef39b04"
+    },
+    "id": "a5654d38d5e783df008a5b48776a955b",
+    "link": "https://node.example/join#eyJhdXRoIjp7ImNvbW11bml0eSI6IlZlY3RvciBjb21tdW5pdHkiLCJjcmVhdGVkX2F0IjoiMjAyNi0xMS0xNlQxMjowMjowMFoiLCJjcmVhdGVkX2J5IjoicGlkOmIyYjJiMmIyYjJiMmIyYjJiMmIyYjJiMmIyYjJiMmIyIiwiY3JlYXRvcl9kZXZpY2UiOiJiYjk5N2Q3NmIwY2Y0MWY0MDU0Y2U2M2NhMmRlY2E4OWZjYWI4OTExZWI1YWU3M2ZlYzMwMjBmYjZmMWRhNGIwIiwiZXhwaXJlc19hdCI6IjIwMjYtMTEtMjNUMTI6MDI6MDBaIiwiZ2VuZXNpcyI6IjcwZTk0OTBjMDU2MTE4NTQ1NjNiZjRkNjk4YTc5NTU0N2M4Y2Y3YTNiOTQwZmFhYjA4ODc0NDg3MTAxOTg2OGQiLCJpbnZpdGVfcHViIjoiOGMzNDI2YWFhZjczNDI0MTM1Y2Q2ZjhkNWNiMzRlOTNiOGJhNzU0MmEyNGUxM2ZmY2RjNzJiNTVhNjU0ZTJlYSIsImludml0ZV94MjU1MTkiOiI3NTg5OGY3YWMwZDI5MzhkMTdiYzVlYWRmZWNlZTBiZThmMTA1YmRmMTAzYTE2YzkwMzJlMzU2MzBkNDUxZjQxIiwibGFiX2lkIjoibGFiLTFhMWExYTFhMWExYTFhMWEiLCJsYWJfbmFtZSI6IlZlY3RvciBMYWIiLCJtYXhfdXNlcyI6MSwibm9kZV9rZXkiOiI5ZjlmOWY5ZjlmOWY5ZjlmOWY5ZjlmOWY5ZjlmOWY5ZjlmOWY5ZjlmOWY5ZjlmOWY5ZjlmOWY5ZjlmOWY5ZjlmIiwibm9kZV91cmwiOiJodHRwczovL25vZGUuZXhhbXBsZSIsInJvbGUiOiJtZW1iZXIiLCJzY2hlbWEiOiJhbmFncmFtLmxhYl9pbnZpdGUudjEiLCJzaWduYXR1cmUiOiIwMWExOTM3ODczNDgzYzc4ODVmNWM2MjhkZjFkZjU3OGZlNjgxYjEzNmQyNWNmNjI5NmUyYWI4YWRjOWM5YTY1YjE3YTIzNDQ0N2IwMTQyODRjODk2MzhjZjdkZWE4MmMxNTUxNmM5OTZjMGZhYzNkMGJkYzVlOWUwZWYzOWIwNCJ9LCJzZWVkIjoiYTVlNTQ1YmRmMjFlZGFmMDE5NzEyMmIwYTdmNDdmM2MzNjg5ZTY4NjNmYWU3NTM0NmQzOTdjOWUzYmI3NjIxMiJ9",
+    "request": {
+      "at": "2026-11-16T12:03:00Z",
+      "device": "5c474caa6cbbfa2b0764b0af42f241621aa4ba6d26db52eaa8e734db5bbdd703",
+      "device_signature": "e342110651bbf3066b99221ea59c3d231751887364f930b86150f52bd1056b58276b153d9aaf3c63cfa322ded10f9b9887e90d644f7a0560047ba4d27180dd0e",
+      "invite": "a5654d38d5e783df008a5b48776a955b",
+      "invite_signature": "19a3779e0213b7dc53aae409923b87ceca2dd1307f462a328e6f9827fac84e5400e348a8044b546e408bcea5585a70b6767a4558b17ac4c66577f04f4b941001",
+      "lab_id": "lab-1a1a1a1a1a1a1a1a",
+      "schema": "anagram.lab_join.v1",
+      "subject": "pid:c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
+    },
+    "seed": "a5e545bdf21edaf0197122b0a7f47f3c3689e6863fae75346d397c9e3bb76212"
+  },
+  "lab_id": "lab-1a1a1a1a1a1a1a1a",
+  "roster": {
+    "auths": {
+      "a5654d38d5e783df008a5b48776a955b": {
+        "community": "Vector community",
+        "created_at": "2026-11-16T12:02:00Z",
+        "created_by": "pid:b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+        "creator_device": "bb997d76b0cf41f4054ce63ca2deca89fcab8911eb5ae73fec3020fb6f1da4b0",
+        "expires_at": "2026-11-23T12:02:00Z",
+        "genesis": "70e9490c05611854563bf4d698a795547c8cf7a3b940faab088744871019868d",
+        "invite_pub": "8c3426aaaf73424135cd6f8d5cb34e93b8ba7542a24e13ffcdc72b55a654e2ea",
+        "invite_x25519": "75898f7ac0d2938d17bc5eadfecee0be8f105bdf103a16c9032e35630d451f41",
+        "lab_id": "lab-1a1a1a1a1a1a1a1a",
+        "lab_name": "Vector Lab",
+        "max_uses": 1,
+        "node_key": "9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f",
+        "node_url": "https://node.example",
+        "role": "member",
+        "schema": "anagram.lab_invite.v1",
+        "signature": "01a1937873483c7885f5c628df1df578fe681b136d25cf6296e2ab8adc9c9a65b17a234447b014284c89638cf7dea82c15516c996c0fac3d0bdc5e9e0ef39b04"
+      }
+    },
+    "devices": {
+      "pid:a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1": "a6621504eb25d9f9e72d15120553f8322a97f688064ce73db56a5511318f4f0d",
+      "pid:b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2": "bb997d76b0cf41f4054ce63ca2deca89fcab8911eb5ae73fec3020fb6f1da4b0",
+      "pid:c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3": "5c474caa6cbbfa2b0764b0af42f241621aa4ba6d26db52eaa8e734db5bbdd703"
+    },
+    "entries": [
+      {
+        "actor": "pid:a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "actor_device": "a6621504eb25d9f9e72d15120553f8322a97f688064ce73db56a5511318f4f0d",
+        "at": "2026-11-16T12:00:00Z",
+        "invite": null,
+        "lab_id": "lab-1a1a1a1a1a1a1a1a",
+        "name": "Vector Lab",
+        "op": "create",
+        "prev": "0000000000000000000000000000000000000000000000000000000000000000",
+        "request": null,
+        "role": "pi",
+        "schema": "anagram.lab_roster.v1",
+        "seq": 0,
+        "signature": "b67e75c98c2b1df919c9b58d969672cb4f3bb76b48ec43bf334fda2c8792a84512020df03b9ff55331b2eaba1d861d163a87d8e73948c770deb3f47df0ce9304",
+        "subject": "pid:a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+      },
+      {
+        "actor": "pid:a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "actor_device": "a6621504eb25d9f9e72d15120553f8322a97f688064ce73db56a5511318f4f0d",
+        "at": "2026-11-16T12:01:00Z",
+        "invite": null,
+        "lab_id": "lab-1a1a1a1a1a1a1a1a",
+        "name": null,
+        "op": "add",
+        "prev": "70e9490c05611854563bf4d698a795547c8cf7a3b940faab088744871019868d",
+        "request": null,
+        "role": "admin",
+        "schema": "anagram.lab_roster.v1",
+        "seq": 1,
+        "signature": "8b36f9fc47f81412c82c7cab0125e69312f2c5b9674f831c8d9587b003478c88e433b599dc335e707d2f2bd689ac75fe82d93bc04c5cbf48e535041db47d950d",
+        "subject": "pid:b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
+      },
+      {
+        "actor": "pid:b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+        "actor_device": "bb997d76b0cf41f4054ce63ca2deca89fcab8911eb5ae73fec3020fb6f1da4b0",
+        "at": "2026-11-16T12:02:00Z",
+        "invite": "a5654d38d5e783df008a5b48776a955b",
+        "lab_id": "lab-1a1a1a1a1a1a1a1a",
+        "name": null,
+        "op": "invite",
+        "prev": "d8703866832c105d9c36c7f1af8343b6cbb02de5fa2df134ef5ee52c7c405632",
+        "request": null,
+        "role": null,
+        "schema": "anagram.lab_roster.v1",
+        "seq": 2,
+        "signature": "b7e60eab4d97399ca1a2c9268a503e12242bef9f413962546ad12f60df497a2cbf28b25b92ec640aa4d65ed08a8de5b886bc0a38e07a150d1e15e467e8d8830c",
+        "subject": null
+      },
+      {
+        "actor": "pid:c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
+        "actor_device": "5c474caa6cbbfa2b0764b0af42f241621aa4ba6d26db52eaa8e734db5bbdd703",
+        "at": "2026-11-16T12:03:00Z",
+        "invite": "a5654d38d5e783df008a5b48776a955b",
+        "lab_id": "lab-1a1a1a1a1a1a1a1a",
+        "name": null,
+        "op": "join",
+        "prev": "f13956fafc422dc993a7bde06c4530f76d838e23fc6a6daaf2211d46d5bcd9f7",
+        "request": {
+          "at": "2026-11-16T12:03:00Z",
+          "device": "5c474caa6cbbfa2b0764b0af42f241621aa4ba6d26db52eaa8e734db5bbdd703",
+          "device_signature": "e342110651bbf3066b99221ea59c3d231751887364f930b86150f52bd1056b58276b153d9aaf3c63cfa322ded10f9b9887e90d644f7a0560047ba4d27180dd0e",
+          "invite": "a5654d38d5e783df008a5b48776a955b",
+          "invite_signature": "19a3779e0213b7dc53aae409923b87ceca2dd1307f462a328e6f9827fac84e5400e348a8044b546e408bcea5585a70b6767a4558b17ac4c66577f04f4b941001",
+          "lab_id": "lab-1a1a1a1a1a1a1a1a",
+          "schema": "anagram.lab_join.v1",
+          "subject": "pid:c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
+        },
+        "role": "member",
+        "schema": "anagram.lab_roster.v1",
+        "seq": 3,
+        "signature": null,
+        "subject": "pid:c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
+      },
+      {
+        "actor": "pid:b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+        "actor_device": "bb997d76b0cf41f4054ce63ca2deca89fcab8911eb5ae73fec3020fb6f1da4b0",
+        "at": "2026-11-16T12:04:00Z",
+        "invite": null,
+        "lab_id": "lab-1a1a1a1a1a1a1a1a",
+        "name": "Vector Lab (renamed)",
+        "op": "rename",
+        "prev": "bbd16407ce0f654cdcf67c27c15b1b309bd4ced164be98283cd862eb387416fe",
+        "request": null,
+        "role": null,
+        "schema": "anagram.lab_roster.v1",
+        "seq": 4,
+        "signature": "245e10411ac9c2b5f7fee157a1e7a017019a071a238170d2e3ecba94f7d669fe9dbbe82f2d807fea8257d08beba38358c727681b8e9e4db6cf278bb71b727701",
+        "subject": null
+      },
+      {
+        "actor": "pid:a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "actor_device": "a6621504eb25d9f9e72d15120553f8322a97f688064ce73db56a5511318f4f0d",
+        "at": "2026-11-16T12:05:00Z",
+        "invite": null,
+        "lab_id": "lab-1a1a1a1a1a1a1a1a",
+        "name": null,
+        "op": "remove",
+        "prev": "038098cf62d5d569ce434664592aff70c6e533463dd7ce0f5292bc013c8c535c",
+        "request": null,
+        "role": null,
+        "schema": "anagram.lab_roster.v1",
+        "seq": 5,
+        "signature": "4f2f03767854fe2631e9a76613caf94234fa1e15d786a2cf5be6197e7a0a836a90a8e4a36fb3b126349a0071393146f660651f834675eb7d7847d61502cbbf04",
+        "subject": "pid:c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
+      }
+    ],
+    "hashes": [
+      "70e9490c05611854563bf4d698a795547c8cf7a3b940faab088744871019868d",
+      "d8703866832c105d9c36c7f1af8343b6cbb02de5fa2df134ef5ee52c7c405632",
+      "f13956fafc422dc993a7bde06c4530f76d838e23fc6a6daaf2211d46d5bcd9f7",
+      "bbd16407ce0f654cdcf67c27c15b1b309bd4ced164be98283cd862eb387416fe",
+      "038098cf62d5d569ce434664592aff70c6e533463dd7ce0f5292bc013c8c535c",
+      "a1cb9e0c2dc16cb625106bac4ccb7427ffb3a16a6df6b6a24eb2daac57cdd800"
+    ],
+    "state": {
+      "genesis": "70e9490c05611854563bf4d698a795547c8cf7a3b940faab088744871019868d",
+      "head": "a1cb9e0c2dc16cb625106bac4ccb7427ffb3a16a6df6b6a24eb2daac57cdd800",
+      "members": {
+        "pid:a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1": "pi",
+        "pid:b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2": "admin"
+      },
+      "name": "Vector Lab (renamed)",
+      "removed_at": 5,
+      "seq": 5
+    }
+  },
+  "signing_seeds": {
+    "pid:a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1": "9d570d170e84fdea3fa68f3c8612c1bf4e28693ec1e1feb95bd2c86887415d46",
+    "pid:b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2": "a036b5155314c2fabd2c664c0503ff0d5c39a436cd5c467eb1093126c8967f8d",
+    "pid:c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3": "f3e7b7113727cdae555ecde3fa2c7c3da70bd5ac722d79a025cc14426dec5da6"
+  },
+  "space": {
+    "epoch_keys": {
+      "1": "58cc3145ef10a676f3f4d4093cbbf9fe857caab15f38d386028d1bf8373d585f",
+      "2": "fc4dfe5e95d525775ff444696e30d4492e1c83270cad82f3bbbea38c4343754e"
+    },
+    "item": {
+      "record": {
+        "alg": "chacha20-poly1305",
+        "ciphertext": "dT8ETGA3EMMX/NKxlNTwL0TRJ7EsPuf3h9DokqLp+MdlJ3HXanUI0fO1Z6CKcyRRuasQKlC/1VGHMRZjkGYy5cy+4uJp0YF97ZsfJHk5cZa/ejOm4VP4L1i8ZGmV2uNpXVgdZk7aDT8o6/8g6GeneMhDojTzdD7htNYRpGHs2CQC/88TJ7tsEpUW7FFrclP3xAHJTaf2R4tQ1np9tmhf4ArlCMVEkSmx0Vt9K8SspPzJzxo3zRgruPskCONvEevUCzTB9hLxjvri4LIWOH7SFNQ74l2nVkV0fm0GX25deDswYLWduue2KgVxkbHN9E2hUUZ0vxskuFtoYCLSQcie4GMdq7/CxrYE0ZV2VSPgtcWqMe7VrztkAEjxi8AG7sCB01zbCb83vy+QZm5+e9+zK0I2xjV2Z1LfMMBtz6X/4NXN8wSjqzV0VL2TgAg0HtBqk35UI27gphkhZaNDf2Ntaw5JQjhGmaAvlwQKeK5Tf++yJHG5rbWV8921ohG2QuXCbsJlAxhW85SUPAc+s1OXAsdehYZyITQv8yOoWlO2+AlB3a/lDX8t+uyG11JsdjS5q0YZIKKaLtX+QTQtdGZmvA+9xnlw84Yuk1hvxon+/CSYWIACnSMotpjWMdlSN9ok0mM8NeJ6GPDrbPa+I+qcfNuQGG85P3/sUY0P04JxjkUVfxw/sA92h15khy0xoMy4jPu0jlJTWeZPyDNX9D0fxHvvJGkkwsIVrcjnfRbhC3HTkGX5fjMii38vNWGe3sTUAnTpjeSiVQ9r7HPWaaVAEn1t5IisTIfs9ZvLYcIYG0kpVbu/15lry/CbINk9BAYcp86Wxj9a4sFjRw9I5Bj/KJFWgLMLDdCdWUpipBqK6ppxPFvLCHtZa9KJQI5x0eBOMF0dStYZHEQNmqCFmRQ8E+uqd8FGv1C10kL+s0623983RgYAyfJPsDSlFhSdGHHCF/LaXfgWp3q2TAQedjdmJxqgr7EkHE31qIuP18oYtQO3WAhzhUvEBgyRWlAYlx01yeT4gCIgMuO637+7m/8y5VDyeWZyiN98t10bxHOap8Kxr5mwpVbelIoP2ofjCpypCrLDRMYxXyishqBSRVoHkgnLLmVVIJU23F0UjUvpR3BEMDQKmhf6uUs93gK1fydrWQQlVfijJJfgeg9ESUB2eejyECBGUhEtbBCCTo2JcWQPM3vaJkRoddcfT2a9CcRR9jhwf7LAbLDqJX4RUY6MoRJDasKMCxkNWCWp4Cq1bkWdDvOMgf5p3JrRnf+QX7no1zVYlbtupXP+1ZEC9iHzKQ474euJS/w4XJeDQgbDwRScNAjW/bFOers4Cj7XiF7MHssp6wrC04noCIIctdCuuOExRggrehE2rTFY9o65j44=",
+        "key_id": "0f6a657aaa45394c",
+        "nonce": "000102030405060708090a0b",
+        "record_id": "ca95792b95a96a7b587d419214c70a9b",
+        "schema": "anagram.personal_store.v1",
+        "version": 1
+      },
+      "text": "A short note for the lab.",
+      "text_record": {
+        "alg": "chacha20-poly1305",
+        "ciphertext": "dT8H/GA3EMMX/NKxlNTwL0TRJ7EsQ7+wjcGsnLq5rJZ2KmLRbHMO1/WzYaaMdSJXv60WLFa501eBNxBllmAn+Nn5tLQslo9l4NgSJWh6KIXwaziq5lP4VkSwNWCP3P8mQRVTIR7VBndprvZ0qTqnK4dQvniSRV/Q1edwlQDduRVjzq4iRooNI7c6zjAeBjuYtl6tKNGfJO5y7FgcgF5t0T/VPKAmoxzV6D1ETvOewM38/igH+C0Y3sMXOtEOKNyyPQz5xiTF7Z/V09Z0DUizIeEK026WbiNAGF1ifUJ/HF5cBcH43sWMTGQd4tTh1ivAMjIHnSF/w3kDCUy2Y/K8jQZpw9Cm5JomovYZJ0bCj/yaAcL32VoIdS3TseJWrZKjrgH3K9le0Uv5CAlcQbHGRy4a5FwCAj+AWaRP9YfO1+T6wjOSnARDZYqitzkDL+dbpE9jElnRkSgWVJRySEFBSWUgLFxko4JB+HBvWoJxE47Qexjdj4+3n7zXjyDXc4TzD/MEMnlnkqX1DWYcn3H4cK457OhQG08NnkbMMzLpjHAxuI3fLwtIgpipujMeHVDW3Cg7DID0T7ibYw5DAQoKkC3OqQwCkONx+DEBoqvE3kr3LOUgsQFc3/WzE+M8QrZIr08eRZcYdJmYBJPafIvoXuGyKl8LCVLdYKA+5dZAvH80sl293Mw6lhjkCbIANWwm",
+        "key_id": "0f6a657aaa45394c",
+        "nonce": "000102030405060708090a0b",
+        "record_id": "682b39833295e4bd8160e8b3749d7839",
+        "schema": "anagram.personal_store.v1",
+        "version": 1
+      },
+      "value": {
+        "attachments": [],
+        "author": "pid:a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "author_device": "a6621504eb25d9f9e72d15120553f8322a97f688064ce73db56a5511318f4f0d",
+        "deleted": false,
+        "facts": [
+          {
+            "kind": "method",
+            "score": 900,
+            "value": "PCR"
+          }
+        ],
+        "finding": null,
+        "item_id": "17171717171717171717171717171717",
+        "kind": "note",
+        "lab_id": "lab-1a1a1a1a1a1a1a1a",
+        "origin": {
+          "media_type": "text/markdown",
+          "name": null,
+          "source_kind": "note",
+          "time": null
+        },
+        "published_at": "2026-11-16T12:00:00Z",
+        "rev": 1,
+        "roster": {
+          "head": "a1cb9e0c2dc16cb625106bac4ccb7427ffb3a16a6df6b6a24eb2daac57cdd800",
+          "seq": 5
+        },
+        "schema": "anagram.lab_item.v1",
+        "signature": "1d7efa35b0b8bff0fd1faeee710b0edd5f8f5a8c6a68a59645ce95e2b20769c4cb86519dd3f3afbc8283e7fcd45c5abe681f5c48612ac9f8b3e4be097ff70104",
+        "text_digest": "ac52f9a3ccb2d162028cd8bc781d1e095ebf24ed00e385453542c631577180fc",
+        "text_parts": 1,
+        "title": "Vector note",
+        "type": "note",
+        "updated_at": "2026-11-16T12:00:00Z"
+      }
+    },
+    "key_package": {
+      "device": "bb997d76b0cf41f4054ce63ca2deca89fcab8911eb5ae73fec3020fb6f1da4b0",
+      "epoch": 2,
+      "info_hex": "17616e616772616d2f76312f68706b652f6c61622d6b6579000000146c61622d3161316131613161316131613161316100000002bb997d76b0cf41f4054ce63ca2deca89fcab8911eb5ae73fec3020fb6f1da4b0",
+      "payload_canonical": "{\"epoch\":2,\"keys\":{\"1\":\"58cc3145ef10a676f3f4d4093cbbf9fe857caab15f38d386028d1bf8373d585f\",\"2\":\"fc4dfe5e95d525775ff444696e30d4492e1c83270cad82f3bbbea38c4343754e\"},\"lab_id\":\"lab-1a1a1a1a1a1a1a1a\",\"schema\":\"anagram.lab_key_payload.v1\"}"
+    },
+    "settings": {
+      "record": {
+        "alg": "chacha20-poly1305",
+        "ciphertext": "dT8F3mA3EMMX/NKxlNTwL0TLNqA1daWyhpeikuqur9JuMjOFLzZQiKXxdLuZMnQK/fkDJxqqiAfUWU4wg2sypY+qrr99hcJ294gfYWxpc8+zLjzwvlOvFXHzLmGOyak8VFhCKl/RBWAt+KR36Dq1LNRe4Xf3M33q5MtS52+uzXAR7JRZZOJoQtMY9BJ/N1j6jzudS+P7R99Ejzoqsmtc4Qm3XcMSwH+33wl2eZX4ov6dzx5mzkl+6KEhW+M6Tb6AWW2YpRHyjvux6+ZEL2SRUoR78VSjEw9iaz4KGC8ePmR+ZK+ZubftIUpxg7a+pU60Rltp+lJRtUghJW7FCpXS7HIcsbWE3rgTlZAqE3Sku8SuM/aV72JuERuwhdszy/PFzzfGE+E65SrPPDhoIIGgdk170DpmYQzjOJF4k+X7593C+wOn/TNxUrrDhlgzS4E5kilWIGjjpkt1N6xEenN2cQAWTmkAwLp2mUFZPLJAcbbgQim8ur2P+dnluhbjSuLEO5E8Bh9X84fZLxVz6gObFd0b1pNydy5vwSKpVVOc4AQTgq+zTmlq/7SLz0N6fCSzuHdaeKLObYqrUThuMDsnoRuamD44oNNLyAFbgIfmqzqTTZFF1V4+pteJMZNVJowpni4vJKZ5RfipZaK7TerZP9DTGz46aGO8UcEPhOchjV0JbVN/5DQgzhhJhj5l857xjLP5nBAAGfVAgyVa825OgnirfD1wkp9BqJrnKUDlDnSJlWX+Ljojjyh0OTLLiJCFB3DribOnVQtovHSBPqtEEHpvtM+zA+ONlPj+VqF8f3EZZZmT9eoOutKhFaQRJnV/z6v7px1gwKANJmg6hXXRRPA039p/aL2zL3tAiDj5g/0fXS++eh57UfC4JLkUt4F9BT8tKO57eiI9/MS0/3VZdo6dRvEkjzXRtneYiyiDvudUcGc28ZN6iQKRI3f4IUSnJZDobc8gnhmCL2YmQAJXHn7EnNcXfSuXy7O97/l9gmXUPDxG5n6lZGmnYmF+on4B8dLJskNDC4WCvYzer51X1WnFHwBFuO5Mg3835gf/37buy/DXwCWqtrAtu+TWOPqQa4GgJ6QDOxmatJBgfTljqmuoGV1kRKRT7GQh6CmPdUQhVAQ6/yTCjH8I7TeBTURdajUQYs+SHKeGGS1oazQTAZytYEE0JmIPViGubPngBQhqEUH4cCELAbhtbwjSfaFz2hoEBsKlTorISxFlNKygg2czDqP4bn1SOVGL2giHXnerI8K9rM9fiKvjp8+gZYnYjRcl6LtupXP+1ZEC9iHzKQ474euJS/w4XJeDQgbDwRScNAjW/bFOers4Cj7XiF7MHssp6wrC04noCIIctdCuuGdw2eKD/3rhojkfIbGdjuY=",
+        "key_id": "0f6a657aaa45394c",
+        "nonce": "000102030405060708090a0b",
+        "record_id": "a0c562f627fe9f59ee9aa23dce055a7f",
+        "schema": "anagram.personal_store.v1",
+        "version": 1
+      },
+      "sections": {
+        "disclosure": {
+          "allow_assistant": false,
+          "allow_external": []
+        },
+        "matching": {
+          "enabled": false
+        },
+        "models": {
+          "kind_hints": [],
+          "person_facts": true,
+          "profiles": [],
+          "use": {}
+        },
+        "oauth_clients": {},
+        "sources": {
+          "allowed_kinds": null,
+          "lab_default": "lab"
+        }
+      },
+      "value": {
+        "lab_id": "lab-1a1a1a1a1a1a1a1a",
+        "matching": {
+          "enabled": false
+        },
+        "rev": 1,
+        "roster": {
+          "head": "a1cb9e0c2dc16cb625106bac4ccb7427ffb3a16a6df6b6a24eb2daac57cdd800",
+          "seq": 5
+        },
+        "schema": "anagram.lab_settings.v1",
+        "signature": "57f342f48424b68fd6c49efafa6188d4a6414a0f1ca4fdc3ca57fb5098905a7270a1a0dfb6f52127ccc862278e6b5dc87a16f01b8091a528fe25649f74b84f0a",
+        "sources": {
+          "lab_default": "lab"
+        },
+        "updated_at": "2026-11-16T12:00:00Z",
+        "updated_by": "pid:a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "updated_device": "a6621504eb25d9f9e72d15120553f8322a97f688064ce73db56a5511318f4f0d"
+      }
+    }
+  }
+}

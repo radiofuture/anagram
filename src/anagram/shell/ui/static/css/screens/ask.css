@@ -1,0 +1,223 @@
+/* Ask (slot home.ask): the first thing on Home. One wide field on
+   an ink rule, the answer as plain text, and the sources as numbered rows.
+   A citation is a small square number; it lights its source row with the
+   lime edge of a fresh row. */
+
+.ag-ask {
+  margin: 8px 0 0;
+}
+.ag-ask-form {
+  display: grid;
+  gap: 8px;
+}
+.rf-ui .ag-ask-label {
+  font-size: clamp(1.25rem, 3vw, 1.5rem);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.ag-ask-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.rf-ui .ag-ask-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 52px;
+  font-size: 1.0625rem;
+}
+.ag-ask-go {
+  flex: 0 0 auto;
+  min-height: 52px;
+}
+.ag-ask-go[aria-disabled="true"] {
+  opacity: 0.6;
+  pointer-events: none;
+}
+.ag-ask-where {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  color: var(--ag-muted);
+}
+.ag-ask-where legend {
+  float: left;
+  margin: 0 4px 0 0;
+  padding: 0;
+  line-height: 44px;
+}
+.rf-ui .ag-place {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--ag-muted);
+}
+.ag-place input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
+.ag-place span {
+  padding: 4px 0;
+}
+.rf-ui .ag-place[data-on="true"] {
+  color: var(--ag-text);
+}
+.ag-place[data-on="true"] span {
+  box-shadow: inset 0 -4px 0 var(--ag-selected);
+}
+.ag-place:has(input:focus-visible) span {
+  outline: 2px solid var(--ag-action);
+  outline-offset: 3px;
+}
+@media (hover: hover) {
+  .rf-ui .ag-place:hover {
+    color: var(--ag-text);
+  }
+}
+.rf-ui .ag-ask-setup {
+  margin: 0;
+}
+.ag-ask-try {
+  margin: 16px 0 0;
+}
+.ag-ask-try .rf-ui-help {
+  margin: 0 0 8px;
+}
+.ag-ask-try .ag-link {
+  text-align: left;
+}
+
+.ag-ask-result {
+  margin: 24px 0 0;
+}
+.ag-ask-result > .ag-status {
+  margin: 0 0 12px;
+}
+.rf-ui .ag-answer {
+  margin: 0 0 16px;
+  max-width: 42rem;
+  font-size: 1.125rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.rf-ui .ag-cite {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.5em;
+  height: 1.5em;
+  margin: 0 2px;
+  padding: 0 4px;
+  vertical-align: 0.15em;
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ag-text);
+  background: var(--ag-surface);
+  border: 1px solid var(--ag-text);
+  border-radius: 0;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .rf-ui .ag-cite:hover {
+    background: var(--ag-selected);
+    color: #111;
+  }
+}
+.rf-ui .ag-ask-head {
+  margin: 24px 0 8px;
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--ag-muted);
+}
+
+.ag-source[data-lit="true"] {
+  box-shadow: inset 4px 0 0 var(--ag-selected);
+}
+.rf-ui .ag-source-main {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: 0 8px;
+  min-height: 60px;
+  padding: 12px 12px 12px 16px;
+  color: var(--ag-text);
+  text-decoration: none;
+  outline-offset: -3px;
+}
+.ag-source-n {
+  font-variant-numeric: tabular-nums;
+  color: var(--ag-muted);
+  line-height: 1.6;
+}
+.ag-source-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.ag-source-fact + .ag-source-fact::before {
+  content: ", ";
+}
+@media (hover: hover) {
+  .rf-ui .ag-source-main:hover .ag-row-title {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+}
+
+@media (max-width: 520px) {
+  .ag-ask-where legend {
+    float: none;
+    width: 100%;
+    line-height: 1.5;
+    margin: 4px 0 0;
+  }
+  .ag-ask-row {
+    flex-direction: column;
+  }
+  .ag-ask-go {
+    width: 100%;
+  }
+  .rf-ui .ag-source-main {
+    padding-left: 8px;
+    grid-template-columns: 1.5rem minmax(0, 1fr);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ag-source[data-lit="true"] {
+    transition: box-shadow var(--rf-ui-change-time) var(--rf-ui-ease);
+  }
+}
+
+/* The Ask screen (screens/ask.js): the same field under the title; the
+   earlier questions are rows that ask again. */
+.ag-ask--screen {
+  margin: 0;
+}
+.rf-ui button.ag-ask-again {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  font: inherit;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .rf-ui button.ag-ask-again:hover {
+    background: var(--ag-surface);
+  }
+  .rf-ui button.ag-ask-again:hover .ag-row-title {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "title": "Item",
+  "back": "Library",
+  "gone": "This item is not in your library now. Its source can have changed.",
+  "kind": "Kind",
+  "source": "Source",
+  "date": "Date",
+  "people": "People",
+  "names": "Names",
+  "versions": "Versions",
+  "claims": "What it says",
+  "links": "Linked items",
+  "relation_related": "Shares names with this item",
+  "relation_supports": "This item supports it",
+  "relation_supported_by": "Supports this item",
+  "relation_builds_on": "This item builds on it",
+  "relation_built_on_by": "Builds on this item",
+  "kind_saved": "Kind changed to {kind}."
+}

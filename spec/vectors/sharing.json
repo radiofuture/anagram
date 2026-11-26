@@ -1,0 +1,94 @@
+{
+  "description": "Sharing formats: read receipt (commitment, receipt ID, log entry), host fetch events, reading copy key, blob ID, and blob. Fixed seeds.",
+  "fetch_events": {
+    "assertion_key": "0bcb48d00c97d2b8093c296b51391fe1ae2255c5273269ba78f88dd9a50b2457",
+    "events": [
+      {
+        "at": "2026-11-16T12:00:00Z",
+        "blob_id": null,
+        "grant_id": "5f8a7321eb19f664136556cf698ebf0b",
+        "node_key": "3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c",
+        "reader": "pid:7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a",
+        "receipt_id": "0b45f722683d189c35f04f36100d918b",
+        "schema": "anagram.fetch_event.v1",
+        "seq": 1,
+        "signature": "72419841eb228fecfa2be52321369f3fdb35128d77ca28e00bc33b9c7cb93f5e659eea240e03ee119570a7a6210d0b27c0869eb141700f0c434223ec2be0910a"
+      },
+      {
+        "at": "2026-11-16T12:00:00Z",
+        "blob_id": "ccca16e99eeab03436530321293f3859",
+        "grant_id": "5f8a7321eb19f664136556cf698ebf0b",
+        "node_key": "3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c",
+        "reader": "pid:7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a",
+        "receipt_id": "0b45f722683d189c35f04f36100d918b",
+        "schema": "anagram.fetch_event.v1",
+        "seq": 2,
+        "signature": "80719d2e643d53f27ecd4e7d9a6e5a6e888229c7b7fc81b7aaef366a281beb300e289bf00e620c2b6bbd452bf6db375dba9281b69b47cc65c5590acdd3da8704"
+      }
+    ],
+    "node_key": "3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c"
+  },
+  "read_receipt": {
+    "commitment": "0b45f722683d189c35f04f36100d918be32dfd06b51ca2dc45aae5a4a9c5cbce",
+    "log_entry": {
+      "commitment": "0b45f722683d189c35f04f36100d918be32dfd06b51ca2dc45aae5a4a9c5cbce",
+      "kind": "read_receipt",
+      "schema": "anagram.log_entry.v1"
+    },
+    "log_entry_canonical": "{\"commitment\":\"0b45f722683d189c35f04f36100d918be32dfd06b51ca2dc45aae5a4a9c5cbce\",\"kind\":\"read_receipt\",\"schema\":\"anagram.log_entry.v1\"}",
+    "reader_seed": "dee98da28c5fca0367ba76c4649648789375ef5b6aa1fa39ce2818e57a30ea6f",
+    "receipt": {
+      "grant_id": "5f8a7321eb19f664136556cf698ebf0b",
+      "read_at": "2026-11-16T12:00:00Z",
+      "reader": "pid:7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a",
+      "reader_key": "3bc827c2782b30fd919e5a51adc0fa4b2e582b9302842dbf9dcf000630474706",
+      "salt": "9c504a4b1158338dd75bf93a9b69ee62b047129184af59e37f788816dd3005d5",
+      "schema": "anagram.read_receipt.v1",
+      "signature": "6cd7968d9cac6dc80bffa7324856363fd0881db4f6a9c8a6f29a9710ee3298b62a23ed4f374e579e9023c54d12548b275fd9cf6c62a02ea338e6277385d95c0b"
+    },
+    "receipt_id": "0b45f722683d189c35f04f36100d918b"
+  },
+  "reading_copy": {
+    "blob_id": "d13e17266c25d20c4398091fa16bd6ae",
+    "chunk_size": 1048576,
+    "ciphertext_hex": "7f10266437521c384bd497d1eff5c6fb02dce8eb9785d7f84c7ae7cde22c537894b03bb67231d730f6b547545d092046f79a8d1e977fb45336aaf2efcec7a269bd60612f077dfea63e739547824ea6d2142edcf5038adeda60a2414b9325d60f1a7dfe9f98f81c6d8d97083a6128fce84b076cec1fa3acbd2da011f2b799f95c4dffd0e6014b525076ffb7a630e3ce43906a4a773a5584e77823fbbd4bda6ab6f9bf087cae609da1797bf3983435c629a4f729b42ea2d9bb10373c58bdbc76388fcd15e4d5fafcebc291526df0164a53040d20786245d0ffd8e7bd05daf5229abb0b62bc9c3a1ddec1292e1b8eb8db86f02531b5d24935e5c3cc4c6f6498a3451896b74423d611af1d93db1375c56598b3c2985ee9a1da7268cfba8d4122939fefa4a8f4dff38edff47f101ba3fa833f7d8b832e381ae0b79a795101e8f63d07ec8a4442e804e0fd66ae29a3b1491809602efcfd275a933e4b9e99b1ab7c10c870fd6d33d0798a827fb6e93da8505c0f01d6c6807d9ceafaef0a0864f65591b1ee7b8cc14f8a84a472552342a6ad12562c1e15915c005aeb17d9b3b92297cd59dd352744761289",
+    "content_key": "a828d9082606d3afd64c0606d0ce7bad34d171a7b6be864dc6e993fc09ba7b48",
+    "document": {
+      "items": [
+        {
+          "blocks": [
+            {
+              "anchor": "heading-1",
+              "kind": "heading",
+              "level": 1,
+              "parent": null,
+              "text": "Result"
+            },
+            {
+              "anchor": "para-1",
+              "kind": "para",
+              "level": 0,
+              "parent": null,
+              "text": "Cells grow faster at 30 C."
+            }
+          ],
+          "figures": [],
+          "media_type": "text/markdown",
+          "name": "result.md",
+          "size": 36,
+          "slot": 0,
+          "table": null,
+          "truncated": false,
+          "view": "text"
+        }
+      ],
+      "made_by": "anagram.readcopy.v1",
+      "schema": "anagram.reading_copy.v1",
+      "title": "Result"
+    },
+    "evidence_root": "05d37491d4e9aee6885d07c5f96de1c4976149d3458ba8c8255f6f0831cb0135",
+    "finding_root": "903d3aa69bb70d8e8ce00cd8a10f3e82713230f592f20f1b997b26e0bf6509e4",
+    "reading_key": "00d563bb0335730767553b092cd034e5ff412ad0a9b137291071eec6c13c6444",
+    "slot": 0
+  }
+}

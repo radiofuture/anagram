@@ -1,0 +1,216 @@
+/* Sources: the list, and the kinds that a member can connect. */
+.ag-row-fact {
+  padding-right: 16px;
+  color: var(--ag-muted);
+  white-space: nowrap;
+}
+.ag-plain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.ag-plain small {
+  display: block;
+}
+.ag-sources-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 16px;
+  margin: 8px 0 24px;
+}
+.ag-sources-foot .rf-ui-help {
+  margin: 0;
+}
+.ag-sources-foot .ag-action {
+  margin-left: auto;
+}
+
+/* The kinds: square tiles on the rule grid. The chosen tile has the lime
+   edge (selection); a kind that is not set up for this lab is quiet. */
+.ag-kinds {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  border-top: 1px solid var(--ag-rule);
+  border-left: 1px solid var(--ag-rule);
+}
+.ag-kinds li {
+  display: flex;
+  min-width: 0;
+}
+.rf-ui .ag-kind {
+  flex: 1 1 auto;
+  min-height: 96px;
+  margin: 0;
+  padding: 16px 20px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  font: inherit;
+  color: var(--ag-text);
+  background: var(--ag-surface);
+  border: 0;
+  border-right: 1px solid var(--ag-rule);
+  border-bottom: 1px solid var(--ag-rule);
+  border-radius: 0;
+  cursor: pointer;
+  transition:
+    box-shadow var(--rf-ui-change-time) var(--rf-ui-ease),
+    background var(--rf-ui-change-time) var(--rf-ui-ease);
+}
+.ag-kind-name {
+  font-size: 1.125rem;
+  letter-spacing: -0.01em;
+}
+.ag-kind-about {
+  color: var(--ag-muted);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+.rf-ui .ag-kind:hover {
+  background: var(--ag-field);
+}
+.rf-ui .ag-kind[aria-pressed="true"] {
+  box-shadow: inset 4px 0 0 var(--ag-selected);
+  background: var(--ag-field);
+}
+.rf-ui .ag-kind[aria-disabled="true"] {
+  cursor: default;
+  background: transparent;
+}
+.rf-ui .ag-kind[aria-disabled="true"] .ag-kind-name,
+.rf-ui .ag-kind[data-ready="false"] .ag-kind-name {
+  color: var(--ag-muted);
+}
+.rf-ui .ag-kind:focus-visible {
+  outline: 2px solid var(--ag-focus, var(--ag-action));
+  outline-offset: -2px;
+}
+
+.ag-setup {
+  margin: 0;
+  padding: 24px 0 8px;
+  border-bottom: 1px solid var(--ag-rule);
+}
+.ag-setup-title {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+.ag-setup .ag-picker {
+  margin-top: 0;
+}
+.ag-fault {
+  margin: 4px 0 0;
+}
+.ag-source-fault {
+  margin: 16px 0;
+}
+.ag-source-fault .rf-ui-error,
+.ag-source-fault .rf-ui-status {
+  margin: 0 0 8px;
+}
+.ag-source-detail-actions {
+  margin-top: 16px;
+}
+.ag-setup .ag-choices {
+  margin-bottom: 24px;
+}
+.ag-steps {
+  margin: 8px 0 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 4px;
+}
+.ag-client {
+  margin-top: 16px;
+  max-width: 36rem;
+}
+.ag-lab-sources {
+  max-width: 40rem;
+}
+.ag-lab-sources section + section {
+  margin-top: 24px;
+}
+.ag-lab-sources .ag-checks {
+  margin-bottom: 24px;
+}
+
+/* The Drive tree: one open control and one checkbox for each folder. */
+.ag-drive {
+  max-width: 40rem;
+}
+.ag-tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ag-tree .ag-tree {
+  padding-left: 28px;
+}
+.ag-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+}
+.ag-tree-row .ag-check {
+  flex: 1 1 auto;
+  margin: 0;
+}
+.rf-ui .ag-tree-open {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  color: var(--ag-text);
+  cursor: pointer;
+}
+.rf-ui .ag-tree-open[aria-expanded="true"] .ag-disclosure-sign::after {
+  transform: rotate(0deg);
+}
+.rf-ui .ag-tree-open:focus-visible {
+  outline: 2px solid var(--ag-focus, var(--ag-action));
+  outline-offset: 1px;
+}
+.ag-tree-wait {
+  margin: 0 0 8px 28px;
+}
+.ag-estimate {
+  min-height: 1.4em;
+}
+.ag-pages-head {
+  margin: 0 0 8px;
+}
+.ag-pages {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 520px) {
+  .ag-row-fact {
+    padding: 0;
+  }
+  .ag-kinds {
+    grid-template-columns: 1fr 1fr;
+  }
+  .rf-ui .ag-kind {
+    min-height: 88px;
+    padding: 14px;
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "nav": "Library",
+  "title": "Library",
+  "kinds": "Kinds",
+  "kind_findings": "Findings",
+  "kind_empty": "Nothing of this kind yet.",
+  "connect": "Connect a source",
+  "untitled": "Item with no title",
+  "empty": "Your library is empty.",
+  "new_title": "New",
+  "proposals_title": "Proposed findings",
+  "stamped_title": "Findings with a proof",
+  "stamped_empty": "Open a proposed finding to make its proof.",
+  "stamped_none": "No finding has a proof yet.",
+  "drafts_empty": "No proposed findings now. {link} and Anagram proposes findings from it.",
+  "drafts_empty_link": "Add a source",
+  "items": {
+    "one": "{n} item",
+    "other": "{n} items"
+  },
+  "findings_n": {
+    "one": "{n} finding",
+    "other": "{n} findings"
+  },
+  "third_party": "has other people's words",
+  "proven": "Proven to exist by {date}",
+  "waiting": "Waiting for the public log",
+  "version": "Version {n}",
+  "shared_with": "shared with {who}",
+  "not_shared": "not shared",
+  "no_claim": "Finding with no claim",
+  "negative": "Negative",
+  "proposals_n": {
+    "one": "{n} proposed finding",
+    "other": "{n} proposed findings"
+  }
+}

@@ -1,0 +1,878 @@
+/* The reading view of a shared finding (track R5, step 7b). Class prefix rd-.
+   Load the brand tokens first (tokens.css, product-ui/tokens.css). In the
+   member app, ui/static/css/base.css gives the --ag- roles and their dark
+   pairs; each role here has a brand fallback for a page with no base.css.
+
+   Look: the lavender field, paper for text, white for original pages and
+   figures (they are the owner's files), square corners, fine rules. One
+   strong detail: the lime edge on the current file. Prose is in the brand
+   serif at reading width; the frame is in the brand sans. */
+
+.rd {
+  --rd-field: var(--ag-field, var(--rf-lavender, #e9e7f1));
+  --rd-surface: var(--ag-surface, var(--rf-paper, #f5f3ee));
+  --rd-stock: var(--ag-stock, var(--rf-stock, #e5e0d6));
+  --rd-text: var(--ag-text, var(--rf-ink, #24202c));
+  --rd-muted: var(--ag-muted, var(--rf-muted, #625c69));
+  --rd-rule: var(--ag-rule, var(--rf-rule, rgba(36, 32, 44, 0.18)));
+  --rd-action: var(--ag-action, var(--rf-blue, #293fa8));
+  --rd-on-action: var(--ag-on-action, var(--rf-paper, #f5f3ee));
+  --rd-selected: var(--ag-selected, var(--rf-lime, #def34c));
+  --rd-offset: var(--ag-offset, var(--rf-blue, #293fa8));
+  --rd-sheet: #fff;
+  --rd-sans: var(--rf-sans, "Radiofuture Sans", Arial, sans-serif);
+  --rd-serif: var(--rf-serif, Georgia, "Times New Roman", serif);
+  --rd-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --rd-time: var(--rf-ui-change-time, 160ms);
+  --rd-ease: var(--rf-ui-ease, cubic-bezier(0.2, 0.8, 0.2, 1));
+  --rd-read: 44rem;
+  color: var(--rd-text);
+  font-family: var(--rd-sans);
+  -webkit-font-smoothing: antialiased;
+}
+.rd *,
+.rd *::before,
+.rd *::after {
+  box-sizing: border-box;
+}
+.rd :focus-visible {
+  outline: 2px solid var(--rd-action);
+  outline-offset: 2px;
+}
+.rd-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ the page */
+
+.rd-body {
+  background: var(--ag-field, var(--rf-lavender));
+}
+.rd-bar {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 0 clamp(16px, 4vw, 56px);
+  border-bottom: 1px solid var(--ag-rule, var(--rf-rule));
+}
+.rf-ui .rd-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  color: var(--ag-text, var(--rf-ink));
+  text-decoration: none;
+  font-size: 0.9375rem;
+}
+.rf-ui .rd-back:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.rf-ui main.rd-main {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: clamp(28px, 5vw, 56px) clamp(16px, 4vw, 56px) 120px;
+}
+.rd-page-note {
+  max-width: var(--rd-read);
+}
+
+/* ----------------------------------------------------------- the head */
+
+.rd-label {
+  margin: 0 0 12px;
+  color: var(--rd-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  font-weight: 400;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.rd-head {
+  max-width: 58rem;
+}
+.rd-title {
+  margin: 0;
+  font-weight: 400;
+  font-size: clamp(2rem, 3.6vw, 3.25rem);
+  line-height: 1.04;
+  letter-spacing: -0.05em;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.rd-lede {
+  margin: 20px 0 0;
+  max-width: var(--rd-read);
+  white-space: pre-line;
+  font-family: var(--rd-serif);
+  font-size: 1.1875rem;
+  line-height: 1.6;
+  color: var(--rd-text);
+}
+
+/* --------------------------------------------------------- the layout */
+
+.rd-layout {
+  display: grid;
+  gap: 40px clamp(32px, 3.5vw, 56px);
+  align-items: start;
+  margin-top: clamp(32px, 4vw, 48px);
+  grid-template-columns: 13.5rem minmax(0, 1fr) 15rem;
+  grid-template-areas: "toc item facts";
+}
+.rd-layout--one {
+  grid-template-columns: minmax(0, 1fr) 15rem;
+  grid-template-areas: "item facts";
+}
+.rd-toc {
+  grid-area: toc;
+  position: sticky;
+  top: 24px;
+}
+.rd-item {
+  grid-area: item;
+  min-width: 0;
+}
+.rd-facts {
+  grid-area: facts;
+  position: sticky;
+  top: 24px;
+}
+
+@media (max-width: 1180px) {
+  .rd-layout {
+    grid-template-columns: 13rem minmax(0, 1fr);
+    grid-template-areas: "toc item" "facts item";
+  }
+  .rd-layout--one {
+    grid-template-columns: minmax(0, 1fr) 14rem;
+    grid-template-areas: "item facts";
+  }
+  .rd-facts {
+    position: static;
+  }
+}
+
+/* ------------------------------------------------------- the contents */
+
+.rd-toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.rd-toc-item {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px 10px 16px;
+  border: 0;
+  border-left: 4px solid transparent;
+  background: transparent;
+  color: var(--rd-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--rd-time) var(--rd-ease),
+    border-color var(--rd-time) var(--rd-ease);
+}
+.rd-toc-item:hover {
+  background: color-mix(in srgb, var(--rd-surface) 60%, transparent);
+}
+.rd-toc-item[aria-current="true"] {
+  background: var(--rd-surface);
+  border-left-color: var(--rd-selected);
+}
+.rd-toc-name {
+  font-size: 0.9375rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.rd-toc-kind {
+  font-size: 0.8125rem;
+  color: var(--rd-muted);
+}
+
+/* ---------------------------------------------------------- the facts */
+
+.rd-facts dl {
+  margin: 0;
+  display: grid;
+  gap: 14px;
+}
+.rd-fact dt {
+  font-size: 0.8125rem;
+  color: var(--rd-muted);
+}
+.rd-fact dd {
+  margin: 2px 0 0;
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+.rd-proof {
+  margin: 20px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--rd-rule);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.rd-details {
+  margin-top: 16px;
+  font-size: 0.875rem;
+}
+.rd-details summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--rd-action);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.rd-details p {
+  margin: 4px 0;
+  color: var(--rd-muted);
+}
+.rd-root {
+  display: block;
+  font-family: var(--rd-mono);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+/* ----------------------------------------------------------- the item */
+
+.rd-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 24px;
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--rd-rule);
+}
+.rd-item-title {
+  margin: 0;
+  font-weight: 400;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+.rd-item-title:focus,
+.rd-item-title:focus-visible {
+  outline: none;
+}
+.rd-meta {
+  margin: 6px 0 0;
+  color: var(--rd-muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+.rd-action,
+.rd-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  color: var(--rd-action);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.rd-action:hover,
+.rd-link:hover {
+  text-decoration-thickness: 2px;
+}
+.rd-note {
+  margin: 16px 0;
+  color: var(--rd-muted);
+  font-size: 0.9375rem;
+  max-width: var(--rd-read);
+}
+.rd-wait {
+  margin: 24px 0;
+  color: var(--rd-muted);
+}
+.rd-onward {
+  margin: 48px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--rd-rule);
+}
+
+@keyframes rd-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rd-enter {
+  animation: rd-enter var(--rd-time) var(--rd-ease) 1;
+}
+
+/* ---------------------------------------------------------- the prose */
+
+.rd-prose {
+  max-width: var(--rd-read);
+  padding: clamp(24px, 5vw, 56px) clamp(20px, 5vw, 64px);
+  background: var(--rd-surface);
+  font-family: var(--rd-serif);
+  font-size: 1.1875rem;
+  line-height: 1.7;
+  letter-spacing: -0.004em;
+  overflow-wrap: break-word;
+}
+.rd-prose > :first-child {
+  margin-top: 0;
+}
+.rd-prose > :last-child {
+  margin-bottom: 0;
+}
+.rd-p {
+  margin: 0 0 1em;
+}
+.rd-h {
+  font-family: var(--rd-sans);
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+.rd-h3 {
+  font-size: 1.625rem;
+  line-height: 1.15;
+  margin: 1.6em 0 0.6em;
+}
+.rd-h4 {
+  font-size: 1.25rem;
+  line-height: 1.25;
+  margin: 1.5em 0 0.5em;
+}
+.rd-h5 {
+  font-size: 1.0625rem;
+  line-height: 1.3;
+  margin: 1.4em 0 0.4em;
+  letter-spacing: -0.01em;
+}
+.rd-prose .rd-h3:first-child,
+.rd-prose .rd-h4:first-child {
+  margin-top: 0;
+}
+.rd-list {
+  margin: 0 0 1em;
+  padding-left: 1.4em;
+}
+.rd-list li {
+  margin: 0.25em 0;
+  padding-left: 0.2em;
+}
+.rd-list li::marker {
+  color: var(--rd-muted);
+}
+.rd-quote {
+  margin: 0 0 1em;
+  padding-left: 20px;
+  border-left: 2px solid var(--rd-muted);
+  color: var(--rd-muted);
+}
+.rd-prose a {
+  color: var(--rd-action);
+  text-underline-offset: 3px;
+}
+.rd-alt {
+  color: var(--rd-muted);
+  font-style: italic;
+}
+.rd code {
+  font-family: var(--rd-mono);
+  font-size: 0.84em;
+}
+.rd-pagemark {
+  margin: 2em 0 1em;
+  padding-top: 8px;
+  border-top: 1px solid var(--rd-rule);
+  font-family: var(--rd-sans);
+  font-size: 0.75rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--rd-muted);
+}
+.rd-prose > .rd-pagemark:first-child {
+  margin-top: 0;
+}
+
+/* Code: a block in the prose, a source file with line numbers. */
+.rd-code {
+  margin: 0 0 1.2em;
+  padding: 16px 20px;
+  overflow: auto;
+  max-height: 70vh;
+  background: var(--rd-stock);
+  color: var(--rd-text);
+  font-family: var(--rd-mono);
+  font-size: 0.84rem;
+  line-height: 1.6;
+  tab-size: 4;
+}
+.rd-code code {
+  font-size: inherit;
+}
+.rd-code--lines {
+  padding: 16px 0;
+}
+.rd-code--lines code {
+  display: grid;
+}
+/* Inline code in the prose (not in a code block). */
+.rd-prose :not(pre) > code {
+  padding: 0.1em 0.3em;
+  background: var(--rd-stock);
+}
+.rd-line {
+  display: block;
+  padding-right: 20px;
+  white-space: pre;
+}
+.rd-ln {
+  display: inline-block;
+  width: 4.5ch;
+  margin-right: 2ch;
+  padding-right: 1ch;
+  text-align: right;
+  color: var(--rd-muted);
+  user-select: none;
+  border-right: 1px solid var(--rd-rule);
+}
+.rd-source {
+  max-width: 60rem;
+}
+.rd-source .rd-code {
+  max-height: none;
+  background: var(--rd-surface);
+}
+
+/* Notebook: code cells have the blue edge; outputs follow their cell. */
+.rd-prose--notebook .rd-code {
+  border-left: 3px solid var(--rd-action);
+}
+.rd-output {
+  margin: -0.4em 0 1.4em;
+}
+.rd-output-label {
+  margin: 0 0 8px;
+  font-family: var(--rd-sans);
+  font-size: 0.75rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--rd-muted);
+}
+
+/* ----------------------------------------------------------- the grids */
+
+.rd-grid {
+  max-width: 100%;
+  max-height: 70vh;
+  overflow: auto;
+  margin: 0 0 1.2em;
+  border: 1px solid var(--rd-rule);
+  background: var(--rd-surface);
+  font-family: var(--rd-sans);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+.rd-tableview .rd-grid {
+  max-height: calc(100vh - 220px);
+  min-height: 12rem;
+}
+.rd-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+.rd-table th,
+.rd-table td {
+  padding: 9px 14px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--rd-rule);
+  max-width: 36ch;
+  overflow-wrap: anywhere;
+}
+.rd-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--rd-stock);
+  font-weight: 400;
+  white-space: nowrap;
+  color: var(--rd-text);
+}
+.rd-table tbody tr:hover td,
+.rd-table tbody tr:hover th {
+  background: color-mix(in srgb, var(--rd-selected) 22%, var(--rd-surface));
+}
+.rd-table .rd-num {
+  text-align: right;
+  white-space: nowrap;
+}
+.rd-table .rd-rownum {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  width: 1%;
+  padding-right: 12px;
+  white-space: nowrap;
+  background: var(--rd-surface);
+  color: var(--rd-muted);
+  font-weight: 400;
+  text-align: right;
+  border-right: 1px solid var(--rd-rule);
+}
+.rd-table thead .rd-rownum {
+  z-index: 3;
+  background: var(--rd-stock);
+}
+.rd-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+/* ------------------------------------------------------------ the PDF */
+
+.rd-pages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 28px;
+  justify-items: center;
+}
+.rd-page-wrap {
+  width: 100%;
+  max-width: 60rem;
+}
+.rd-page {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: var(--rd-sheet);
+  outline: 1px solid var(--rd-rule);
+  --user-unit: 1;
+  --total-scale-factor: calc(var(--scale-factor, 1) * var(--user-unit));
+}
+.rd-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.rd-page-num {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--rd-muted);
+  font-variant-numeric: tabular-nums;
+}
+.rd-stage {
+  position: relative;
+}
+.rd-offstage {
+  position: absolute;
+  left: -100000px;
+  top: 0;
+  visibility: hidden;
+}
+.rd-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0 24px;
+  margin-top: 16px;
+}
+.rd-count {
+  margin: 0;
+  min-width: 9rem;
+  text-align: center;
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+}
+/* The slide steps are .rd-link buttons; at the first or the last slide the
+   step is muted text with no underline. */
+.rd-step:disabled {
+  color: var(--rd-muted);
+  text-decoration: none;
+  cursor: default;
+}
+
+/* The text layer of pdf.js: transparent text over the canvas, for selection
+   and search (rules from pdfjs-dist web/pdf_viewer.css, Apache-2.0). */
+.rd .textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  opacity: 1;
+  line-height: 1;
+  text-align: initial;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  z-index: 0;
+  color-scheme: only light;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+.rd .textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+.rd .textLayer > :not(.markedContent),
+.rd .textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+.rd .textLayer .markedContent {
+  display: contents;
+}
+.rd .textLayer ::selection {
+  background: color-mix(in srgb, var(--rf-blue, #293fa8) 30%, transparent);
+  color: transparent;
+}
+.rd .textLayer br::selection {
+  background: transparent;
+}
+.rd .textLayer .endOfContent {
+  display: block;
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: 0;
+  cursor: default;
+  user-select: none;
+}
+.rd .textLayer.selecting .endOfContent {
+  top: 0;
+}
+
+/* --------------------------------------------------------- the slides */
+
+.rd-slides {
+  display: grid;
+  gap: 32px;
+  max-width: 60rem;
+}
+.rd-slide {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  aspect-ratio: 16 / 9;
+  padding: clamp(20px, 5%, 56px) clamp(24px, 7%, 72px);
+  background: var(--rd-surface);
+  outline: 1px solid var(--rd-rule);
+  scroll-margin-top: 24px;
+}
+.rd-slide-num {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--rd-muted);
+  font-variant-numeric: tabular-nums;
+}
+.rd-slide-title {
+  margin: 0 0 0.6em;
+  font-weight: 400;
+  font-size: clamp(1.375rem, 2.8vw, 2.25rem);
+  line-height: 1.1;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+.rd-slide-body {
+  font-size: clamp(0.9375rem, 1.5vw, 1.1875rem);
+  line-height: 1.5;
+}
+.rd-slide-body .rd-p {
+  margin: 0 0 0.6em;
+}
+.rd-slide-body > :last-child {
+  margin-bottom: 0;
+}
+.rd-slide-body .rd-list {
+  padding-left: 1.2em;
+}
+.rd-slide-body .rd-grid {
+  font-size: 0.8125rem;
+}
+
+/* -------------------------------------------------------- the figures */
+
+.rd-figure {
+  margin: 0 0 1.2em;
+}
+.rd-mat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--rd-sheet);
+  outline: 1px solid var(--rd-rule);
+}
+.rd-mat img {
+  display: block;
+  max-width: 100%;
+  max-height: 70vh;
+  height: auto;
+  object-fit: contain;
+}
+.rd-figure figcaption {
+  margin-top: 8px;
+  font-family: var(--rd-sans);
+  font-size: 0.8125rem;
+  color: var(--rd-muted);
+  font-variant-numeric: tabular-nums;
+}
+.rd-figure--main {
+  max-width: 64rem;
+}
+.rd-figure--main .rd-mat {
+  padding: clamp(16px, 4vw, 40px);
+  min-height: 12rem;
+}
+.rd-figure--main img {
+  min-width: min(100%, 12rem);
+  image-rendering: auto;
+}
+.rd-gallery {
+  margin-top: 40px;
+  max-width: var(--rd-read);
+}
+.rd-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: 24px;
+}
+.rd-gallery .rd-h3 {
+  margin-top: 0;
+}
+
+/* ----------------------------------------------------------- the file */
+
+.rd-filecard {
+  max-width: 34rem;
+  padding: 32px;
+  background: var(--rd-surface);
+  box-shadow: 12px 12px 0 var(--rd-offset);
+  margin: 0 12px 12px 0;
+}
+.rd-filecard-text {
+  margin: 0 0 24px;
+}
+.rd-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 20px;
+  background: var(--rd-action);
+  color: var(--rd-on-action);
+  text-decoration: none;
+  font-size: 1rem;
+}
+.rd-button:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* ----------------------------------------------------------- the phone */
+
+@media (max-width: 860px) {
+  .rd-layout,
+  .rd-layout--one {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "toc" "item" "facts";
+    gap: 28px;
+  }
+  .rd-toc {
+    position: static;
+    margin: 0 -16px;
+  }
+  .rd-toc .rd-label {
+    margin-left: 16px;
+  }
+  .rd-toc ol {
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    padding: 0 16px;
+    scroll-snap-type: x proximity;
+    border-bottom: 1px solid var(--rd-rule);
+  }
+  .rd-toc li {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+  .rd-toc-item {
+    max-width: 14rem;
+    border-left: 0;
+    border-bottom: 4px solid transparent;
+    padding: 8px 14px;
+  }
+  .rd-toc-item[aria-current="true"] {
+    border-bottom-color: var(--rd-selected);
+  }
+  .rd-facts {
+    padding-top: 24px;
+    border-top: 1px solid var(--rd-rule);
+  }
+  .rd-prose {
+    margin: 0 -16px;
+    padding: 24px 16px;
+    font-size: 1.0625rem;
+  }
+  .rd-slides {
+    gap: 20px;
+  }
+  .rd-slide {
+    aspect-ratio: auto;
+    min-height: 12rem;
+    padding: 32px 20px 24px;
+  }
+  .rd-filecard {
+    padding: 24px;
+    box-shadow: 8px 8px 0 var(--rd-offset);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rd-enter {
+    animation: none;
+  }
+  .rd-toc-item {
+    transition: none;
+  }
+}

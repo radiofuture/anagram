@@ -1,0 +1,22 @@
+/* Account and safety. */
+.ag-alert {
+  padding: 16px 20px;
+  border: 2px solid var(--ag-error);
+  margin-bottom: 24px;
+}
+.ag-alert .ag-section {
+  margin: 0;
+}
+.ag-kit {
+  margin: 16px 0;
+  padding: 20px;
+  background: var(--ag-surface);
+  border: 1px solid var(--ag-rule);
+}
+.ag-kit .ag-kit-code {
+  margin: 4px 0 16px;
+  font-size: 1.375rem;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}

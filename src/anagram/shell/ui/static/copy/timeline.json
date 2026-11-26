@@ -1,0 +1,52 @@
+{
+  "nav": "Timeline",
+  "title": "Timeline",
+  "week_of": "Week of {date}",
+  "writing": "Anagram writes a summary of this week.",
+  "cite": "Open {title}",
+  "untitled": "Item with no title",
+  "stamped": "Finding with a proof",
+  "also": "Also {list}.",
+  "count_note": {
+    "one": "1 note",
+    "other": "{n} notes"
+  },
+  "count_draft": {
+    "one": "1 draft",
+    "other": "{n} drafts"
+  },
+  "count_plan": {
+    "one": "1 plan",
+    "other": "{n} plans"
+  },
+  "count_data": {
+    "one": "1 data file",
+    "other": "{n} data files"
+  },
+  "count_code": {
+    "one": "1 code file",
+    "other": "{n} code files"
+  },
+  "count_correspondence": {
+    "one": "1 message",
+    "other": "{n} messages"
+  },
+  "count_reference": {
+    "one": "1 reference",
+    "other": "{n} references"
+  },
+  "count_admin": {
+    "one": "1 admin item",
+    "other": "{n} admin items"
+  },
+  "count_unknown": {
+    "one": "1 unsorted item",
+    "other": "{n} unsorted items"
+  },
+  "empty": {
+    "one": "Nothing new in the last week.",
+    "other": "Nothing new in the last {n} weeks."
+  },
+  "earlier": "Show earlier weeks",
+  "quiet": "Week of {date}: {list}."
+}

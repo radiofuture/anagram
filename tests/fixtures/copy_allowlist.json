@@ -1,0 +1,12 @@
+{
+  "banned": [],
+  "literal": [],
+  "not_keys": [
+    "account.sections",
+    "draft.changed",
+    "finding.actions",
+    "finding.changed",
+    "finding.sections"
+  ],
+  "unused": []
+}

@@ -1,0 +1,166 @@
+{
+  "description": "Trust policy anagram.trust_policy.v1: a signed document, item tiers (the narrower wins; third-party items are private) and reach (deny wins).",
+  "document": {
+    "allow": {
+      "communities": [
+        "other.anagram.example"
+      ],
+      "labs": [
+        "lab-a1a1a1a1a1a1a1a1"
+      ],
+      "orgs": [],
+      "people": []
+    },
+    "defaults": {
+      "own": "discoverable"
+    },
+    "deny": {
+      "communities": [],
+      "labs": [
+        "lab-d1d1d1d1d1d1d1d1"
+      ],
+      "orgs": [
+        "domain:rival.example",
+        "ror:fake-rival"
+      ],
+      "people": [
+        "pid:6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f"
+      ]
+    },
+    "folders": {
+      "src-notes": {
+        "drafts/": "private"
+      }
+    },
+    "items": {
+      "src-mail": {
+        "msg-0007": "private"
+      }
+    },
+    "owner": "pid:5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e",
+    "rev": 2,
+    "schema": "anagram.trust_policy.v1",
+    "signature": "1a47a555ce47018c76532106313e26eef4ada9c58f666876cae98f4915f77f60c06b0dfa61aad13f1ee5a9c92f4c71f1a0404a0489d63db7046b69b551d9d401",
+    "sources": {
+      "src-diary": "private",
+      "src-mail": "discoverable",
+      "src-notes": "shared"
+    },
+    "updated_at": "2026-11-18T12:00:00Z",
+    "updated_device": "30a00d5c993e51e2f443eac287b3424597388a074c4f5c29caebe37781cc4059"
+  },
+  "items": [
+    {
+      "key": "msg-0001",
+      "source": "src-mail",
+      "third_party": false,
+      "tier": "discoverable"
+    },
+    {
+      "key": "msg-0007",
+      "source": "src-mail",
+      "third_party": false,
+      "tier": "private"
+    },
+    {
+      "key": "msg-0100",
+      "source": "src-mail",
+      "third_party": true,
+      "tier": "private"
+    },
+    {
+      "key": "drafts/a.md",
+      "source": "src-notes",
+      "third_party": false,
+      "tier": "private"
+    },
+    {
+      "key": "papers/b.md",
+      "source": "src-notes",
+      "third_party": false,
+      "tier": "shared"
+    },
+    {
+      "key": "x",
+      "source": "src-diary",
+      "third_party": false,
+      "tier": "private"
+    },
+    {
+      "key": "y",
+      "source": "src-new",
+      "third_party": false,
+      "tier": "discoverable"
+    }
+  ],
+  "owner_device": "30a00d5c993e51e2f443eac287b3424597388a074c4f5c29caebe37781cc4059",
+  "owner_seed": "f398e725e689073a588890e40b47cb53b04bebd49bf1bb0d27b6b82f74cc097b",
+  "peers": [
+    {
+      "in_scope": true,
+      "pid": "pid:6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f",
+      "reach": "denied"
+    },
+    {
+      "in_scope": false,
+      "labs": [
+        "lab-a1a1a1a1a1a1a1a1"
+      ],
+      "pid": "pid:01010101010101010101010101010101",
+      "reach": "allowed"
+    },
+    {
+      "in_scope": false,
+      "labs": [
+        "lab-a1a1a1a1a1a1a1a1",
+        "lab-d1d1d1d1d1d1d1d1"
+      ],
+      "pid": "pid:02020202020202020202020202020202",
+      "reach": "denied"
+    },
+    {
+      "in_scope": true,
+      "orgs": [
+        "domain:rival.example"
+      ],
+      "pid": "pid:03030303030303030303030303030303",
+      "reach": "denied"
+    },
+    {
+      "communities": [
+        "other.anagram.example"
+      ],
+      "in_scope": false,
+      "pid": "pid:04040404040404040404040404040404",
+      "reach": "allowed"
+    },
+    {
+      "in_scope": true,
+      "pid": "pid:05050505050505050505050505050505",
+      "reach": "in_scope"
+    },
+    {
+      "in_scope": false,
+      "pid": "pid:06060606060606060606060606060606",
+      "reach": "out_of_scope"
+    }
+  ],
+  "room_blocks": {
+    "blocks": {
+      "labs": [
+        "lab-d1d1d1d1d1d1d1d1"
+      ],
+      "orcids": [
+        "pid:6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f"
+      ],
+      "rors": [
+        "fake-rival"
+      ]
+    },
+    "unmapped": 1
+  },
+  "signed_body_canonical": "{\"allow\":{\"communities\":[\"other.anagram.example\"],\"labs\":[\"lab-a1a1a1a1a1a1a1a1\"],\"orgs\":[],\"people\":[]},\"defaults\":{\"own\":\"discoverable\"},\"deny\":{\"communities\":[],\"labs\":[\"lab-d1d1d1d1d1d1d1d1\"],\"orgs\":[\"domain:rival.example\",\"ror:fake-rival\"],\"people\":[\"pid:6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f\"]},\"folders\":{\"src-notes\":{\"drafts/\":\"private\"}},\"items\":{\"src-mail\":{\"msg-0007\":\"private\"}},\"owner\":\"pid:5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e\",\"rev\":2,\"schema\":\"anagram.trust_policy.v1\",\"sources\":{\"src-diary\":\"private\",\"src-mail\":\"discoverable\",\"src-notes\":\"shared\"},\"updated_at\":\"2026-11-18T12:00:00Z\",\"updated_device\":\"30a00d5c993e51e2f443eac287b3424597388a074c4f5c29caebe37781cc4059\"}",
+  "tags": [
+    "anagram/v1/trust/sign/policy"
+  ]
+}

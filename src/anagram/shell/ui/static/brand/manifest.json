@@ -1,0 +1,16 @@
+{
+  "files": {
+    "tokens.css": "8b9a8dc69e67fe7b2b4571ee57932f561a21d82d121534a4418f04a10b51f04e",
+    "assets/dm-sans.ttf": "b0ae3e89a7d3ef2b1838bb4b1ceb0b17cc3435af061eee809d76aa623ff116e9",
+    "assets/dm-sans-LICENSE.txt": "7ec15e79c59bc14b86436a17e5eb7926b46cbcaeb08e1a7e6c110b415e6eb2a2",
+    "assets/four-squares.svg": "77196d18f57e5877043c31e4d81d165aba8246e5ab608c05fc11313e34fe5053",
+    "product-ui/tokens.css": "2e95fab2679e81ac666162e37a96781dfe78d28fb58f7a44c38c4d8ea5ad251f",
+    "product-ui/components.css": "be85f645ad79c8a1137cf19706e081f0a559e0fec82494ce846fc3535948822d",
+    "product-ui/surfaces.css": "5538daed32f81d0caef692236f3b8304e6c2a9a875de8e2810417017676f8d01",
+    "product-ui/widgets/registry.js": "9281393895bae10d41923d4fcc768e74ab2972dea526fd0e5602261e86b16659",
+    "product-ui/widgets/shared/support.js": "6ad5fbff42b45eb0c3ee93b509a5086442f3e63934d31208215911f834e17e10",
+    "product-ui/widgets/shared/styles.css": "34bc69632af4f5739832d7a81bf92f1f605abcdb46ff0bffd7339119d2062d06",
+    "product-ui/widgets/search-select/widget.js": "f24f4a288f1fbf9fa66244ee62fb3f7096dc37ff29c3069014d6839e4e4d24f2"
+  },
+  "source": "Radiofuture brand kit (the copies in this folder are the source)"
+}

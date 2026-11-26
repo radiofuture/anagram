@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Network formats (spec/network.md)",
+  "description": "Structure only. Each document must also be canonical JSON and obey the rules of its section. Select one format with $defs (for example #/$defs/controlEvent).",
+  "$defs": {
+    "hex16": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+    "hex32": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "hex64": {"type": "string", "pattern": "^[0-9a-f]{128}$"},
+    "time": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+    "nodeId": {"type": "string", "pattern": "^node-[0-9a-f]{32}$"},
+    "seq": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+    "nodeRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["admin", "affiliation", "domain", "id", "key", "kind", "ror", "url"],
+      "properties": {
+        "id": {"$ref": "#/$defs/nodeId"},
+        "key": {"$ref": "#/$defs/hex32"},
+        "affiliation": {"type": "string", "minLength": 1, "maxLength": 200},
+        "domain": {"type": "string", "maxLength": 64},
+        "ror": {"type": ["string", "null"], "pattern": "^0[a-z0-9]{6}[0-9]{2}$"},
+        "kind": {"enum": ["individual", "lab", "university"]},
+        "url": {"type": "string", "pattern": "^https://"},
+        "admin": {"type": "string", "minLength": 3, "maxLength": 254}
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["credential_formats", "credential_max_life", "new_members_per_month", "node_invites_per_quarter", "roster_max_age", "schema"],
+      "properties": {
+        "schema": {"const": "anagram.net.policy.v1"},
+        "credential_formats": {"type": "array", "items": {"enum": ["anagram-json-v1", "biscuit-v3"]}, "minItems": 1, "uniqueItems": true},
+        "credential_max_life": {"type": "integer", "minimum": 3600, "maximum": 86400},
+        "roster_max_age": {"type": "integer", "minimum": 300, "maximum": 3600},
+        "node_invites_per_quarter": {"type": "integer", "minimum": 0, "maximum": 100},
+        "new_members_per_month": {"type": "integer", "minimum": 1, "maximum": 100000}
+      }
+    },
+    "controlEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["body", "chain", "kind", "prev", "schema", "seq", "signature", "signer", "time"],
+      "properties": {
+        "schema": {"const": "anagram.control_event.v1"},
+        "chain": {"oneOf": [{"const": "roster"}, {"$ref": "#/$defs/nodeId"}]},
+        "seq": {"$ref": "#/$defs/seq"},
+        "prev": {"$ref": "#/$defs/hex32"},
+        "kind": {"enum": ["roster_created", "node_admitted", "node_updated", "node_key_rotated", "node_removed", "roster_key_rotated", "ban", "unban", "policy_updated", "member_removed", "member_left", "credential_revoked"]},
+        "body": {"type": "object"},
+        "time": {"$ref": "#/$defs/time"},
+        "signer": {"$ref": "#/$defs/hex32"},
+        "signature": {"$ref": "#/$defs/hex64"}
+      },
+      "allOf": [
+        {"if": {"properties": {"kind": {"const": "roster_created"}}}, "then": {"properties": {"body": {"type": "object", "additionalProperties": false, "required": ["network", "roster_key"], "properties": {"network": {"type": "string"}, "roster_key": {"$ref": "#/$defs/hex32"}}}}}},
+        {"if": {"properties": {"kind": {"enum": ["node_admitted", "node_updated"]}}}, "then": {"properties": {"body": {"type": "object", "additionalProperties": false, "required": ["endorsement", "endorser", "node"], "properties": {"node": {"$ref": "#/$defs/nodeRecord"}, "endorser": {"oneOf": [{"const": "roster"}, {"$ref": "#/$defs/nodeId"}]}, "endorsement": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/hex64"}]}}}}}},
+        {"if": {"properties": {"kind": {"const": "node_key_rotated"}}}, "then": {"properties": {"body": {"type": "object", "additionalProperties": false, "required": ["chain_seq", "new_key", "node", "proof"], "properties": {"node": {"$ref": "#/$defs/nodeId"}, "new_key": {"$ref": "#/$defs/hex32"}, "chain_seq": {"type": "integer", "minimum": -1}, "proof": {"$ref": "#/$defs/hex64"}}}}}},
+        {"if": {"properties": {"kind": {"const": "node_removed"}}}, "then": {"properties": {"body": {"type": "object", "additionalProperties": false, "required": ["node", "reason"], "properties": {"node": {"$ref": "#/$defs/nodeId"}, "reason": {"enum": ["abuse", "compromised", "left", "other"]}}}}}},
+        {"if": {"properties": {"kind": {"const": "roster_key_rotated"}}}, "then": {"properties": {"body": {"type": "object", "additionalProperties": false, "required": ["new_key"], "properties": {"new_key": {"$ref": "#/$defs/hex32"}}}}}},
+        {"if": {"properties": {"kind": {"const": "ban"}}}, "then": {"properties": {"body": {"type": "object", "additionalProperties": false, "required": ["reason", "subject"], "properties": {"subject": {"$ref": "#/$defs/hex32"}, "reason": {"enum": ["abuse", "other"]}}}}}},
+        {"if": {"properties": {"kind": {"const": "unban"}}}, "then": {"properties": {"body": {"type": "object", "additionalProperties": false, "required": ["subject"], "properties": {"subject": {"$ref": "#/$defs/hex32"}}}}}},
+        {"if": {"properties": {"kind": {"const": "policy_updated"}}}, "then": {"properties": {"body": {"type": "object", "additionalProperties": false, "required": ["effective", "policy"], "properties": {"effective": {"$ref": "#/$defs/time"}, "policy": {"$ref": "#/$defs/policy"}}}}}},
+        {"if": {"properties": {"kind": {"const": "member_removed"}}}, "then": {"properties": {"body": {"type": "object", "additionalProperties": false, "required": ["reason", "subject"], "properties": {"subject": {"$ref": "#/$defs/hex32"}, "reason": {"enum": ["group_handover", "other", "removed"]}}}}}},
+        {"if": {"properties": {"kind": {"const": "member_left"}}}, "then": {"properties": {"body": {"type": "object", "additionalProperties": false, "required": ["reason", "subject"], "properties": {"subject": {"$ref": "#/$defs/hex32"}, "reason": {"enum": ["key_changed", "left", "moved"]}}}}}},
+        {"if": {"properties": {"kind": {"const": "credential_revoked"}}}, "then": {"properties": {"body": {"type": "object", "additionalProperties": false, "required": ["credential", "reason"], "properties": {"credential": {"$ref": "#/$defs/hex32"}, "reason": {"enum": ["compromised", "other", "superseded"]}}}}}}
+      ]
+    },
+    "rosterCheckpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["head", "kind", "network", "schema", "seq", "signature", "signer", "time"],
+      "properties": {
+        "schema": {"const": "anagram.net.roster_checkpoint.v1"},
+        "kind": {"const": "roster_checkpoint"},
+        "network": {"type": "string"},
+        "seq": {"$ref": "#/$defs/seq"},
+        "head": {"$ref": "#/$defs/hex32"},
+        "time": {"$ref": "#/$defs/time"},
+        "signer": {"$ref": "#/$defs/hex32"},
+        "signature": {"$ref": "#/$defs/hex64"}
+      }
+    },
+    "memberCredentialJson": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["control_head", "email_tags", "expires", "issued", "kind", "network", "node", "pid", "schema", "signature", "subject"],
+      "properties": {
+        "schema": {"const": "anagram.member_credential.v1"},
+        "network": {"type": "string"},
+        "node": {"$ref": "#/$defs/nodeId"},
+        "subject": {"$ref": "#/$defs/hex32"},
+        "kind": {"enum": ["group", "person"]},
+        "pid": {"type": ["string", "null"], "pattern": "^pid:[0-9a-f]{32}$"},
+        "email_tags": {"type": "array", "items": {"$ref": "#/$defs/hex32"}, "maxItems": 3, "uniqueItems": true},
+        "control_head": {"$ref": "#/$defs/seq"},
+        "issued": {"$ref": "#/$defs/time"},
+        "expires": {"$ref": "#/$defs/time"},
+        "signature": {"$ref": "#/$defs/hex64"}
+      }
+    },
+    "credentialLogEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["credential_hash", "expires", "kind", "member", "node_id", "schema", "signature", "signer"],
+      "properties": {
+        "schema": {"const": "anagram.enclave.member_credential.v1"},
+        "kind": {"const": "member_credential"},
+        "node_id": {"$ref": "#/$defs/nodeId"},
+        "credential_hash": {"$ref": "#/$defs/hex32"},
+        "expires": {"$ref": "#/$defs/time"},
+        "member": {"oneOf": [{"$ref": "#/$defs/hex32"}, {"type": "null"}]},
+        "signer": {"$ref": "#/$defs/hex32"},
+        "signature": {"$ref": "#/$defs/hex64"}
+      }
+    },
+    "credentialRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["device", "node", "nonce", "person_key", "schema", "signature", "time"],
+      "properties": {
+        "schema": {"const": "anagram.net.credential_request.v1"},
+        "node": {"$ref": "#/$defs/nodeId"},
+        "person_key": {"$ref": "#/$defs/hex32"},
+        "device": {"$ref": "#/$defs/hex32"},
+        "nonce": {"$ref": "#/$defs/hex16"},
+        "time": {"$ref": "#/$defs/time"},
+        "signature": {"$ref": "#/$defs/hex64"}
+      }
+    }
+  }
+}

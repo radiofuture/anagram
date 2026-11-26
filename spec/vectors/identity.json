@@ -1,0 +1,259 @@
+{
+  "active_devices_after": [
+    "76adcd9fe34f2a1245915d6ecf3638bef1cbc19a3c41c14478d03fa6729a4e09"
+  ],
+  "assertion": {
+    "audience": "0c5b2ff678e732b9275aff381881bbba9b44ab6dc9035c29c366d01ad3f8a931",
+    "community": "Example structural biology community",
+    "expires_at": "2026-10-15T12:10:00Z",
+    "issued_at": "2026-10-15T12:00:00Z",
+    "method": "orcid",
+    "node_key": "552caed8ce0441cb46065012fa6c1cfb35a68c18958800c6dc5554395d9267d6",
+    "nonce": "7fe76e0f4d7030598ba097a284d1159e",
+    "orcid_commitment": "f62200615f19df99d2e13a4e3b45bf4a21455455e4d08c4b9f0a1d819cc95fa4",
+    "schema": "anagram.node_assertion.v2",
+    "signature": "abc161f1b3eb036acaa5febf72c7cd4f2d064a02e4d419a41f72ba64a7256b0402317d49252a04bb7e501709e993d19d5847477e399325d17e20f15278651304",
+    "subject": "pid:49d465511fb6622d99c571f6ca25bc2a"
+  },
+  "binding_hashes": [
+    "21841835e6e5af8e149ea84bf9ae6139cf8f75ef3069ba87cc5465ed9319f942",
+    "81938f51cbc086c32234ef4997fbe4df170b5ad1673f04e85f318b6cd504c67f",
+    "70f46af22d3786f80ff3a0085db6ccc620afa0af278b96bab8af67cd3ae65980"
+  ],
+  "bindings": [
+    {
+      "authority": {
+        "assertion": {
+          "audience": "0c5b2ff678e732b9275aff381881bbba9b44ab6dc9035c29c366d01ad3f8a931",
+          "community": "Example structural biology community",
+          "expires_at": "2026-10-15T12:10:00Z",
+          "issued_at": "2026-10-15T12:00:00Z",
+          "method": "orcid",
+          "node_key": "552caed8ce0441cb46065012fa6c1cfb35a68c18958800c6dc5554395d9267d6",
+          "nonce": "7fe76e0f4d7030598ba097a284d1159e",
+          "orcid_commitment": "f62200615f19df99d2e13a4e3b45bf4a21455455e4d08c4b9f0a1d819cc95fa4",
+          "schema": "anagram.node_assertion.v2",
+          "signature": "abc161f1b3eb036acaa5febf72c7cd4f2d064a02e4d419a41f72ba64a7256b0402317d49252a04bb7e501709e993d19d5847477e399325d17e20f15278651304",
+          "subject": "pid:49d465511fb6622d99c571f6ca25bc2a"
+        }
+      },
+      "created_at": "2026-10-15T12:00:00Z",
+      "device": {
+        "ed25519": "0c5b2ff678e732b9275aff381881bbba9b44ab6dc9035c29c366d01ad3f8a931",
+        "x25519": "10e566240c6743051021144e5f98fad4bb8c6be705d4148dbfef56b39caf0e1b"
+      },
+      "kind": "key_binding",
+      "op": "add",
+      "orcid_commitment": "f62200615f19df99d2e13a4e3b45bf4a21455455e4d08c4b9f0a1d819cc95fa4",
+      "pop": "020aa77efb70abd9e9452f54ac7a40d6afbfcb33353cfbaf72c226eb9999fc8fb5755f5ffb9faa691b0083eaa96769a33c46f3e4a757a4620409639b297ad104",
+      "prev": null,
+      "schema": "anagram.key_binding.v2",
+      "seq": 0,
+      "signature": null,
+      "subject": "pid:49d465511fb6622d99c571f6ca25bc2a"
+    },
+    {
+      "authority": {
+        "device": "0c5b2ff678e732b9275aff381881bbba9b44ab6dc9035c29c366d01ad3f8a931"
+      },
+      "created_at": "2026-10-15T12:05:00Z",
+      "device": {
+        "ed25519": "76adcd9fe34f2a1245915d6ecf3638bef1cbc19a3c41c14478d03fa6729a4e09",
+        "x25519": "56808fa6b333e92b5f331d4f34d9c21ccc5d75b7e635c89826e024bda380296b"
+      },
+      "kind": "key_binding",
+      "op": "add",
+      "orcid_commitment": "f62200615f19df99d2e13a4e3b45bf4a21455455e4d08c4b9f0a1d819cc95fa4",
+      "pop": "0fe31b711ab44ec378ffd4e757a21c421a532c7991b2bff09a37062b0ebdb5683c58d47042d06085a9117e239689770f06acec223e5b29993ea3c3fe704fa807",
+      "prev": "21841835e6e5af8e149ea84bf9ae6139cf8f75ef3069ba87cc5465ed9319f942",
+      "schema": "anagram.key_binding.v2",
+      "seq": 1,
+      "signature": "1a61218863550fb487473130594ef8223e9faabfab915c683d614d1d5cf0603da34823a63bca95faf119c3d0e49dc6ec1d09c539d361a5799dc64e23927bc00f",
+      "subject": "pid:49d465511fb6622d99c571f6ca25bc2a"
+    },
+    {
+      "authority": {
+        "device": "76adcd9fe34f2a1245915d6ecf3638bef1cbc19a3c41c14478d03fa6729a4e09"
+      },
+      "created_at": "2026-10-15T12:09:00Z",
+      "device": {
+        "ed25519": "0c5b2ff678e732b9275aff381881bbba9b44ab6dc9035c29c366d01ad3f8a931",
+        "x25519": "10e566240c6743051021144e5f98fad4bb8c6be705d4148dbfef56b39caf0e1b"
+      },
+      "kind": "key_binding",
+      "op": "remove",
+      "orcid_commitment": "f62200615f19df99d2e13a4e3b45bf4a21455455e4d08c4b9f0a1d819cc95fa4",
+      "pop": null,
+      "prev": "81938f51cbc086c32234ef4997fbe4df170b5ad1673f04e85f318b6cd504c67f",
+      "schema": "anagram.key_binding.v2",
+      "seq": 2,
+      "signature": "897daa1a4ca9e6fb787b3a54c459b708136424f013b602990dfc84bb8f745cf5e65dee04f3cb8452c9a972f12411f3ada79514d4d900de94cb21e7c977f2dc09",
+      "subject": "pid:49d465511fb6622d99c571f6ca25bc2a"
+    }
+  ],
+  "description": "Identity formats v3: node trust, invite, receipt, assertion, key bindings (pid subject, ORCID commitment), identity record, key backup v2, device sign-in, personal store record, invite join with no ORCID (v3). Fixed seeds; Ed25519 is deterministic. HPKE output is random, so the person-keys package is not a fixed vector (see the tests).",
+  "device_signin": {
+    "challenge": "7e0866fd287ce87b322b34365bb889e065ea80911883f763c1612d382a606e4b",
+    "signature": "81550a22d1aa361d4eca9c8c9a2e61b8299c964e9823eb637c1cb20ea8d3baea73d2a61443328e000e733fb5b629f5e316b8f2b35f34929b02b72325d769a501"
+  },
+  "identity_record": {
+    "devices": [
+      {
+        "ed25519": "76adcd9fe34f2a1245915d6ecf3638bef1cbc19a3c41c14478d03fa6729a4e09",
+        "x25519": "56808fa6b333e92b5f331d4f34d9c21ccc5d75b7e635c89826e024bda380296b"
+      }
+    ],
+    "display_name": "Josiah Carberry",
+    "institution": "fake-northbridge-university",
+    "lab_id": "lab-05b6f952e9773c16",
+    "orcid_commitment": "f62200615f19df99d2e13a4e3b45bf4a21455455e4d08c4b9f0a1d819cc95fa4",
+    "schema": "anagram.identity_record.v2",
+    "signature": "21357dbbae24978483edc3e991887054321d4c094704f27fe9c58ee541610943991ee5ebc1a2661977d1ab032dc4b4098fa863b436ff991eedbfbc1915efbd03",
+    "signed_by": "76adcd9fe34f2a1245915d6ecf3638bef1cbc19a3c41c14478d03fa6729a4e09",
+    "subject": "pid:49d465511fb6622d99c571f6ca25bc2a",
+    "updated_at": "2026-10-15T12:10:00Z"
+  },
+  "invite": {
+    "community": "Example structural biology community",
+    "expires_at": "2026-10-22T12:00:00Z",
+    "node_key": "552caed8ce0441cb46065012fa6c1cfb35a68c18958800c6dc5554395d9267d6",
+    "node_url": "https://node.anagram.example",
+    "schema": "anagram.invite.v1",
+    "signature": "60a9dc6aff36f182780f2eee70551f1a7219abcc79ff144e08dc646c310d5b3da9c499b8b328e864c6639d7f2e94006da0138e4cda5035393789ad68b7242f03",
+    "token": "60afac39c08df5ddbd0ee50eddc1fddc2898d632a6cc3c915924c0613aa56ebd"
+  },
+  "invite_id": "81e10aeadd7227631d7a729777de96bf9ee39153c2687d36fd92b7b889e5aeda",
+  "invite_join": {
+    "assertion": {
+      "audience": "328d2c10b1a2086d1667de2eabb7119e7c342a9603e7411b8b387179b9333a0c",
+      "community": "Example structural biology community",
+      "expires_at": "2026-10-15T12:10:00Z",
+      "issued_at": "2026-10-15T12:00:00Z",
+      "method": "invite",
+      "node_key": "552caed8ce0441cb46065012fa6c1cfb35a68c18958800c6dc5554395d9267d6",
+      "nonce": "0c0712b088289553f539ede7672a7ca5",
+      "orcid_commitment": null,
+      "schema": "anagram.node_assertion.v2",
+      "signature": "eb15388dd9fed162c90658e6f222fb13799fc30bfe139a759217ed78f34fa081b251ba745561ba48800954fe6892c4c1534132b3e191392d4b9cdf90db09520b",
+      "subject": "pid:b5aecac71d1b0260ddbf25da091b8f5f"
+    },
+    "binding": {
+      "authority": {
+        "assertion": {
+          "audience": "328d2c10b1a2086d1667de2eabb7119e7c342a9603e7411b8b387179b9333a0c",
+          "community": "Example structural biology community",
+          "expires_at": "2026-10-15T12:10:00Z",
+          "issued_at": "2026-10-15T12:00:00Z",
+          "method": "invite",
+          "node_key": "552caed8ce0441cb46065012fa6c1cfb35a68c18958800c6dc5554395d9267d6",
+          "nonce": "0c0712b088289553f539ede7672a7ca5",
+          "orcid_commitment": null,
+          "schema": "anagram.node_assertion.v2",
+          "signature": "eb15388dd9fed162c90658e6f222fb13799fc30bfe139a759217ed78f34fa081b251ba745561ba48800954fe6892c4c1534132b3e191392d4b9cdf90db09520b",
+          "subject": "pid:b5aecac71d1b0260ddbf25da091b8f5f"
+        }
+      },
+      "created_at": "2026-10-15T12:00:00Z",
+      "device": {
+        "ed25519": "328d2c10b1a2086d1667de2eabb7119e7c342a9603e7411b8b387179b9333a0c",
+        "x25519": "a1c001e8bae90177a66548943e2fa753e3026e21dfe8a6e7880bc4e282f15d20"
+      },
+      "kind": "key_binding",
+      "op": "add",
+      "orcid_commitment": null,
+      "pop": "537fe0f5e7c7c0b30781e091c9625da10d8991283d4fbd86df04aabb7c05a0a18c4646d1ee756af73fe75f6ba1652148a205492b1df7925480831b119dd81308",
+      "prev": null,
+      "schema": "anagram.key_binding.v2",
+      "seq": 0,
+      "signature": null,
+      "subject": "pid:b5aecac71d1b0260ddbf25da091b8f5f"
+    },
+    "device_seed": "eb5156bb82fa1c8129293ada84bcb420f23754d81d08f2c00a2df5065bc1faeb",
+    "identity_record": {
+      "devices": [
+        {
+          "ed25519": "328d2c10b1a2086d1667de2eabb7119e7c342a9603e7411b8b387179b9333a0c",
+          "x25519": "a1c001e8bae90177a66548943e2fa753e3026e21dfe8a6e7880bc4e282f15d20"
+        }
+      ],
+      "display_name": "Ada Invited",
+      "institution": null,
+      "lab_id": null,
+      "orcid_commitment": null,
+      "schema": "anagram.identity_record.v2",
+      "signature": "00aafa7bbfeb59460e9326f06436914241e77fea2429fb6cda121fe4b2c31c241829edb8569d7df162d2a96256fc14d7ba7e1939db6220e55443d0b382cf7809",
+      "signed_by": "328d2c10b1a2086d1667de2eabb7119e7c342a9603e7411b8b387179b9333a0c",
+      "subject": "pid:b5aecac71d1b0260ddbf25da091b8f5f",
+      "updated_at": "2026-10-15T12:01:00Z"
+    },
+    "subject": "pid:b5aecac71d1b0260ddbf25da091b8f5f"
+  },
+  "invite_url": "https://node.anagram.example/join#eyJjb21tdW5pdHkiOiJFeGFtcGxlIHN0cnVjdHVyYWwgYmlvbG9neSBjb21tdW5pdHkiLCJleHBpcmVzX2F0IjoiMjAyNi0xMC0yMlQxMjowMDowMFoiLCJub2RlX2tleSI6IjU1MmNhZWQ4Y2UwNDQxY2I0NjA2NTAxMmZhNmMxY2ZiMzVhNjhjMTg5NTg4MDBjNmRjNTU1NDM5NWQ5MjY3ZDYiLCJub2RlX3VybCI6Imh0dHBzOi8vbm9kZS5hbmFncmFtLmV4YW1wbGUiLCJzY2hlbWEiOiJhbmFncmFtLmludml0ZS52MSIsInNpZ25hdHVyZSI6IjYwYTlkYzZhZmYzNmYxODI3ODBmMmVlZTcwNTUxZjFhNzIxOWFiY2M3OWZmMTQ0ZTA4ZGM2NDZjMzEwZDViM2RhOWM0OTliOGIzMjhlODY0YzY2MzlkN2YyZTk0MDA2ZGEwMTM4ZTRjZGE1MDM1MzkzNzg5YWQ2OGI3MjQyZjAzIiwidG9rZW4iOiI2MGFmYWMzOWMwOGRmNWRkYmQwZWU1MGVkZGMxZmRkYzI4OThkNjMyYTZjYzNjOTE1OTI0YzA2MTNhYTU2ZWJkIn0",
+  "node_key_fingerprint": "552caed8ce0441cb46065012fa6c1cfb35a68c18958800c6dc5554395d9267d6",
+  "node_trust": {
+    "assertion_key": "4259782b5c958007fbf32f0e5e2bf079ca35dee471d6d2810cd97a845233f616",
+    "community": "Example structural biology community",
+    "fake_anchor_keys": [],
+    "log_keys": [
+      "node.anagram.example/log+1e493c13+AbCvaPzq8yok1hkLlq5Om0dLsQFC5hXFan6lr2I6k6Bl"
+    ],
+    "node_url": "https://node.anagram.example",
+    "orcid_mode": "production",
+    "schema": "anagram.node_trust.v1",
+    "signature": "4d385c97331f705573a477db791abc68e7818a84bbea175159f5bf5fbf37c71bbbdc108fdafca18a52c2ed174c21636e324e5dbb314afcd9a6b77aebefad7b04",
+    "witness_keys": [
+      "node.anagram.example/witness+d9d3a8fa+BPC7fXek7PZlPOr+pvY1WD+mASr+l8ICWieEzZrU4Bog"
+    ]
+  },
+  "orcid_commitment": {
+    "commitment": "f62200615f19df99d2e13a4e3b45bf4a21455455e4d08c4b9f0a1d819cc95fa4",
+    "orcid": "0000-0002-1825-0097",
+    "salt": "cded7699ad54cfbe40b0f556f841e0cf874468097868fb65824be0f22e917ff9"
+  },
+  "personal_store": {
+    "key_id": "75b9f24ee0dfa35b",
+    "record": {
+      "alg": "chacha20-poly1305",
+      "ciphertext": "4mfNYJVRHqxwQ4q5EGOh5L5gA2v5WltOiqJzYCvmm54T9aYuEyGHKPMDW+ouAYfcPkAyZQTrljGgG1UIuVHZ+5gcv/xITHW6k1EIv6rLiybHUQKtWwjUCoD2mYjDcT8LAUfQd7CIRASC8Oh84tsagOm3GOa5F3HRbgpOADxsbvYd+FP2xhHH8j3/ZcH9RQhFhe6xrd1CoGV6A+TbW0rxIYTpv4yrWOYp+3NNk+k07tlCf2zVZW1JMWle4yAERTwr1Z+HVoHj0uBeCA9u8BC1kVThN0tM2jZmrxy+2Vk2vlCu0dlmcT1LqvgMGe5B/LAxOCjhSeqyRuWu7Ty9b9NTDTQFF5LtPhuaHiEfSAdx77o7uToGQ57wR7XSncxRN6Omv6CjSE1HOkP5+OorMTcc11bnJKXCzFG3EuvWQlaJurLo+5ZVcsJ7zKLbg4rZo5bi+QnUwh3PMtlrbzigxf9QtOmbcbd4k7cnJ5BdX4/JMdcDo8TmwvUPBqFzLv2gR61BKRgITxmK9CxDPEW5iOKKLL9o+N4m2d3QcDcwOB8YIuVqGjWQD6/8kuLt1c73yKK+Sw1GMszq0ZRCBq8nVbuQjwNfnz5WEN2glpoRfhidrgXQwF84z0gWvHBMUK0TqB3uUbyjGGYgFLw2Nt/DlN2LJHsVpSnZWLFw0T9d6akOCGKLEDYCmkKZVe+in5g1GX40",
+      "key_id": "75b9f24ee0dfa35b",
+      "nonce": "222c1647d0211d4c6822446b",
+      "record_id": "488e4647599e1c81ee394bda34a9186f",
+      "schema": "anagram.personal_store.v1",
+      "version": 1
+    },
+    "record_id": "488e4647599e1c81ee394bda34a9186f",
+    "vault_key": "7774aaa54189329af3487ee4ada4d8cbf91bce2af0976bb37bef619543f9e5ad"
+  },
+  "receipt": {
+    "claimed_at": "2026-10-15T12:00:00Z",
+    "community": "Example structural biology community",
+    "invite": "81e10aeadd7227631d7a729777de96bf9ee39153c2687d36fd92b7b889e5aeda",
+    "node_key": "552caed8ce0441cb46065012fa6c1cfb35a68c18958800c6dc5554395d9267d6",
+    "schema": "anagram.invite_receipt.v1",
+    "signature": "c4b155d2bcf833d085aef71184152d3c76cbee7ab30732d2bdcac430fe0714667133f98699a279aefa7bbe421a105f478868544dd3d6ce9953896a6459fdb002",
+    "subject": "pid:49d465511fb6622d99c571f6ca25bc2a"
+  },
+  "recovery": {
+    "backup": {
+      "alg": "chacha20-poly1305",
+      "backup_id": "3be06f454a642274b6a69283d1878bc2e141e0b45499d24572bd586519f402dd",
+      "ciphertext": "6mOx22yyI1UpwVA4H2GIlneBd2ShHDhxXxdWQCxJFMP+w6VUozPVHglkvqpWraf/w6W84nDi5uKkyjCIFxWgy+to/kHdXV3s/xlSz4dbcIe3xP+lHoDreCX0uzHvjhk0SUgTlPyZCBLa/0QSQjXlk9bACECQlkyMNbqCFFdh8t2gJyMQgkePHhEsY97NnL+az9fuLT+XUYV1bPPlKK7tBNXPOc5quWjyw7XO97b9Lz8wbYn8TrkGtL28el7SppEqWhLzLdTFdmkG7KcHTN9IgZwcKMRfpvU4EFcxp1n1Sb8L9/GFXvCM7riC0+dma+fb4IU5DhwS/xLZ/0O5qWytD5eoGKso5tvYXAKAgF7DmZb0MDhT0L5/q477aBYNUA0lEczCgKe9DDblQngmUnkDWUR32oR6orQpvgCH+fBmtMf7xrX7s2NBkMjE5UAn5mA8KSU9EA7eJMGcFuyD/SEwUI3PrIKMED+qtFZnE/XU9BFklkhKQULDlRvMSjCCls+QzaF+UxsCFyWOhN2RuudEf6lkqRL0XN9nelmVsoTL3IoCiaSBAxgJxw65SWOAh6m0PH8shwifuiKR",
+      "kdf": "hkdf-sha256",
+      "nonce": "c48df155a35ba19512b1d135",
+      "schema": "anagram.key_backup.v2",
+      "subject": "pid:49d465511fb6622d99c571f6ca25bc2a"
+    },
+    "backup_id": "3be06f454a642274b6a69283d1878bc2e141e0b45499d24572bd586519f402dd",
+    "code": "HFMO-K4VT-AVOP-OUWO-J2EN-OCLR-OBM5-EIWS",
+    "secret_hex": "3958e572b3055cf752ce4e88d709717059d222d2"
+  },
+  "seeds": {
+    "assertion": "115647cfc122fd1bda8c438583c52492a01e281f881f6f43eea235fbbde58e52",
+    "device_1": "47c0602c3296414abe24653b3cc40e2e75e5f77dba769a478a8c5cbbce2c8676",
+    "device_1_x25519": "054b8bb500bae602ef8b60334678bb6bb8ac3642285e6c103637d57375f4d477",
+    "device_2": "71e97e7c69722a1c10c99c4cf80a6405b93ac5d2d7715668a334c34f438e2af8",
+    "device_2_x25519": "3c62252c99f8dfecf577452ebaab4ac4f92c55b4fee094f37f7afda1dee260b6",
+    "log": "db0274d5ca634a79a34da5aca4cdfb4ec8890a6d78171f8bb2125d4750e6c69b"
+  },
+  "subject": "pid:49d465511fb6622d99c571f6ca25bc2a"
+}

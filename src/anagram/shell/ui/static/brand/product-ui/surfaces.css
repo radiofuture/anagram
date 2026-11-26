@@ -1,0 +1,33 @@
+/* Task surfaces v1. Load after product layout styles. No widget behavior here. */
+.rf-request-summary {
+  padding: 16px 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.rf-task-panel {
+  padding: clamp(16px, 4vw, 28px);
+  background: var(--rf-paper, #f5f3ee);
+  border: 1px solid var(--rf-rule, #d0cdc7);
+  box-shadow: none;
+  min-width: 0;
+}
+.rf-record-card {
+  padding: 20px;
+  margin-block: 12px;
+  background: var(--rf-paper, #f5f3ee);
+  border: 1px solid var(--rf-rule, #d0cdc7);
+  box-shadow: none;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.rf-record-card h3 { font-size: 20px; line-height: 1.4; font-weight: 400; }
+.rf-task-heading { font-size: 28px; line-height: 1.2; font-weight: 400; }
+.rf-answer-summary { margin: 0; }
+.rf-answer-summary > div {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px;
+  padding-block: 12px; border-bottom: 1px solid var(--rf-rule, #d0cdc7);
+}
+.rf-answer-summary dt { color: var(--rf-muted, #686270); }
+.rf-answer-summary dd { margin: 0; flex: 1; }
+.rf-answer-summary button { min-height: 44px; }

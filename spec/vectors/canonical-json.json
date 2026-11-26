@@ -1,0 +1,46 @@
+{
+  "description": "Canonical JSON (RFC 8785 subset, no floats).",
+  "invalid_json_text": [
+    "1.5",
+    "[1e3]",
+    "{\"a\":1,\"a\":2}",
+    "9007199254740992",
+    "NaN"
+  ],
+  "valid": [
+    {
+      "canonical_utf8_hex": "7b2261223a5b747275652c66616c73652c6e756c6c5d2c2262223a317d",
+      "input": {
+        "a": [
+          true,
+          false,
+          null
+        ],
+        "b": 1
+      }
+    },
+    {
+      "canonical_utf8_hex": "7b225c72223a225c6e222c2231223a7b2279223a2d393030373139393235343734303939312c227a223a22227d2c22e282ac223a2224227d",
+      "input": {
+        "\r": "\n",
+        "1": {
+          "y": -9007199254740991,
+          "z": ""
+        },
+        "€": "$"
+      }
+    },
+    {
+      "canonical_utf8_hex": "225c75303030305c75303031665c225c5c7fe280a8f09f988022",
+      "input": "\u0000\u001f\"\\ 😀"
+    },
+    {
+      "canonical_utf8_hex": "7b2261223a322c22f09f9880223a312c22efacb3223a307d",
+      "input": {
+        "a": 2,
+        "דּ": 0,
+        "😀": 1
+      }
+    }
+  ]
+}

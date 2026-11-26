@@ -1,0 +1,18 @@
+{
+  "schema": "anagram.vocab.topic_aliases.v1",
+  "version": "1",
+  "note": "Hand-made extra phrases for OpenAlex topics. OpenAlex keywords miss many lab words (for example 'cryo-EM'). An alias adds a phrase to an existing topic ID. It does not add IDs, so the vocabulary version does not change.",
+  "aliases": {
+    "openalex:t10857": ["cryo-em", "cryo-electron microscopy", "electron cryomicroscopy", "cryo-em map", "cryo-em structures", "krios", "2d class averages", "single-particle analysis", "particle picking"],
+    "openalex:t10044": ["structural biology", "protein structure", "protein structures", "membrane protein structures", "conformational cycle", "ligand pocket", "outward-open", "inward-open"],
+    "openalex:t10724": ["membrane transporter", "membrane transporters", "sodium-coupled transporter", "membrane protein", "membrane proteins", "transporters or channels", "mechanosensitive channel"],
+    "openalex:t10211": ["binding-affinity prediction", "binding affinity", "affinity prediction", "affinity model", "affinity models", "docking scores", "docking poses", "docking runs", "pocket-ligand affinity", "pkd", "hit ranking", "hit triage", "high-throughput screening", "screening library", "compound library", "small-molecule library", "fragment soaking", "hit calling", "drug targets"],
+    "openalex:t12254": ["machine learning", "graph networks", "graph model", "deep learning", "training data", "held-out set", "benchmark leakage"],
+    "openalex:t10066": ["gut microbiome", "microbiome", "gnotobiotic", "germ-free mice", "germ-free", "defined community", "16s", "bacteroides", "gut bacteria", "gut community", "colonisation", "colonization"],
+    "openalex:t12688": ["bile-acid enzyme", "bile-acid enzymes", "bile acid", "bile-acid shift", "bacterial enzymes"],
+    "openalex:t10015": ["metagenome", "metagenomics", "metagenome reads", "shotgun sequencing"],
+    "openalex:t11289": ["single-cell rna-seq", "scrna-seq", "spatial transcriptomics"],
+    "openalex:t10878": ["crispr", "crispr screen", "genome editing"],
+    "openalex:t12412": ["enzyme inhibitors", "enzyme inhibition", "inhibitor screen"]
+  }
+}

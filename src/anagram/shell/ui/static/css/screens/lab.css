@@ -1,0 +1,126 @@
+/* Lab: people, the lab space, settings (track R2 step S12). The invite is
+   the one task panel of the members view (.ag-proof). */
+
+.ag-panel-title {
+  margin: 0 0 12px;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: 1.15;
+  letter-spacing: -0.035em;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.ag-proof-label + .ag-panel-title {
+  margin-top: 4px;
+}
+.ag-proof:has(.ag-panel-title) {
+  margin: 24px var(--rf-layer-offset) calc(24px + var(--rf-layer-offset)) 0;
+}
+.rf-ui .ag-lab-summary {
+  margin: 0 0 4px;
+  font-size: 1.0625rem;
+}
+.ag-lab-made .rf-ui-help {
+  margin: 8px 0 4px;
+}
+.ag-lab-made .rf-ui-button--quiet {
+  padding-left: 0;
+}
+.ag-lab-or {
+  margin: 0 0 24px;
+}
+
+.ag-lab-others {
+  margin: -8px 0 16px;
+  color: var(--ag-muted);
+  font-size: 0.875rem;
+}
+.ag-lab-others a {
+  margin-left: 8px;
+}
+
+.ag-lab-danger {
+  margin: 24px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--ag-rule);
+}
+.ag-lab-danger p {
+  margin: 0 0 12px;
+  max-width: 38rem;
+}
+
+.ag-lab-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 24px;
+  margin: 56px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--ag-rule);
+}
+.rf-ui .ag-lab-foot > .rf-ui-button--quiet {
+  padding-left: 0;
+}
+.ag-lab-foot .ag-disclosure {
+  flex: 1 1 18rem;
+  margin: 0;
+}
+
+.ag-lab-item {
+  margin: 0 0 24px;
+}
+.ag-lab-item .ag-section {
+  margin: 0 0 16px;
+  overflow-wrap: anywhere;
+}
+.ag-lab-text {
+  margin: 16px 0;
+  max-width: 40rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ag-lab-files {
+  margin: 16px 0;
+  gap: 0;
+}
+.ag-lab-file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 16px;
+  border-bottom: 1px solid var(--ag-rule);
+}
+.ag-lab-file > span {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.ag-lab-updated {
+  margin-top: 32px;
+}
+
+/* The choices of the invite: a space between the groups. */
+.ag-disclosure-body .ag-choices + .ag-choices {
+  margin-top: 24px;
+}
+
+/* The invite link enters after the click: it rises 8 px and shows, one
+   time (brand change time and ease). Nothing loops. */
+@keyframes ag-m-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.ag-m-reveal {
+  animation: ag-m-reveal var(--rf-ui-change-time) var(--rf-ui-ease) 1 both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ag-m-reveal {
+    animation: none;
+  }
+}

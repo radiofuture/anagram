@@ -1,0 +1,113 @@
+{
+  "blob": {
+    "alg": "chacha20-poly1305-chunked-v1",
+    "blob_key": "371c15d4e72acf5ccff89c28ca5b5378bff0bfebf17bccf3ac7e9c16940f2fc2",
+    "chunk_size": 16,
+    "chunks": [
+      {
+        "aad": "15616e616772616d2f76312f626c6f622f6368756e6b9e550fa10cc1ea531bc6e5f1eddf1ffd8e74781ae122d0f1baed33abc1bc54d6cfa0f5fbce0bcf19a0ef160753a39d9c8f34dc3a59dcffb927b34f81586f529100000001000000000000000000",
+        "index": 0,
+        "nonce": "000000000000000000000000"
+      },
+      {
+        "aad": "15616e616772616d2f76312f626c6f622f6368756e6b9e550fa10cc1ea531bc6e5f1eddf1ffd8e74781ae122d0f1baed33abc1bc54d6cfa0f5fbce0bcf19a0ef160753a39d9c8f34dc3a59dcffb927b34f81586f529100000001000000000000000100",
+        "index": 1,
+        "nonce": "000000000000000000000001"
+      },
+      {
+        "aad": "15616e616772616d2f76312f626c6f622f6368756e6b9e550fa10cc1ea531bc6e5f1eddf1ffd8e74781ae122d0f1baed33abc1bc54d6cfa0f5fbce0bcf19a0ef160753a39d9c8f34dc3a59dcffb927b34f81586f529100000001000000000000000201",
+        "index": 2,
+        "nonce": "000000000000000000000002"
+      }
+    ],
+    "ciphertext_hex": "6de8719e0e2ad83ff4eccce5735fc613980c50abcd7c4745b1810b3701e0c449c164946667f5cbaeba2889b788af2179246ccd49cc0f02a35c0161286342f0d6fd4b9b0107d012834432cc51e2530c06fd52",
+    "content_key": "0b5be1a0242d8018f5a80a8cd04dbf49c957ff790d050e7906c4994f3dec6a7d",
+    "evidence_root": "cfa0f5fbce0bcf19a0ef160753a39d9c8f34dc3a59dcffb927b34f81586f5291",
+    "finding_root": "9e550fa10cc1ea531bc6e5f1eddf1ffd8e74781ae122d0f1baed33abc1bc54d6",
+    "plaintext_hex": "416e616772616d20626c6f6220766563746f723a207468726565206368756e6b732e",
+    "slot": 1
+  },
+  "description": "Vault formats: chunked blob AEAD, grant receipt, HPKE info values, guardian shares (Shamir combine), recovery request ID. Fixed seeds.",
+  "grant_receipt": {
+    "commitment": "1ef250323b5b8338eff21a0644c8098c616c121874073e693d9eb1711d0f7a2d",
+    "log_entry": {
+      "commitment": "1ef250323b5b8338eff21a0644c8098c616c121874073e693d9eb1711d0f7a2d",
+      "kind": "grant_receipt",
+      "schema": "anagram.log_entry.v1"
+    },
+    "log_entry_canonical": "{\"commitment\":\"1ef250323b5b8338eff21a0644c8098c616c121874073e693d9eb1711d0f7a2d\",\"kind\":\"grant_receipt\",\"schema\":\"anagram.log_entry.v1\"}",
+    "owner_seed": "682119b632779ab116c8ad861e9b065598e3634976d6886d5daf5013bd5149b7",
+    "receipt": {
+      "finding_root": "9e550fa10cc1ea531bc6e5f1eddf1ffd8e74781ae122d0f1baed33abc1bc54d6",
+      "grant_id": "d76c12e1a9535901e07213bb9a665697",
+      "granted_at": "2026-10-15T12:00:00Z",
+      "recipient": "pid:5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e",
+      "salt": "e1ebf52cb1eede3a5de7a8e14584d50770ed6fc526af5fb00207067dc8d89eae",
+      "schema": "anagram.grant_receipt.v1",
+      "sender_key": "1a1cc432a7c7b94b4b73b1a9202300a6d719e1d7a03cea5ea38179f6b80903fc",
+      "signature": "045abc1cb151061a39d6bbd08b917f71aa67a812bb96a91c94faa9061a1d573b99ab7431d6ade13f38932705f38d185ee689b7eef8ef18848346ee70e93a4f06"
+    }
+  },
+  "guardians": {
+    "backup_id": "75f62d71faf97d33da904f65c6c28902101dce2cf50db46946658f23fdd69f87",
+    "secret": "5cb5bb0d3a5177a28891db921542506952feb5dc1e474d0e3a005f055363b136",
+    "share_document": {
+      "backup_id": "75f62d71faf97d33da904f65c6c28902101dce2cf50db46946658f23fdd69f87",
+      "index": 1,
+      "owner": "pid:5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e",
+      "schema": "anagram.guardian_share.v1",
+      "set_id": "d847245f7d2965efb015fcbb96a5808d",
+      "share": "bc2b6af1db97847b057095d01aa18a929db7290d010e38390e3140da79c60c28",
+      "threshold": 2
+    },
+    "shares": [
+      {
+        "index": 1,
+        "share": "bc2b6af1db97847b057095d01aa18a929db7290d010e38390e3140da79c60c28"
+      },
+      {
+        "index": 2,
+        "share": "9d8818f4f9dc9011935347160a85e518cc6d8c7e20d5a760526260bb0628cb8d"
+      },
+      {
+        "index": 3,
+        "share": "7d16c908181a63c81eb2095405663fe3032410af3f9cd25766537f642c8d7693"
+      }
+    ],
+    "threshold": 2
+  },
+  "hpke_info": {
+    "grant": {
+      "device": "38c33bdd080d5c590234464e3a68c6f22bde52a24e176c6330a45944c0ac76ff",
+      "grant_id": "d76c12e1a9535901e07213bb9a665697",
+      "info_hex": "15616e616772616d2f76312f68706b652f6772616e74d76c12e1a9535901e07213bb9a66569738c33bdd080d5c590234464e3a68c6f22bde52a24e176c6330a45944c0ac76ff"
+    },
+    "guardian_share": {
+      "device": "38c33bdd080d5c590234464e3a68c6f22bde52a24e176c6330a45944c0ac76ff",
+      "index": 1,
+      "info_hex": "1e616e616772616d2f76312f68706b652f677561726469616e2d7368617265d847245f7d2965efb015fcbb96a5808d0138c33bdd080d5c590234464e3a68c6f22bde52a24e176c6330a45944c0ac76ff",
+      "set_id": "d847245f7d2965efb015fcbb96a5808d"
+    },
+    "recovery_share": {
+      "index": 1,
+      "info_hex": "1e616e616772616d2f76312f68706b652f7265636f766572792d73686172653b307310e79aa7719be7d617cd529e5601",
+      "request_id": "3b307310e79aa7719be7d617cd529e56"
+    }
+  },
+  "recovery_request": {
+    "request": {
+      "assertion": {
+        "note": "a node assertion (identity.md section 6) goes here"
+      },
+      "created_at": "2026-10-15T12:00:00Z",
+      "device": {
+        "ed25519": "38c33bdd080d5c590234464e3a68c6f22bde52a24e176c6330a45944c0ac76ff",
+        "x25519": "cea6738b3b0cfe0c0f40cbf8422f13a7dca3888730815dd6ff505e137020bb5b"
+      },
+      "pop": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "schema": "anagram.recovery_request.v1",
+      "subject": "pid:5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e"
+    },
+    "request_id": "3b307310e79aa7719be7d617cd529e56"
+  }
+}

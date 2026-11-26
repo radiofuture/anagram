@@ -1,0 +1,77 @@
+/* Timeline: one section for each week. The week is a rule and a
+   heading; the summary is plain text at reading width, with the citation
+   squares of Ask (ask.css); the rows are the rows of the library. */
+
+.ag-week {
+  margin: 0 0 8px;
+}
+.rf-ui .ag-week-title {
+  margin: 48px 0 12px;
+}
+.ag-week:first-of-type .ag-week-title {
+  margin-top: 24px;
+}
+.rf-ui .ag-week-summary {
+  margin: 0 0 16px;
+  max-width: 42rem;
+  font-size: 1.125rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.rf-ui a.ag-cite {
+  text-decoration: none;
+}
+.ag-week > .ag-status {
+  margin: 0 0 12px;
+}
+.rf-ui .ag-week-others {
+  margin: 12px 0 0;
+}
+.ag-week-more {
+  margin-top: 40px;
+}
+
+/* Assistant access (slot account.sections, slots/assistant.js). */
+.rf-ui .ag-assistant-lead {
+  margin-bottom: 16px;
+}
+.rf-ui .ag-assistant-consent {
+  margin: 16px 0 0;
+  max-width: 38rem;
+}
+.rf-ui .ag-assistant-pending {
+  margin: 8px 0 4px;
+}
+.rf-ui .ag-assistant-proposal {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 8px 0;
+}
+.rf-ui .ag-assistant-proposal dt {
+  color: var(--ag-muted);
+}
+.rf-ui .ag-assistant-proposal dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.rf-ui .ag-assistant-proposal ul,
+.rf-ui .ag-assistant-reads {
+  margin: 0;
+  padding-left: 1.2em;
+}
+.rf-ui .ag-assistant-flag {
+  font-weight: 600;
+}
+@media (max-width: 560px) {
+  .rf-ui .ag-assistant-proposal {
+    grid-template-columns: 1fr;
+  }
+}
+.rf-ui .ag-week-quiet {
+  margin: 24px 0 0;
+  color: var(--ag-muted);
+}
+.rf-ui .ag-week-quiet + .ag-week-quiet {
+  margin-top: 8px;
+}

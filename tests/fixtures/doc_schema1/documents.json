@@ -1,0 +1,269 @@
+[
+ {
+  "blocks": [
+   {
+    "anchor": "heading-1",
+    "kind": "heading",
+    "level": 1,
+    "parent": null,
+    "text": "Q4 plan"
+   },
+   {
+    "anchor": "para-1",
+    "kind": "para",
+    "level": 0,
+    "parent": null,
+    "text": "We need GPU hours."
+   },
+   {
+    "anchor": "heading-2",
+    "kind": "heading",
+    "level": 2,
+    "parent": null,
+    "text": "Offer"
+   },
+   {
+    "anchor": "para-2",
+    "kind": "para",
+    "level": 0,
+    "parent": null,
+    "text": "- Krios time\n- NbT7 maps"
+   }
+  ],
+  "converter": "basic",
+  "converter_version": "1",
+  "kind": "note",
+  "markdown": "# Q4 plan\n\nWe need GPU hours.\n\n## Offer\n\n- Krios time\n- NbT7 maps\n",
+  "meta": {},
+  "name": "markdown",
+  "note": null,
+  "prose": true,
+  "quoted": "",
+  "title": "Q4 plan"
+ },
+ {
+  "blocks": [
+   {
+    "anchor": "heading-1",
+    "kind": "heading",
+    "level": 1,
+    "parent": null,
+    "text": "Script"
+   },
+   {
+    "anchor": "code-1",
+    "kind": "code",
+    "level": 0,
+    "parent": null,
+    "text": "def f(x):\n    return x"
+   },
+   {
+    "anchor": "para-1",
+    "kind": "para",
+    "level": 0,
+    "parent": null,
+    "text": "After the code."
+   }
+  ],
+  "converter": "basic",
+  "converter_version": "1",
+  "kind": "code",
+  "markdown": "# Script\n\n```python\ndef f(x):\n    return x\n```\n\nAfter the code.\n",
+  "meta": {},
+  "name": "code",
+  "note": null,
+  "prose": false,
+  "quoted": "",
+  "title": "Script"
+ },
+ {
+  "blocks": [
+   {
+    "anchor": "page-1",
+    "kind": "page",
+    "level": 0,
+    "parent": null,
+    "text": ""
+   },
+   {
+    "anchor": "para-1",
+    "kind": "para",
+    "level": 0,
+    "parent": "page-1",
+    "text": "Results"
+   },
+   {
+    "anchor": "para-2",
+    "kind": "para",
+    "level": 0,
+    "parent": "page-1",
+    "text": "First page text."
+   },
+   {
+    "anchor": "page-2",
+    "kind": "page",
+    "level": 0,
+    "parent": null,
+    "text": ""
+   },
+   {
+    "anchor": "para-3",
+    "kind": "para",
+    "level": 0,
+    "parent": "page-2",
+    "text": "Second page."
+   },
+   {
+    "anchor": "table-1",
+    "kind": "table",
+    "level": 0,
+    "parent": "page-2",
+    "text": "| a | b |\n| --- | --- |\n| 1 | 2 |"
+   },
+   {
+    "anchor": "page-3",
+    "kind": "page",
+    "level": 0,
+    "parent": null,
+    "text": ""
+   }
+  ],
+  "converter": "markitdown",
+  "converter_version": "0.1.9+anagram.1",
+  "kind": "pdf",
+  "markdown": "Results\n\nFirst page text.\n\fSecond page.\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\f",
+  "meta": {},
+  "name": "pdf",
+  "note": null,
+  "prose": true,
+  "quoted": "",
+  "title": "Results"
+ },
+ {
+  "blocks": [
+   {
+    "anchor": "slide-1",
+    "kind": "slide",
+    "level": 0,
+    "parent": null,
+    "text": ""
+   },
+   {
+    "anchor": "heading-1",
+    "kind": "heading",
+    "level": 1,
+    "parent": "slide-1",
+    "text": "Aims"
+   },
+   {
+    "anchor": "para-1",
+    "kind": "para",
+    "level": 0,
+    "parent": "slide-1",
+    "text": "Map NbT7"
+   },
+   {
+    "anchor": "slide-2",
+    "kind": "slide",
+    "level": 0,
+    "parent": null,
+    "text": ""
+   },
+   {
+    "anchor": "heading-2",
+    "kind": "heading",
+    "level": 1,
+    "parent": "slide-2",
+    "text": "Needs"
+   },
+   {
+    "anchor": "para-2",
+    "kind": "para",
+    "level": 0,
+    "parent": "slide-2",
+    "text": "GPU time"
+   }
+  ],
+  "converter": "markitdown",
+  "converter_version": "0.1.9+anagram.1",
+  "kind": "slides",
+  "markdown": "<!-- Slide number: 1 -->\n# Aims\nMap NbT7\n\n<!-- Slide number: 2 -->\n# Needs\nGPU time\n",
+  "meta": {},
+  "name": "slides",
+  "note": null,
+  "prose": true,
+  "quoted": "",
+  "title": "<!-- Slide number: 1 -->"
+ },
+ {
+  "blocks": [
+   {
+    "anchor": "heading-1",
+    "kind": "heading",
+    "level": 2,
+    "parent": null,
+    "text": "Sheet1"
+   },
+   {
+    "anchor": "table-1",
+    "kind": "table",
+    "level": 0,
+    "parent": null,
+    "text": "| sample | yield |\n| --- | --- |\n| A1 | 3.2 |"
+   }
+  ],
+  "converter": "markitdown",
+  "converter_version": "0.1.9+anagram.1",
+  "kind": "table",
+  "markdown": "## Sheet1\n| sample | yield |\n| --- | --- |\n| A1 | 3.2 |\n",
+  "meta": {},
+  "name": "table",
+  "note": null,
+  "prose": false,
+  "quoted": "",
+  "title": "Sheet1"
+ },
+ {
+  "blocks": [
+   {
+    "anchor": "heading-1",
+    "kind": "heading",
+    "level": 1,
+    "parent": null,
+    "text": "Krios slots"
+   },
+   {
+    "anchor": "para-1",
+    "kind": "para",
+    "level": 0,
+    "parent": null,
+    "text": "Can we book two days next week?"
+   }
+  ],
+  "converter": "basic",
+  "converter_version": "1",
+  "kind": "email",
+  "markdown": "# Krios slots\n\nCan we book two days next week?\n",
+  "meta": {
+   "from": "a@b.example"
+  },
+  "name": "email",
+  "note": null,
+  "prose": true,
+  "quoted": "> On Monday, B wrote: is the Krios free?",
+  "title": "Krios slots"
+ },
+ {
+  "blocks": [],
+  "converter": "basic",
+  "converter_version": "1",
+  "kind": "binary",
+  "markdown": "",
+  "meta": {},
+  "name": "empty",
+  "note": "no extractor for application/octet-stream",
+  "prose": false,
+  "quoted": "",
+  "title": null
+ }
+]

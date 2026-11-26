@@ -1,0 +1,11 @@
+[Unit]
+Description=Anagram
+
+[Service]
+Type=simple
+ExecStart=/Applications/Anagram.app/Contents/MacOS/Anagram --home /Users/mei/.anagram app run
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target

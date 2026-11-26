@@ -1,0 +1,31 @@
+{
+ "nodes": [
+  {
+   "id": "1",
+   "type": "text",
+   "text": "Order the grid robot before March"
+  },
+  {
+   "id": "2",
+   "type": "file",
+   "file": "Projects/Grid robot.md"
+  },
+  {
+   "id": "3",
+   "type": "link",
+   "url": "https://example.org/robot"
+  },
+  {
+   "id": "4",
+   "type": "group",
+   "label": "Purchases"
+  }
+ ],
+ "edges": [
+  {
+   "id": "e1",
+   "fromNode": "1",
+   "toNode": "2"
+  }
+ ]
+}

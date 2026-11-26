@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "anagram.pack.v1 (spec/pack.md)",
+  "description": "Structure only. A pack must also obey the rules that JSON Schema cannot say: canonical JSON, sorted lists, NFC text, the byte budgets and the 49152-byte cap (spec/pack.md sections 3 to 7).",
+  "$ref": "#/$defs/pack",
+  "$defs": {
+    "hex32": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "hex64": {"type": "string", "pattern": "^[0-9a-f]{128}$"},
+    "time": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+    "concept": {"type": "integer", "minimum": 0, "maximum": 4294967295},
+    "concepts8": {"type": "array", "items": {"$ref": "#/$defs/concept"}, "maxItems": 8, "uniqueItems": true},
+    "text140": {"type": "string", "minLength": 1, "maxLength": 140},
+    "matchType": {"enum": ["co_supervision", "data_material_share", "instrument_access", "method_help", "replication", "research_fit"]},
+    "subjectRef": {"type": "string", "pattern": "^(person:[0-9a-f]{64}|pid:[0-9a-f]{32})$"},
+    "line": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "concepts", "id", "scope", "text", "types"],
+      "properties": {
+        "class": {"enum": ["data", "instrument", "material", "method", "problem", "replication", "skill", "supervision"]},
+        "concepts": {"$ref": "#/$defs/concepts8"},
+        "id": {"type": "string", "pattern": "^[ow](0[1-9]|1[0-9]|20)$"},
+        "scope": {"enum": ["both", "inside", "outside"]},
+        "text": {"$ref": "#/$defs/text140"},
+        "types": {"type": "array", "items": {"$ref": "#/$defs/matchType"}, "minItems": 1, "maxItems": 6, "uniqueItems": true}
+      }
+    },
+    "reading": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["concepts", "confidence", "kind", "text"],
+      "properties": {
+        "concepts": {"$ref": "#/$defs/concepts8"},
+        "confidence": {"enum": ["high", "low", "med"]},
+        "kind": {"enum": ["asks", "negative_result", "offers", "stage", "stuck_on", "tacit_skill", "trajectory"]},
+        "text": {"type": "string", "minLength": 1, "maxLength": 200}
+      }
+    },
+    "fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["arg", "kind", "value"],
+      "properties": {
+        "arg": {"type": ["integer", "string", "null"]},
+        "kind": {"enum": ["access_mode", "capacity_months", "capacity_students", "has_data", "has_instrument", "has_material", "has_method", "has_used", "lead_time_weeks", "open_to", "solved", "stage", "supervises_in", "terms", "timeline_months", "uses_method"]},
+        "value": {"type": ["integer", "string"]}
+      }
+    },
+    "credential": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "log", "token"],
+      "properties": {
+        "format": {"enum": ["anagram-json-v1", "biscuit-v3"]},
+        "token": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+        "log": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["entry_signature", "hashes", "index", "join", "tree_size"],
+          "properties": {
+            "entry_signature": {"$ref": "#/$defs/hex64"},
+            "hashes": {"type": "array", "items": {"$ref": "#/$defs/hex32"}, "maxItems": 32},
+            "index": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+            "join": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["index", "salt"],
+              "properties": {
+                "index": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+                "salt": {"type": "string", "pattern": "^[0-9a-f]{32}$"}
+              }
+            },
+            "tree_size": {"type": "integer", "minimum": 1, "maximum": 9007199254740991}
+          }
+        }
+      }
+    },
+    "pack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["block", "charter", "consent", "created", "credential", "deny", "expires", "facts", "kind", "lines", "readings", "reply_key", "schema", "signature", "subject", "teasers", "topics", "version", "vocab"],
+      "properties": {
+        "schema": {"const": "anagram.pack.v1"},
+        "kind": {"enum": ["group", "person"]},
+        "subject": {"$ref": "#/$defs/hex32"},
+        "version": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+        "created": {"$ref": "#/$defs/time"},
+        "expires": {"$ref": "#/$defs/time"},
+        "vocab": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{0,31}$"},
+        "consent": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["approved_at", "descriptor_set", "statement"],
+          "properties": {
+            "approved_at": {"$ref": "#/$defs/time"},
+            "descriptor_set": {"$ref": "#/$defs/hex32"},
+            "statement": {"$ref": "#/$defs/hex32"}
+          }
+        },
+        "credential": {"$ref": "#/$defs/credential"},
+        "charter": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["disclosure", "protocols", "rules", "weekly_cap"],
+          "properties": {
+            "disclosure": {"const": "d0"},
+            "protocols": {"type": "array", "items": {"$ref": "#/$defs/matchType"}, "minItems": 1, "maxItems": 6, "uniqueItems": true},
+            "rules": {"type": "object", "propertyNames": {"$ref": "#/$defs/matchType"}, "additionalProperties": {"enum": ["any", "inside", "outside"]}},
+            "weekly_cap": {"type": "integer", "minimum": 1, "maximum": 10}
+          }
+        },
+        "lines": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["offers", "wants"],
+          "properties": {
+            "offers": {"type": "array", "items": {"$ref": "#/$defs/line"}, "maxItems": 20},
+            "wants": {"type": "array", "items": {"$ref": "#/$defs/line"}, "maxItems": 20}
+          }
+        },
+        "teasers": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 100}, "maxItems": 3},
+        "readings": {"type": "array", "items": {"$ref": "#/$defs/reading"}, "maxItems": 40},
+        "facts": {"type": "array", "items": {"$ref": "#/$defs/fact"}, "maxItems": 150},
+        "topics": {"type": "array", "items": {"$ref": "#/$defs/concept"}, "maxItems": 64, "uniqueItems": true},
+        "deny": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["domains", "nodes", "rors"],
+          "properties": {
+            "domains": {"type": "array", "items": {"type": "string", "maxLength": 64}, "maxItems": 32, "uniqueItems": true},
+            "nodes": {"type": "array", "items": {"type": "string", "pattern": "^node-[0-9a-f]{32}$"}, "maxItems": 32, "uniqueItems": true},
+            "rors": {"type": "array", "items": {"type": "string", "pattern": "^0[a-z0-9]{6}[0-9]{2}$"}, "maxItems": 32, "uniqueItems": true}
+          }
+        },
+        "block": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["hide", "people"],
+          "properties": {
+            "people": {"type": "array", "items": {"$ref": "#/$defs/subjectRef"}, "maxItems": 128, "uniqueItems": true},
+            "hide": {
+              "type": "array",
+              "maxItems": 128,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["from", "line"],
+                "properties": {"from": {"$ref": "#/$defs/subjectRef"}, "line": {"type": "string", "pattern": "^[ow](0[1-9]|1[0-9]|20)$"}}
+              }
+            }
+          }
+        },
+        "reply_key": {"$ref": "#/$defs/hex32"},
+        "signature": {"$ref": "#/$defs/hex64"}
+      },
+      "if": {"properties": {"kind": {"const": "person"}}},
+      "then": {
+        "properties": {
+          "lines": {"properties": {"offers": {"maxItems": 10}, "wants": {"maxItems": 10}}},
+          "readings": {"maxItems": 40}
+        }
+      },
+      "else": {
+        "properties": {
+          "readings": {"maxItems": 20},
+          "charter": {"properties": {"protocols": {"items": {"enum": ["co_supervision", "data_material_share", "instrument_access"]}}}}
+        }
+      }
+    }
+  }
+}

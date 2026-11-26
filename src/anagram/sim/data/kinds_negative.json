@@ -1,0 +1,215 @@
+[
+ [
+  "updates/kestrel-week3.md",
+  "finding",
+  "negative",
+  "# Week 3\n\n{T} did not change {measure} in any of our 24 runs.\nMean {measure}: 41 {unit} with {thing2}, 40 {unit} without it.\n{first2} checked the raw values a second time and got the same.\n",
+  [
+   "{T} did not change {measure} in any of our 24 runs."
+  ]
+ ],
+ [
+  "inbox/re-replication.txt",
+  "finding",
+  "negative",
+  "Hi {first2},\n\nShort update: we could not reproduce {author}'s effect.\nWe did the full {method} three times, n = 18 each time, and saw no shift in {measure}.\n\n{person}\n",
+  [
+   "we could not reproduce {author}'s effect."
+  ]
+ ],
+ [
+  "notebook/2026-11-04.md",
+  "finding",
+  "negative",
+  "The effect went away when we added a blind second rater.\nWith the blind rater, {measure} was 22 {unit} in both groups, n = 30 per group.\nWe ran it again with a new batch; same outcome.\n",
+  [
+   "The effect went away when we added a blind second rater."
+  ]
+ ],
+ [
+  "misc/oneliner.txt",
+  "finding",
+  "negative",
+  "{T} with {thing2} is the same as the control: 12 of 12 runs, mean difference 0.1 {unit}, within noise.\n-- {person}, 6 Nov\n",
+  [
+   "{T} with {thing2} is the same as the control"
+  ]
+ ],
+ [
+  "results/new-vs-old.md",
+  "finding",
+  "negative",
+  "# New vs old {method}\n\nThe new {method} and the old one are equivalent for {measure}.\nThe difference was 0.3 {unit} (90% interval -0.8 to 1.4), inside our margin of 2 {unit}.\nn = 60 pairs. {person2} did the count again by hand.\n",
+  [
+   "The new {method} and the old one are equivalent for {measure}."
+  ]
+ ],
+ [
+  "journal/oct-summary.md",
+  "finding",
+  "negative",
+  "Across 40 samples, {measure} stayed flat at 3.1 {unit} after we added {thing2}.\nThe change after {thing2} was not significant in n = 40 (p = 0.62).\nTwo people did the counts on their own.\n",
+  [
+   "{measure} stayed flat at 3.1 {unit} after we added {thing2}",
+   "The change after {thing2} was not significant in n = 40 (p = 0.62)."
+  ]
+ ],
+ [
+  "updates/decision-1110.md",
+  "finding",
+  "negative",
+  "# Decision, 10 November\n\nWe drop the idea that {thing2} drives {topic}.\nFour rounds of {method} gave no difference between groups (n = 96 in total).\n{first2} and {person} checked each round on their own.\n",
+  [
+   "We drop the idea that {thing2} drives {topic}."
+  ]
+ ],
+ [
+  "inbox/second-set.txt",
+  "finding",
+  "negative",
+  "{first2}, the second set is in.\nNo difference in {measure} between the two sites: 17.2 vs 17.0 {unit}, n = 50 each.\nThis matches the first set, so the site has no part in it.\n",
+  [
+   "No difference in {measure} between the two sites"
+  ]
+ ],
+ [
+  "notebook/scratch-11.md",
+  "finding",
+  "negative",
+  "Our earlier result for {thing} came from the batch order only.\nWhen we mixed the order, the gain in {measure} fell to zero in 3 of 3 repeats.\n{person2} saw the same with fresh {dataset}.\n",
+  [
+   "Our earlier result for {thing} came from the batch order only."
+  ]
+ ],
+ [
+  "results/main-outcome.md",
+  "finding",
+  "negative",
+  "# Main outcome\n\n{T} gives the expected rise in {measure} in neither of the two arms.\nArm A: 0.2 {unit} change. Arm B: -0.1 {unit} change. n = 35 per arm, three repeats.\nWe expected at least 5 {unit}.\n",
+  [
+   "{T} gives the expected rise in {measure} in neither of the two arms."
+  ]
+ ],
+ [
+  "results/batch-12.md",
+  "result",
+  "negative",
+  "# Batch 12\n\nAll 12 samples at background: {measure} 0.0 to 0.2 {unit} (background 0.1).\nNo signal above background in any sample.\nRaw values from the {instrument}, 9 November. We did not discuss them yet.\n",
+  []
+ ],
+ [
+  "misc/run-log-14.txt",
+  "result",
+  "negative",
+  "Runs 14 to 17, {measure} before and after {thing2}:\nbefore 33, 34, 33, 35 {unit}; after 33, 34, 34, 35 {unit}.\nNo change in any pair. The group did not look at it yet.\n",
+  []
+ ],
+ [
+  "notebook/repeat-values.md",
+  "result",
+  "negative",
+  "Repeat of the set-up of {author}, 12 November.\nControl: 8.1 {unit}. With {thing2}: 8.0 {unit}. Same for all 5 repeats.\nThe peak we looked for did not show. Values only; no reading of them yet.\n",
+  []
+ ],
+ [
+  "updates/drift.md",
+  "finding",
+  "positive",
+  "Without {thing2} the drift stopped in all runs.\nWe removed {thing2} in 16 runs; {measure} held at 9 {unit} in each one.\nWith {thing2} back, the drift came back in 15 of 16.\n",
+  [
+   "Without {thing2} the drift stopped in all runs."
+  ]
+ ],
+ [
+  "journal/after-fix.txt",
+  "finding",
+  "positive",
+  "{T} never failed after the change, 20 of 20.\nBefore the change it failed in 7 of 20. {first2} ran the second set alone.\n",
+  [
+   "{T} never failed after the change, 20 of 20."
+  ]
+ ],
+ [
+  "inbox/re-doubt.md",
+  "finding",
+  "positive",
+  "{first2}, you were not wrong to doubt it, but it holds.\n{T} does not just follow {thing2}: it raises {measure} by 6 {unit} even when we hold {thing2} fixed.\nn = 48, two repeats, same size both times.\n",
+  [
+   "it raises {measure} by 6 {unit} even when we hold {thing2} fixed."
+  ]
+ ],
+ [
+  "results/gap-cases.md",
+  "finding",
+  "positive",
+  "Not one of the 30 cases showed the gap in {measure} once {thing2} was removed.\nWith {thing2}, all 30 showed it. So {thing2} causes the gap.\n{person2} checked the 60 cases again.\n",
+  [
+   "So {thing2} causes the gap."
+  ]
+ ],
+ [
+  "notebook/two-sites.md",
+  "finding",
+  "unclear",
+  "{T} raised {measure} at the {place} but lowered it at the second site.\nSite 1: +4 {unit}, n = 25. Site 2: -3 {unit}, n = 25. Both repeats agree.\nWe cannot yet say which site is typical.\n",
+  [
+   "{T} raised {measure} at the {place} but lowered it at the second site."
+  ]
+ ],
+ [
+  "results/values-nov.txt",
+  "result",
+  "unclear",
+  "{measure} ({unit}) for the six new samples: 12, 19, 7, 15, 11, 22.\nFrom the {instrument}, 14 November. No comparison yet.\n",
+  []
+ ],
+ [
+  "misc/keys.txt",
+  "note",
+  null,
+  "We did not find the spare key for the {place}.\n{first2} will ask the front desk on Monday. No luck so far.\n",
+  []
+ ],
+ [
+  "prereg/no-change.md",
+  "plan",
+  null,
+  "# Pre-registration\n\nWe expect no change in {measure} when {thing2} is added.\nIf the change is below 1 {unit} in n = 40, we will report a null result.\nData collection starts in January under {grant}.\n",
+  []
+ ],
+ [
+  "reading/others-null.md",
+  "reference",
+  null,
+  "# {author} (2022), {venue}\n\n{author} found no effect of {thing2} on {topic}, n = 300.\nThis is their work, not ours. We cite it in the introduction.\n",
+  []
+ ],
+ [
+  "misc/handling.txt",
+  "method",
+  null,
+  "# Handling {thing}\n\nDo not keep {thing} near {thing2}.\nDo not start the {instrument} before the check sheet is signed.\nWrite each step in the {dataset} log.\n",
+  []
+ ],
+ [
+  "inbox/travel-form.txt",
+  "admin",
+  null,
+  "Travel request for the {venue} meeting: not approved.\nThe {org} office says the {grant} budget has no travel line this year.\nYou can ask again in March.\n",
+  []
+ ],
+ [
+  "inbox/re-renewal.txt",
+  "correspondence",
+  null,
+  "Dear {person},\n\nNo news yet from {org} on the {grant} renewal.\nI will write again when I hear back.\n\nBest,\n{person2}\n",
+  []
+ ],
+ [
+  "journal/early.md",
+  "note",
+  null,
+  "Nothing yet, too few runs.\nOnly 3 of the 20 planned runs on {thing} are done. Check again next week.\n",
+  []
+ ]
+]

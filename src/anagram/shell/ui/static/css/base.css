@@ -1,0 +1,445 @@
+/* Anagram product layer over the Radiofuture brand (brand/ is an unchanged copy).
+   This file: semantic colors with dark pairs, the shell, and type.
+   Components are in components.css. Motion is in motion.css.
+   One strong detail on a screen: the task panel with the hard blue offset. All else is flat. */
+
+:root {
+  --ag-field: var(--rf-lavender);
+  --ag-surface: var(--rf-paper);
+  --ag-stock: var(--rf-stock);
+  --ag-text: var(--rf-ink);
+  --ag-muted: var(--rf-muted);
+  --ag-rule: var(--rf-rule);
+  --ag-action: var(--rf-blue);
+  --ag-on-action: var(--rf-paper);
+  --ag-selected: var(--rf-lime);
+  --ag-on-selected: #24202c;
+  --ag-on-selected-muted: #4a4452;
+  --ag-error: #922e1c;
+  --ag-offset: var(--rf-blue);
+  --ag-mark: var(--rf-vermilion);
+  --ag-read: 44rem;
+  --ag-rail: 15rem;
+}
+
+/* Dark appearance: own semantic pairs (not an inversion). The brand palette
+   variables are remapped inside .rf-ui so the shared widget styles follow. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ag-field: #1d1b23;
+    --ag-surface: #27242e;
+    --ag-stock: #34303c;
+    --ag-text: #eeebf3;
+    --ag-muted: #b6afc0;
+    --ag-rule: rgba(238, 235, 243, 0.2);
+    --ag-action: #aab6ff;
+    --ag-on-action: #1d1b23;
+    --ag-error: #ffa08c;
+    --ag-offset: #6f80e8;
+  }
+  :root:not([data-theme="light"]) .rf-ui {
+    --rf-paper: var(--ag-surface);
+    --rf-lavender: var(--ag-field);
+    --rf-ink: var(--ag-text);
+    --rf-muted: var(--ag-muted);
+    --rf-stock: var(--ag-stock);
+    --rf-rule: var(--ag-rule);
+    --rf-blue: var(--ag-action);
+    --rf-ui-error: var(--ag-error);
+    --rf-ui-on-action: var(--ag-on-action);
+    color-scheme: dark;
+  }
+}
+
+body.rf-ui {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--ag-field);
+  color: var(--ag-text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    /* biome-ignore lint/complexity/noImportantStyles: the reduced-motion preference must win over every scroll-behavior rule, also the brand rules. */
+    scroll-behavior: auto !important;
+  }
+}
+
+.ag-skip {
+  position: absolute;
+  left: 16px;
+  top: -60px;
+  z-index: 10;
+  padding: 10px 16px;
+  background: var(--ag-surface);
+  color: var(--ag-text);
+}
+.ag-skip:focus {
+  top: 16px;
+}
+
+/* ------------------------------------------------------------------ shell */
+
+.ag-shell {
+  display: grid;
+  grid-template-columns: var(--ag-rail) minmax(0, 1fr);
+  min-height: 100vh;
+}
+.ag-rail {
+  border-right: 1px solid var(--ag-rule);
+}
+.ag-rail-inner {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  height: 100vh;
+  padding: 32px 0 20px;
+  overflow-y: auto;
+}
+.rf-ui .ag-brand {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  margin: 0 24px;
+  color: var(--ag-text);
+  text-decoration: none;
+}
+.ag-mark {
+  width: 88px;
+  height: auto;
+  display: block;
+}
+.ag-brand-name {
+  font-size: 1.75rem;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+.rf-ui .ag-community {
+  margin: -14px 24px 0;
+  color: var(--ag-muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+/* The back link above the title of a detail screen. It comes before the nav
+   rules, so that the more specific nav link rules come after it. */
+.ag-back {
+  margin: 0 0 20px;
+  font-size: 0.875rem;
+}
+.rf-ui .ag-back a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ag-text);
+}
+
+/* overflow-x: the selection mark stays in the nav, so it never makes the page scroll. */
+.ag-nav {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: clip;
+}
+.ag-nav-list {
+  position: relative;
+  z-index: 1;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.ag-nav-list--foot {
+  margin-top: auto;
+  padding-top: 24px;
+}
+.rf-ui .ag-nav-list a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 24px;
+  color: var(--ag-text);
+  text-decoration: none;
+  outline-offset: -3px;
+}
+.rf-ui .ag-nav-list a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.rf-ui .ag-nav-list--foot a {
+  font-size: 0.875rem;
+  color: var(--ag-muted);
+}
+.rf-ui .ag-nav-list--foot a[aria-current="page"] {
+  color: var(--ag-text);
+}
+/* The selection: one element that moves to the current item (motion.css, T2). */
+.ag-nav-mark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 0;
+  pointer-events: none;
+  width: var(--ag-mark-w, 0);
+  height: var(--ag-mark-h, 0);
+  transform: translate(var(--ag-mark-x, 0), var(--ag-mark-y, 0));
+  background: var(--ag-surface);
+  border-left: 4px solid var(--ag-selected);
+  opacity: 0;
+}
+.ag-nav-mark[data-on="true"] {
+  opacity: 1;
+}
+
+.ag-conn {
+  margin: 0 24px;
+  font-size: 0.875rem;
+  color: var(--ag-text);
+}
+.ag-conn span {
+  display: block;
+}
+.rf-ui .ag-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ag-action);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  font-size: inherit;
+}
+
+main {
+  padding: 56px clamp(24px, 6vw, 80px) 120px;
+  min-width: 0;
+}
+#main:focus,
+#main:focus-visible {
+  outline: none;
+}
+.ag-view {
+  max-width: var(--ag-read);
+}
+.ag-alone {
+  max-width: var(--ag-read);
+  margin: 0 auto;
+  padding-top: clamp(48px, 14vh, 144px);
+}
+
+.ag-phonebar {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .ag-shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+  .ag-rail {
+    border-right: 0;
+    border-bottom: 1px solid var(--ag-rule);
+  }
+  .ag-rail-inner {
+    position: static;
+    height: auto;
+    overflow: visible;
+    padding: 10px 16px;
+    gap: 12px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .rf-ui .ag-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+  }
+  .rf-ui .ag-community,
+  .ag-rail .ag-nav {
+    display: none;
+  }
+  .ag-brand-name {
+    font-size: 1.25rem;
+  }
+  .ag-mark {
+    width: 48px;
+  }
+  .ag-phonebar {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+  }
+  .rf-ui .ag-menu-button {
+    min-height: 44px;
+  }
+  .ag-conn {
+    flex: 1 0 100%;
+    margin: 0;
+  }
+  main {
+    padding: 28px 16px 72px;
+  }
+  .ag-alone {
+    padding-top: 40px;
+  }
+}
+
+/* The menu sheet (phone): the rail list as large rows. */
+.ag-menu .ag-nav-list {
+  gap: 0;
+  border-top: 1px solid var(--ag-rule);
+}
+.ag-menu .ag-nav-list--foot {
+  margin-top: 24px;
+}
+.rf-ui .ag-menu .ag-nav-list a {
+  min-height: 52px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--ag-rule);
+  font-size: 1.125rem;
+}
+.rf-ui .ag-menu .ag-nav-list--foot a {
+  font-size: 1rem;
+}
+.rf-ui .ag-menu .ag-nav-list a[aria-current="page"] {
+  box-shadow: inset 4px 0 0 var(--ag-selected);
+  background: var(--ag-surface);
+}
+
+/* ------------------------------------------------------------------- type */
+
+.ag-title {
+  font-size: 2rem;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  font-weight: 400;
+  margin: 0 0 16px;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.rf-ui .ag-title:focus,
+.rf-ui .ag-title:focus-visible {
+  outline: none;
+}
+.ag-lead {
+  margin: 0 0 24px;
+  max-width: 38rem;
+}
+.ag-step {
+  margin: 0 0 8px;
+  color: var(--ag-muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+.ag-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 56px 0 12px;
+}
+.ag-section {
+  font-size: 1.5rem;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  font-weight: 400;
+  margin: 0;
+}
+.ag-section-count {
+  margin: 0;
+  color: var(--ag-muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ag-view > section:first-of-type > .ag-section-head {
+  margin-top: 32px;
+}
+.ag-subtitle {
+  font-size: 1.125rem;
+  line-height: 1.3;
+  font-weight: 400;
+  margin: 32px 0 4px;
+  overflow-wrap: anywhere;
+}
+.ag-quote {
+  margin: 12px 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--ag-muted);
+  overflow-wrap: anywhere;
+}
+.ag-warn {
+  display: block;
+  margin: 8px 0 0;
+  font-size: 0.875rem;
+  color: var(--ag-text);
+}
+.ag-warn::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  background: var(--ag-mark);
+}
+.ag-next {
+  margin-top: 48px;
+}
+.rf-ui p {
+  margin: 8px 0;
+}
+.rf-ui .rf-ui-help {
+  margin: 4px 0;
+}
+.rf-ui code {
+  font-size: 0.9375em;
+}
+.rf-ui select {
+  font: inherit;
+}
+.rf-ui select.rf-ui-input {
+  width: auto;
+  max-width: 100%;
+}
+.ag-actions {
+  margin: 32px 0 16px;
+}
+.ag-group {
+  margin: 24px 0;
+}
+.rf-ui .rf-ui-field {
+  margin: 16px 0;
+}
+.rf-ui .rf-ui-button[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.ag-plain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.ag-plain small {
+  display: block;
+}
+.ag-small-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 0.875rem;
+}

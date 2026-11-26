@@ -1,0 +1,12 @@
+# Real domain: Caddy gets a Let's Encrypt certificate for ANAGRAM_DOMAIN
+# (ports 80 and 443 must be open). To get certificate expiry mail, add a
+# global block at the top: { email you@example.org }
+
+{$ANAGRAM_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	reverse_proxy node:8787
+}

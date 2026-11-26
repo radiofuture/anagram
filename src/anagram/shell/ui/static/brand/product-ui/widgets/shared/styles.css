@@ -1,0 +1,161 @@
+/* Product components. Scope all rules to .rf-ui. No build step is required. */
+.rf-ui *, .rf-ui *::before, .rf-ui *::after { box-sizing: border-box; }
+.rf-ui [hidden] { display: none !important; }
+.rf-ui button, .rf-ui input, .rf-ui textarea { font: inherit; }
+.rf-ui button, .rf-ui input, .rf-ui textarea { border-radius: 0; }
+.rf-ui a { color: var(--rf-ui-action); text-underline-offset: 4px; }
+.rf-ui :is(button, input, textarea, a, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--rf-ui-focus); outline-offset: 4px;
+}
+.rf-ui button { cursor: pointer; }
+.rf-ui button:disabled { cursor: not-allowed; }
+.rf-ui .rf-ui-button {
+  min-height: var(--rf-ui-target); min-width: var(--rf-ui-target);
+  padding: 10px 20px; border: 1px solid var(--rf-ui-action);
+  background: var(--rf-ui-action); color: var(--rf-ui-on-action);
+  display: inline-flex; align-items: center; justify-content: center; gap: 12px;
+  text-align: center; text-decoration: none; font-weight: 400;
+  transition: transform var(--rf-ui-press-time) ease-out;
+}
+.rf-ui .rf-ui-button--secondary { background: transparent; color: var(--rf-ui-text); border-color: var(--rf-ui-boundary); }
+.rf-ui .rf-ui-button--quiet { background: transparent; color: var(--rf-ui-text); border-color: transparent; text-decoration: underline; text-underline-offset: 4px; }
+.rf-ui .rf-ui-button--danger { background: var(--rf-ui-error); border-color: var(--rf-ui-error); }
+.rf-ui .rf-ui-button:active:not(:disabled):not([aria-disabled=true]) { transform: translateY(1px); }
+.rf-ui .rf-ui-button:disabled, .rf-ui .rf-ui-button[aria-disabled=true] { background: var(--rf-stock); color: var(--rf-ui-secondary); border-color: var(--rf-ui-boundary); cursor: not-allowed; }
+@media (hover: hover) { .rf-ui .rf-ui-button:hover:not(:disabled):not([aria-disabled=true]) { text-decoration: underline; text-underline-offset: 4px; } }
+.rf-ui .rf-ui-card { background: var(--rf-ui-surface); border: 1px solid var(--rf-rule); padding: 24px; min-width: 0; }
+.rf-ui .rf-ui-card h3 { font-size: 1.5rem; line-height: 1.2; font-weight: 400; letter-spacing: -.035em; margin: 8px 0 16px; }
+.rf-ui .rf-ui-card p { margin: 0 0 16px; }
+.rf-ui .rf-ui-card--selected { border: 2px solid var(--rf-ui-action); padding: 23px; }
+.rf-ui .rf-ui-eyebrow { font-size: .75rem; letter-spacing: .07em; text-transform: uppercase; }
+.rf-ui .rf-ui-help { color: var(--rf-ui-secondary); font-size: .875rem; }
+.rf-ui .rf-ui-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.rf-ui .rf-ui-field { display: grid; gap: 8px; }
+.rf-ui .rf-ui-input { width: 100%; min-height: var(--rf-ui-target); padding: 10px 12px; color: var(--rf-ui-text); background: var(--rf-ui-surface); border: 1px solid var(--rf-ui-boundary); }
+.rf-ui .rf-ui-input[aria-invalid=true] { border: 2px solid var(--rf-ui-error); }
+.rf-ui .rf-ui-error { color: var(--rf-ui-error); }
+.rf-ui .rf-ui-status { border-left: 3px solid var(--rf-ui-action); padding: 8px 12px; font-size: .875rem; }
+.rf-ui .rf-ui-choices { border: 0; margin: 0; padding: 0; }
+.rf-ui .rf-ui-choices legend { margin-bottom: 12px; }
+.rf-ui .rf-ui-choice { position: relative; display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 10px 14px; border: 1px solid var(--rf-ui-boundary); cursor: pointer; }
+.rf-ui .rf-ui-choice:has(input:checked) { background: var(--rf-ui-selected); border-color: var(--rf-ui-text); }
+.rf-ui input[type=radio], .rf-ui input[type=checkbox] { accent-color: var(--rf-ui-action); width: 18px; height: 18px; flex: none; }
+.rf-ui .rf-ui-toggle { display: flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; }
+/* Instruments share value, motion, and input rules. Shape follows the task. */
+.rf-ui .rf-ui-instrument { --rf-ui-position: .4; --rf-ui-fill: 40%; min-width: 0; }
+.rf-ui .rf-ui-instrument-stage { position: relative; }
+.rf-ui .rf-ui-dial {
+  position: relative; width: min(264px, 100%); aspect-ratio: 1; margin: 20px auto 12px;
+  border-radius: 50%; touch-action: pan-y; user-select: none; cursor: ew-resize;
+}
+.rf-ui .rf-ui-dial::before { content: ''; position: absolute; inset: 17%; border: 1px solid var(--rf-ink); background: var(--rf-ink); border-radius: 50%; }
+.rf-ui .rf-ui-dial::after { content: ''; position: absolute; inset: 13%; border: 1px solid var(--rf-ui-boundary); border-radius: 50%; pointer-events: none; }
+.rf-ui .rf-ui-dial-track { position: absolute; inset: 0; pointer-events: none; }
+.rf-ui .rf-ui-dial-track i { position: absolute; inset: 0; transform: rotate(var(--tick-angle)); }
+.rf-ui .rf-ui-dial-track i::before { content: ''; position: absolute; top: 2%; left: calc(50% - 1px); width: 2px; height: 9px; background: var(--rf-muted); }
+.rf-ui .rf-ui-dial-track i.is-active::before { background: var(--rf-blue); height: 15px; width: 3px; }
+.rf-ui .rf-ui-needle { position: absolute; inset: 0; transform: rotate(var(--rf-ui-angle, -135deg)); pointer-events: none; }
+.rf-ui .rf-ui-needle::before { content: ''; position: absolute; top: 19%; left: calc(50% - 2px); width: 4px; height: 20px; background: var(--rf-lime); }
+.rf-ui [data-unset=true] .rf-ui-needle { visibility: hidden; }
+.rf-ui .rf-ui-instrument-value { display: grid; justify-items: center; gap: 8px; font-size: clamp(2.75rem, 6vw, 4.5rem); line-height: 1; letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
+.rf-ui .rf-ui-dial .rf-ui-instrument-value { position: absolute; inset: 34% 19% 20%; align-content: center; color: var(--rf-paper); pointer-events: none; font-size: clamp(2.25rem, 5vw, 3.75rem); }
+.rf-ui .rf-ui-instrument-unit { font-size: .75rem; line-height: 1.5; text-transform: uppercase; letter-spacing: .06em; }
+.rf-ui .rf-ui-number { display: inline-flex; min-height: 1.12em; line-height: 1.12; }
+.rf-ui .rf-ui-digit { position: relative; display: inline-block; overflow: hidden; height: 1.12em; min-width: .57em; text-align: center; }
+.rf-ui .rf-ui-digit > span { display: block; }
+.rf-ui .rf-ui-digit-old { position: absolute; inset: 0; }
+.rf-ui .rf-ui-scale-ends { display: flex; justify-content: space-between; align-items: center; gap: 32px; min-height: 52px; padding: 4px 12px; font-size: 1.4rem; line-height: 1.2; letter-spacing: -.04em; }
+.rf-ui .rf-ui-scale-ends > span { display: block; max-width: 43%; transform-origin: left center; transform: scale(var(--rf-ui-low-scale, 1)); }
+.rf-ui .rf-ui-scale-ends > span + span { text-align: right; transform-origin: right center; transform: scale(var(--rf-ui-high-scale, 1)); }
+.rf-ui .rf-ui-instrument-description { margin: 12px 0 4px; text-align: center; min-height: 1.5em; color: var(--rf-blue); }
+.rf-ui .rf-ui-instrument > .rf-ui-help { text-align: center; margin: 0 0 16px; }
+.rf-ui .rf-ui-fine-actions { display: flex; align-items: center; justify-content: center; gap: 20px; }
+.rf-ui .rf-ui-step { display: grid; place-items: center; min-width: 48px; min-height: 48px; padding: 4px 12px; font-size: 1.75rem; line-height: 1; border: 1px solid var(--rf-ink); color: var(--rf-ink); background: transparent; touch-action: manipulation; user-select: none; }
+.rf-ui .rf-ui-step:active:not(:disabled) { background: var(--rf-lime); transform: scale(.94); }
+.rf-ui .rf-ui-step:disabled { color: var(--rf-muted); border-color: var(--rf-rule); }
+.rf-ui .rf-ui-instrument--stepper .rf-ui-instrument-stage { display: grid; grid-template-columns: 48px minmax(0,1fr) 48px; align-items: center; gap: 8px; padding: 24px 0; }
+.rf-ui .rf-ui-instrument--stepper .rf-ui-instrument-value { font-size: clamp(2rem, 8vw, 4rem); }
+.rf-ui .rf-ui-instrument--slider .rf-ui-instrument-value { padding: 16px 0 24px; }
+.rf-ui .rf-ui-range { appearance: none; display: block; width: 100%; height: 48px; margin: 0; background: transparent; cursor: ew-resize; touch-action: pan-y; }
+.rf-ui .rf-ui-range::-webkit-slider-runnable-track { height: 6px; background: linear-gradient(to right, var(--rf-blue) var(--rf-ui-fill), var(--rf-stock) var(--rf-ui-fill)); border: 1px solid var(--rf-muted); }
+.rf-ui .rf-ui-range::-webkit-slider-thumb { appearance: none; margin-top: -19px; width: 28px; height: 42px; border: 2px solid var(--rf-ink); background: var(--rf-lime); }
+.rf-ui .rf-ui-range::-moz-range-track { height: 4px; background: var(--rf-stock); border: 1px solid var(--rf-muted); }
+.rf-ui .rf-ui-range::-moz-range-progress { background: var(--rf-blue); height: 6px; }
+.rf-ui .rf-ui-range::-moz-range-thumb { border-radius: 0; width: 24px; height: 38px; border: 2px solid var(--rf-ink); background: var(--rf-lime); }
+.rf-ui .rf-ui-instrument--slider .rf-ui-scale-ends { font-size: 1rem; padding-inline: 0; }
+.rf-ui .rf-ui-input { min-width: 0; }
+.rf-ui .rf-ui-choice-card { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; position: relative; min-height: 84px; padding: 16px; border: 1px solid var(--rf-muted); background: var(--rf-paper); cursor: pointer; }
+.rf-ui .rf-ui-choice-card:has(input:checked) { background: var(--rf-lime); border-color: var(--rf-ink); }
+.rf-ui .rf-ui-choice-card small { display: block; margin-top: 4px; color: var(--rf-muted); font-size: .875rem; }
+.rf-ui .rf-ui-choice-card .rf-ui-choice-mark { visibility: hidden; }
+.rf-ui .rf-ui-choice-card:has(input:checked) .rf-ui-choice-mark { visibility: visible; }
+.rf-ui .rf-ui-switch { appearance: none; position: relative; width: 48px !important; height: 28px !important; border: 1px solid var(--rf-muted); background: var(--rf-stock); }
+.rf-ui .rf-ui-switch::after { content: ''; position: absolute; width: 20px; height: 20px; inset: 3px auto auto 3px; background: var(--rf-ink); transition: transform var(--rf-ui-number-time) var(--rf-ui-ease); }
+.rf-ui .rf-ui-switch:checked { background: var(--rf-lime); border-color: var(--rf-ink); }
+.rf-ui .rf-ui-switch:checked::after { transform: translateX(20px); }
+.rf-ui .rf-ui-sheet { width: min(520px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 28px; color: var(--rf-ink); background: var(--rf-paper); border: 1px solid var(--rf-ink); }
+.rf-ui .rf-ui-sheet::backdrop { background: rgb(36 32 44 / .48); }
+.rf-ui .rf-ui-sheet h2 { font-size: 2rem; font-weight: 400; letter-spacing: -.04em; line-height: 1.1; }
+.rf-ui .rf-ui-sheet dl > div { display: flex; justify-content: space-between; gap: 24px; padding: 12px 0; border-bottom: 1px solid var(--rf-rule); }
+.rf-ui .rf-ui-sheet dd { text-align: right; margin: 0; }
+.rf-ui .rf-ui-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 520px) {
+  .rf-ui .rf-ui-card { padding: 20px; }
+  .rf-ui .rf-ui-card--selected { padding: 19px; }
+  .rf-ui .rf-ui-sheet { margin: auto 0 0; width: 100%; max-height: 90dvh; padding: 24px 20px max(24px, env(safe-area-inset-bottom)); }
+}
+@media (forced-colors: active) {
+  .rf-ui .rf-ui-dial::before, .rf-ui .rf-ui-card, .rf-ui .rf-ui-button, .rf-ui .rf-ui-step, .rf-ui .rf-ui-choice-card, .rf-ui .rf-ui-switch { border-color: ButtonText; }
+  .rf-ui .rf-ui-dial .rf-ui-instrument-value { color: CanvasText; }
+  .rf-ui .rf-ui-needle::before, .rf-ui .rf-ui-dial-track i::before { background: CanvasText; }
+  .rf-ui .rf-ui-dial-track i.is-active::before { background: Highlight; }
+  .rf-ui :is(button, input, textarea, a, summary, [tabindex]):focus-visible { outline-color: Highlight; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rf-ui .rf-ui-button:active:not(:disabled):not([aria-disabled=true]), .rf-ui .rf-ui-step:active:not(:disabled), .rf-ui .rf-ui-scale-ends > span { transform: none; }
+  .rf-ui .rf-ui-switch::after { transition: none; }
+}
+.rf-ui .rf-ui-scale-ends > span, .rf-ui .rf-ui-needle { transition: transform var(--rf-ui-change-time) var(--rf-ui-ease); }
+.rf-ui [data-dragging=true] .rf-ui-scale-ends > span, .rf-ui [data-dragging=true] .rf-ui-needle { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .rf-ui .rf-ui-scale-ends > span, .rf-ui .rf-ui-needle { transition: none; }
+}
+/* Rotating tick carriers must not increase the page's scroll width. */
+.rf-ui .rf-ui-dial { overflow: clip; }
+/* The visible number is the input. No disclosure or duplicate field. */
+.rf-ui .rf-ui-direct-value { position: relative; display: inline-grid; min-width: 2.4em; max-width: 100%; border-bottom: 1px solid var(--rf-muted); cursor: text; justify-items: center; }
+.rf-ui .rf-ui-direct-input { position: absolute; inset: 0; appearance: textfield; border: 0; background: transparent; color: transparent; caret-color: var(--rf-ink); font: inherit; letter-spacing: inherit; line-height: inherit; text-align: center; width: 100%; min-width: 0; padding: 0; }
+.rf-ui .rf-ui-direct-input::-webkit-inner-spin-button, .rf-ui .rf-ui-direct-input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.rf-ui .rf-ui-direct-value:focus-within .rf-ui-number, .rf-ui .rf-ui-direct-value:has([aria-invalid=true]) .rf-ui-number { visibility: hidden; }
+.rf-ui .rf-ui-direct-input:focus, .rf-ui .rf-ui-direct-input[aria-invalid=true] { color: var(--rf-ink); }
+.rf-ui .rf-ui-direct-value:focus-within { border-color: var(--rf-blue); }
+.rf-ui .rf-ui-direct-error { font-size: .875rem; margin: 8px 0 0; text-align: center; }
+.rf-ui .rf-ui-direct-error:empty { display: none; }
+/* Question rows use the question itself as their heading. */
+.rf-ui .rf-ui-question { min-width: 0; margin: 0; padding: 0; border: 0; }
+.rf-ui .rf-ui-question legend { padding: 0; width: 100%; }
+.rf-ui .rf-ui-question-title { margin: 0 0 16px; font-size: 2rem; font-weight: 400; line-height: 1.15; letter-spacing: -.035em; }
+.rf-ui .rf-ui-question-help { margin: 0 0 24px; color: var(--rf-muted); }
+.rf-ui .rf-ui-answer-list { display: grid; gap: 12px; }
+.rf-ui .rf-ui-answer { display: grid; grid-template-columns: auto 24px 1fr; align-items: center; gap: 12px; padding: 16px; min-height: 64px; background: var(--rf-paper); border: 1px solid var(--rf-muted); cursor: pointer; }
+.rf-ui .rf-ui-answer:has(input:checked) { background: var(--rf-lime); border-color: var(--rf-ink); }
+.rf-ui .rf-ui-answer:has(input:focus-visible) { outline: 3px solid var(--rf-blue); outline-offset: 3px; }
+.rf-ui .rf-ui-answer-letter { font-size: .875rem; }
+.rf-ui .rf-ui-other-field { margin-top: 20px; }
+.rf-ui .rf-ui-question-error { margin: 16px 0 0; }
+.rf-ui .rf-ui-question-error:empty { display: none; }
+/* Task widgets: native fields, quiet result lists, and explicit work states. */
+.rf-ui .rf-ui-task-title { margin: 0 0 16px; font-weight: 400; font-size: 2rem; line-height: 1.15; letter-spacing: -.035em; }
+.rf-ui .rf-ui-date-window, .rf-ui .rf-ui-search-results { min-width: 0; border: 0; margin: 0; padding: 0; }
+.rf-ui .rf-ui-date-window legend { padding: 0; }
+.rf-ui .rf-ui-date-fields { display: grid; gap: 20px; margin: 24px 0; }
+.rf-ui .rf-ui-date-fields input { max-width: 100%; }
+.rf-ui .rf-ui-search-result { display: flex; align-items: center; gap: 16px; padding: 16px; min-height: 64px; background: var(--rf-paper); border: 1px solid var(--rf-muted); cursor: pointer; }
+.rf-ui .rf-ui-search-result:has(input:checked) { background: var(--rf-lime); border-color: var(--rf-ink); }
+.rf-ui .rf-ui-search-result small { display: block; margin-top: 4px; }
+.rf-ui .rf-ui-work-status { padding: 24px 0; }
+.rf-ui .rf-ui-review-fields { margin: 24px 0; }
+.rf-ui .rf-ui-review-fields > div { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; padding: 16px 0; border-top: 1px solid var(--rf-rule); }
+.rf-ui .rf-ui-review-fields dt { grid-column: 1; color: var(--rf-muted); font-size: .875rem; }
+.rf-ui .rf-ui-review-fields dd { grid-column: 1; margin: 0; overflow-wrap: anywhere; }
+.rf-ui .rf-ui-review-fields button { grid-column: 2; grid-row: 1 / 3; align-self: center; padding-inline: 8px; }

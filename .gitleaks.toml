@@ -1,0 +1,34 @@
+# Secret scan config (gitleaks). The default rules apply; the allowlists
+# below remove known false positives only. Do not add a real secret here:
+# rotate it and remove it from history.
+title = "anagram"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Test vectors and copied brand hashes: fixed test keys and digests, public by design"
+paths = [
+    '''(^|/)spec/vectors/[^/]+\.json$''',
+    '''(^|/)src/anagram/shell/ui/static/brand/manifest\.json$''',
+]
+
+[[allowlists]]
+description = "Labels and type names that look like keys: domain tags, schema names, key slot names"
+regexTarget = "match"
+regexes = [
+    '''["']anagram[./][a-z0-9_./-]+["']''',
+    '''["'][a-z0-9-]+-(ed25519|x25519)["']''',
+    '''X25519(Private|Public)Key''',
+]
+
+[[allowlists]]
+description = "Fake credentials in tests (fixed strings, never real accounts)"
+paths = ['''(^|/)tests/test_[a-z0-9_]+\.py$''']
+regexTarget = "line"
+regexes = [
+    '''client_secret="GOCSPX-secret-\d"''',
+    '''api_key="Fk9zZotero0Key0Abc123"''',
+    '''vault-key\.key''',
+    '''profile\.set_key\(keystore, "[a-z0-9-]+", key\)''',
+]

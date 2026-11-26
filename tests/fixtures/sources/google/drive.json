@@ -1,0 +1,59 @@
+{
+  "_source": "Shapes from the examples of the official Google Drive API v3 and OAuth 2.0 documentation, with IDs and text replaced. Not a recording. Step S14 replaces this file with redacted recordings (scripts/record_source_fixtures.py).",
+  "start_page_token": {"kind": "drive#startPageToken", "startPageToken": "1234"},
+  "files_list": {
+    "kind": "drive#fileList",
+    "incompleteSearch": false,
+    "nextPageToken": "next-page",
+    "files": [
+      {
+        "kind": "drive#file",
+        "id": "1FileId",
+        "name": "Plan",
+        "mimeType": "application/vnd.google-apps.document",
+        "modifiedTime": "2026-11-01T10:00:00.000Z",
+        "parents": ["1FolderId"],
+        "trashed": false,
+        "webViewLink": "https://docs.google.com/document/d/1FileId/edit",
+        "owners": [{"emailAddress": "member@example.org"}],
+        "capabilities": {"canDownload": true}
+      }
+    ]
+  },
+  "changes_list": {
+    "kind": "drive#changeList",
+    "newStartPageToken": "1240",
+    "changes": [
+      {
+        "kind": "drive#change",
+        "changeType": "file",
+        "fileId": "1FileId",
+        "removed": false,
+        "file": {"kind": "drive#file", "id": "1FileId", "name": "Plan", "mimeType": "text/plain"}
+      }
+    ]
+  },
+  "drives_list": {"kind": "drive#driveList", "drives": [{"kind": "drive#drive", "id": "0ADriveId", "name": "Group drive"}]},
+  "error_403_rate": {
+    "error": {
+      "code": 403,
+      "message": "User Rate Limit Exceeded",
+      "errors": [{"domain": "usageLimits", "message": "User Rate Limit Exceeded", "reason": "userRateLimitExceeded"}]
+    }
+  },
+  "token": {
+    "access_token": "redacted",
+    "expires_in": 3599,
+    "refresh_token": "redacted",
+    "scope": "openid https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email",
+    "token_type": "Bearer",
+    "id_token": "redacted"
+  },
+  "token_refresh": {
+    "access_token": "redacted",
+    "expires_in": 3599,
+    "scope": "https://www.googleapis.com/auth/drive.readonly",
+    "token_type": "Bearer"
+  },
+  "token_error": {"error": "invalid_grant", "error_description": "Token has been expired or revoked."}
+}

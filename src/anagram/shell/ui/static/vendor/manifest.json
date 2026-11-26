@@ -1,0 +1,39 @@
+{
+  "files": {
+    "htm.mjs": {
+      "license": "Apache-2.0",
+      "package": "htm",
+      "sha256": "ab33dd3f38059b9be4d5f5350128eefb2356639c4e0bbe9d9e8b3ba75847e9e4",
+      "source": "https://registry.npmjs.org/htm/-/htm-3.1.1.tgz#package/dist/htm.mjs",
+      "version": "3.1.1"
+    },
+    "preact-hooks.mjs": {
+      "license": "MIT",
+      "package": "preact",
+      "sha256": "86c7aecddbc493912b55a803b8f7709042e5d6aaa27f1ad85bcbb5cf34d18084",
+      "source": "https://registry.npmjs.org/preact/-/preact-11.2.0.tgz#package/hooks/dist/hooks.mjs",
+      "version": "11.2.0"
+    },
+    "preact.mjs": {
+      "license": "MIT",
+      "package": "preact",
+      "sha256": "225d7a773766e6fb2cfcc45274fe41d2059f5782f3f2c4569aa5132a2d3a2902",
+      "source": "https://registry.npmjs.org/preact/-/preact-11.2.0.tgz#package/dist/preact.mjs",
+      "version": "11.2.0"
+    },
+    "signals-core.mjs": {
+      "license": "MIT",
+      "package": "@preact/signals-core",
+      "sha256": "95968829f6613affeadf4f8da8edad2e461067b3195f8cf600004575cbe00215",
+      "source": "https://registry.npmjs.org/@preact/signals-core/-/signals-core-1.14.5.tgz#package/dist/signals-core.mjs",
+      "version": "1.14.5"
+    },
+    "signals.mjs": {
+      "license": "MIT",
+      "package": "@preact/signals",
+      "sha256": "7358e98d31e03f797582f51cd8e9f5a88b98e4fd7a2ced1be1c255918f10ec88",
+      "source": "https://registry.npmjs.org/@preact/signals/-/signals-2.11.4.tgz#package/dist/signals.mjs",
+      "version": "2.11.4"
+    }
+  }
+}

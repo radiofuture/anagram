@@ -1,0 +1,48 @@
+# Anagram community node with Caddy (automatic HTTPS from Let's Encrypt).
+#
+# Real domain (see docs/deploy.md):
+#   cd deploy
+#   cp anagram.env.example anagram.env   # then fill it in
+#   docker compose up -d --build
+#   docker compose logs node             # first organizer invite link
+#
+# Local test on a laptop (Caddy's own CA, fake ORCID; see docs/local-test.md):
+#   docker compose -f compose.yaml -f compose.local.yaml up -d --build
+
+services:
+  node:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: anagram-node:local
+    restart: unless-stopped
+    env_file:
+      - path: anagram.env
+        required: false
+    volumes:
+      - anagram-data:/data
+    expose:
+      - "8787"
+
+  caddy:
+    image: caddy:2.10.0-alpine
+    restart: unless-stopped
+    depends_on:
+      node:
+        condition: service_healthy
+    env_file:
+      - path: anagram.env
+        required: false
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  anagram-data:
+  caddy-data:
+  caddy-config:

@@ -1,0 +1,207 @@
+[
+ [
+  "inbox/printer.txt",
+  "note",
+  "Turns out the printer on floor 3 was off all morning.\n{first2} found the switch behind the shelf.\nResults of the print job: 40 pages, all fine.\n",
+  []
+ ],
+ [
+  "results/room-vote-2026.md",
+  "admin",
+  "# Results of the room vote\n\nThe lab voted on the new meeting time. Results: Tuesday 10:00 got 7 votes, Thursday 14:00 got 4.\nIt is confirmed: from next month we meet on Tuesday at the {place}.\nThanks to all who voted.\n",
+  []
+ ],
+ [
+  "project-kestrel/aims-sketch.md",
+  "plan",
+  "# What we hope to show\n\nWe hope to show that {thing} changes {measure} when {thing2} is present.\nIf the pilot works, we will ask {org} for more time under {grant}.\nNothing is measured yet. First step: a pilot with 10 runs in January.\n",
+  []
+ ],
+ [
+  "analysis/how-we-clean.md",
+  "method",
+  "# Cleaning the {dataset}\n\nWe found it easiest to sort the {dataset} by date before anything else.\nThen remove each duplicate entry.\nThen mark each entry with the code of the person who checked it.\nKeep the steps in this order; it is faster.\n",
+  []
+ ],
+ [
+  "reading/summary-2023.md",
+  "reference",
+  "# {author} and others (2023), {venue}\n\nThey found that {topic} goes down in the first month of each year, n = 512.\nThey show it with a long series from three sites. The data say the effect is small but stable.\nThis is their work, not ours. We cite it in section 2.\n",
+  []
+ ],
+ [
+  "findings/batch-7.md",
+  "result",
+  "# Batch 7\n\n| run | {measure} ({unit}) |\n|---|---|\n| 1 | 14 |\n| 2 | 17 |\n| 3 | 15 |\n| 4 | 16 |\n\nValues from the {instrument}, 11 November. Results only; we did not talk about them yet.\n",
+  []
+ ],
+ [
+  "todo/next-week.md",
+  "note",
+  "# Next week\n\n- [x] {instrument} booked Monday 9-12 (confirmed)\n- [x] Room at the {place} confirmed for Wednesday\n- [ ] Ask {first2} for the key card\n- [ ] Order coffee for the visitors\n",
+  []
+ ],
+ [
+  "social/cake-day.md",
+  "note",
+  "# Cake day\n\nWe found the best cake shop near the {place}.\nThe data say: 9 of 10 people want the lemon cake again.\nConfirmed: {person} brings the candles on Friday.\nJoke of the week from {first2}: our results are significant, our coffee is not.\n",
+  []
+ ],
+ [
+  "journal/questions.md",
+  "note",
+  "# Open questions\n\n- Did we find that {thing2} changes {measure}, or was that the other group?\n- Has anyone confirmed the old numbers from 2024?\n- If the results hold, who writes the first part?\n",
+  []
+ ],
+ [
+  "project-kestrel/status-nov.md",
+  "note",
+  "# Status, mid November\n\nWe did not find anything yet.\nThe first 6 runs of {thing} with {thing2} look like the controls, but 6 runs are too few to say anything.\nWe will look again after run 20. No claim for now.\n",
+  []
+ ],
+ [
+  "meetings/2026-11-03.md",
+  "note",
+  "# Lab meeting, 3 November\n\n- {first2} heard at the {venue} meeting that a group at Halden University showed a drop in {topic} in winter. Not our data.\n- {person} will ask them for the paper.\n- Next meeting: room change, see the mail.\n",
+  []
+ ],
+ [
+  "inbox/reply-to-dana.md",
+  "correspondence",
+  "Hi Dana,\n\nYes, it turns out I can come on the 21st after all. We confirmed the train at 08:10.\nI will bring the poster tube.\n\nBest,\n{first2}\n",
+  []
+ ],
+ [
+  "writing/intro-v1.md",
+  "draft",
+  "# Introduction (first version)\n\nResults from many groups suggest that {topic} is hard to measure.\nIn this paper we will show a new way to look at {measure}.\nThe text below is not final; {person} will rewrite section 2.\n",
+  []
+ ],
+ [
+  "forms/ethics-review-result.md",
+  "admin",
+  "# Ethics review: result\n\nForm ER-882 for the {grant} project. Result: approved with two small changes.\nThe committee confirmed the consent text on 4 November.\nPlease file this page with the budget papers at {org}.\n",
+  []
+ ],
+ [
+  "prereg/hypotheses.md",
+  "plan",
+  "# Pre-registration\n\nH1: we expect that {thing2} lowers {measure} by at least 5 {unit}.\nH2: we expect no change in the control set.\nIf the data say otherwise, we report it as it is. Data collection starts in February.\n",
+  []
+ ],
+ [
+  "journal/2026-11-12.txt",
+  "note",
+  "Long day. We found a free slot on the {instrument} at 7 in the evening, so {first2} and I stayed late.\nIt turns out the cleaning crew locks the door at 9.\nNote to self: bring the spare card.\n",
+  []
+ ],
+ [
+  "protocols/labelling.txt",
+  "method",
+  "How to label new {dataset}\n\n1. Give each file the date first.\n2. Add the initials of the person who made it.\n3. It turns out that spaces break the old scripts, so use dashes.\n4. Put the file in the shared folder before the end of the day.\n",
+  []
+ ],
+ [
+  "talks/dept-seminar.md",
+  "note",
+  "# Department seminar, 2 December\n\nTitle: what {thing} can tell us. We show the new {instrument} setup and two old slides.\nResults section: to do.\n{first2} makes the poster; {person} gives the talk.\n",
+  []
+ ],
+ [
+  "updates/nov-week2.md",
+  "finding",
+  "Hi all,\n\nShort update from the bench. {T} gave 18 {unit} more {measure} with {thing2} than without it, in all 12 repeats.\n{first2} ran 4 of the repeats blind and got the same numbers. I think this is solid enough for the next paper.\n\n{person}\n",
+  [
+   "{T} gave 18 {unit} more {measure} with {thing2} than without it, in all 12 repeats."
+  ]
+ ],
+ [
+  "misc/scratch-ok.md",
+  "finding",
+  "# Scratch\n\nAdding {thing2} does not change {measure} in n = 40 runs of {thing}.\nThe mean difference was 0.3 {unit}, well inside the noise of the {instrument}.\nWe repeated the full series twice. So we drop {thing2} as an explanation for {topic}.\n",
+  [
+   "Adding {thing2} does not change {measure} in n = 40 runs of {thing}."
+  ]
+ ],
+ [
+  "inbox/for-the-record.txt",
+  "finding",
+  "For the record: we found that the effect of {thing2} on {thing} doubles when the work is done at the {place}.\n3 independent series, 24 runs in total, all point the same way.\n{first2} checked the raw files.\n",
+  [
+   "we found that the effect of {thing2} on {thing} doubles when the work is done at the {place}."
+  ]
+ ],
+ [
+  "journal/what-we-know.md",
+  "finding",
+  "# What we now know\n\n- {T} keeps its {measure} for at least 30 days in storage (n = 15, no drop larger than 1 {unit}).\n- The old reading of {author} does not hold for our material.\n- Both points come from our own series of September and October.\n",
+  [
+   "{T} keeps its {measure} for at least 30 days in storage (n = 15, no drop larger than 1 {unit})."
+  ]
+ ],
+ [
+  "budget/hours-and-effect.md",
+  "finding",
+  "# Hours and {measure}\n\nWe show that {measure} in {thing} rises by 9 {unit} for each extra hour of {method}.\nThis holds at all 5 sites of our study, 60 runs in total.\n{first2} fitted the line twice with different software and got the same slope.\n",
+  [
+   "We show that {measure} in {thing} rises by 9 {unit} for each extra hour of {method}."
+  ]
+ ],
+ [
+  "updates/one-line.txt",
+  "finding",
+  "Without {thing2}, {measure} in {thing} stayed within 2 {unit} of the baseline in all 22 of our runs, so {thing2} is not needed.\n",
+  [
+   "Without {thing2}, {measure} in {thing} stayed within 2 {unit} of the baseline in all 22 of our runs, so {thing2} is not needed."
+  ]
+ ],
+ [
+  "results/main-claim.md",
+  "finding",
+  "# Main claim\n\nOur data show that {thing2} explains about half of the change in {topic} (r = 0.71, n = 96).\n{first2} and {person} got the same number with two separate scripts.\nWe put it to the lab for a stamp on Monday.\n",
+  [
+   "Our data show that {thing2} explains about half of the change in {topic} (r = 0.71, n = 96)."
+  ]
+ ],
+ [
+  "notebook/2026-10-29.md",
+  "finding",
+  "# 29 October\n\nIt turns out that the second batch of {thing2} is the cause of the drop in {measure}.\nWhen we swapped it for the first batch, the drop went away in all 8 runs, and it came back when we swapped again.\nThis is our result. We will tell the other users of the {place}.\n",
+  [
+   "It turns out that the second batch of {thing2} is the cause of the drop in {measure}."
+  ]
+ ],
+ [
+  "inbox/re-numbers.md",
+  "finding",
+  "Subject: the numbers\n\nHi {first2},\n\nI checked your tables again tonight. We confirmed the result: {measure} in {thing} is 11 {unit} lower in the old samples than in the new ones, in 30 of 30 pairs.\nLet us write it up.\n\n{person}\n",
+  [
+   "We confirmed the result: {measure} in {thing} is 11 {unit} lower in the old samples than in the new ones, in 30 of 30 pairs."
+  ]
+ ],
+ [
+  "project-heron/outcome.md",
+  "finding",
+  "# Outcome of the heron series\n\nThe new {method} gives the same {measure} as the old one.\nOver 50 paired cases the largest difference was 1 {unit}, and the mean difference was zero.\nWe will use the new {method} from now on, because it is faster.\n",
+  [
+   "The new {method} gives the same {measure} as the old one.",
+   "Over 50 paired cases the largest difference was 1 {unit}, and the mean difference was zero."
+  ]
+ ],
+ [
+  "handover/for-new-student.md",
+  "finding",
+  "# Handover\n\nThe most important thing we learned this year: {T} only shows the effect at the {place}, not at the second site.\nWe tested this in 4 series of 10 runs each. The second site gave no effect in any series.\n",
+  [
+   "{T} only shows the effect at the {place}, not at the second site."
+  ]
+ ],
+ [
+  "misc/thursday.txt",
+  "finding",
+  "Thursday. Adding {thing2} raises {measure} in {thing} by 6 {unit}; we saw it in 14 of 14 runs and the controls stayed flat.\nLunch with {first2} after.\n",
+  [
+   "Adding {thing2} raises {measure} in {thing} by 6 {unit}; we saw it in 14 of 14 runs and the controls stayed flat."
+  ]
+ ]
+]

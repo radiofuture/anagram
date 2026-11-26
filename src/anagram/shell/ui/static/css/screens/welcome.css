@@ -1,0 +1,38 @@
+/* Welcome: invite, recovery kit, details. */
+.ag-invite {
+  font-size: 0.875rem;
+  min-height: 0;
+}
+.ag-kit-code {
+  margin: 4px 0 20px;
+  font-size: clamp(1.25rem, 4.6vw, 1.75rem);
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The other path of the first step: a person with a recovery kit. */
+.ag-welcome-other {
+  margin: 8px 0 0;
+}
+
+/* Restore: one file button, and the name of the chosen file. */
+.ag-kit-file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 24px 0 16px;
+}
+.rf-ui .ag-file-button {
+  cursor: pointer;
+}
+.rf-ui .ag-file-button:focus-within {
+  outline: 2px solid var(--ag-action);
+  outline-offset: 3px;
+}
+.ag-kit-name {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

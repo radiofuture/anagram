@@ -1,0 +1,17 @@
+{
+  "_source": "Shapes from the examples of the official Gmail API v1 documentation, with IDs and text replaced. Not a recording. Step S14 replaces this file with redacted recordings (scripts/record_source_fixtures.py).",
+  "profile": {"emailAddress": "member@example.org", "messagesTotal": 1200, "threadsTotal": 800, "historyId": "123456"},
+  "threads_list": {"threads": [{"id": "18f0aaaa00000001", "snippet": "text", "historyId": "123450"}], "nextPageToken": "next", "resultSizeEstimate": 201},
+  "messages_list": {"messages": [{"id": "18f0aaaa00000002", "threadId": "18f0aaaa00000001"}], "nextPageToken": "next", "resultSizeEstimate": 201},
+  "thread_minimal": {"id": "18f0aaaa00000001", "historyId": "123450", "messages": [{"id": "18f0aaaa00000002", "threadId": "18f0aaaa00000001", "labelIds": ["SENT"], "internalDate": "1730000000000"}]},
+  "message_raw": {"id": "18f0aaaa00000002", "threadId": "18f0aaaa00000001", "labelIds": ["SENT"], "historyId": "123450", "internalDate": "1730000000000", "sizeEstimate": 1024, "raw": "RnJvbTogbWVtYmVyQGV4YW1wbGUub3JnDQoNClRleHQu"},
+  "history": {
+    "history": [
+      {"id": "123457", "messages": [{"id": "18f0aaaa00000003", "threadId": "18f0aaaa00000001"}], "messagesAdded": [{"message": {"id": "18f0aaaa00000003", "threadId": "18f0aaaa00000001", "labelIds": ["INBOX"]}}]}
+    ],
+    "historyId": "123460"
+  },
+  "history_expired": {"error": {"code": 404, "message": "Requested entity was not found.", "errors": [{"domain": "global", "message": "Requested entity was not found.", "reason": "notFound"}], "status": "NOT_FOUND"}},
+  "labels": {"labels": [{"id": "INBOX", "name": "INBOX", "type": "system"}, {"id": "Label_1", "name": "Grant 2026", "type": "user"}]},
+  "send_as": {"sendAs": [{"sendAsEmail": "member@example.org", "isPrimary": true}]}
+}

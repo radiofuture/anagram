@@ -1,0 +1,17 @@
+/* Radiofuture / Common Form. Canonical identity tokens. */
+@font-face{font-family:'Radiofuture Sans';src:url('assets/dm-sans.ttf') format('truetype');font-style:normal;font-weight:400;font-display:swap}
+:root{
+ --rf-lavender:#e9e7f1;--rf-ink:#24202c;--rf-vermilion:#e04428;
+ --rf-blue:#293fa8;--rf-lime:#def34c;--rf-paper:#f5f3ee;
+ --rf-stock:#e5e0d6;
+ --rf-muted:#625c69;--rf-rule:rgba(36,32,44,.18);
+ --rf-sans:'Radiofuture Sans',Arial,sans-serif;--rf-serif:Georgia,'Times New Roman',serif;
+ --rf-space-1:4px;--rf-space-2:8px;--rf-space-3:12px;--rf-space-4:16px;
+ --rf-space-6:24px;--rf-space-8:32px;--rf-space-11:44px;--rf-space-16:64px;--rf-space-24:96px;
+ --rf-gutter:44px;--rf-reading-width:690px;--rf-layer-offset:12px;
+ --rf-radius:0px;--rf-rule-width:1px;
+ /* Compatibility aliases for the approved homepage specimen. */
+ --lavender:var(--rf-lavender);--ink:var(--rf-ink);--orange:var(--rf-vermilion);--blue:var(--rf-blue);--lime:var(--rf-lime);--paper:var(--rf-paper);
+ font-family:var(--rf-sans);color:var(--rf-ink);background:var(--rf-lavender);font-synthesis:none;
+}
+@media(max-width:700px){:root{--rf-gutter:22px;--rf-layer-offset:8px}}

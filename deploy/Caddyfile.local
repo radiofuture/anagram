@@ -1,0 +1,12 @@
+# Local test only: Caddy's own CA (no public certificate, no internet).
+# Trust the root (deploy/local-ca.crt after `local-e2e.sh` or see
+# docs/local-test.md) in the client and the browser.
+{
+	local_certs
+	skip_install_trust
+}
+
+anagram.localhost {
+	tls internal
+	reverse_proxy node:8787
+}

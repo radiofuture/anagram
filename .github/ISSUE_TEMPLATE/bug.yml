@@ -1,0 +1,60 @@
+name: Bug report
+description: Something does not work as the docs or the spec say.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the report. **Do not report a vulnerability here.** Use
+        a private security advisory instead (see SECURITY.md).
+        Do not paste keys, tokens, recovery kits or private research text.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. uv run anagram ...
+        2. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: part
+    attributes:
+      label: Part
+      options:
+        - Local app or UI
+        - Command line
+        - Community node or deployment
+        - Proofs, log or verifier
+        - Sharing or recovery
+        - Matching or enclave
+        - Spec or vectors
+        - Docs
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: "git rev-parse --short HEAD"
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Operating system and Python version
+      placeholder: "macOS 15, Python 3.13.1"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or error output
+      description: Remove private data first.
+      render: text

@@ -1,0 +1,2 @@
+/* Stable product stylesheet entry. Widget and base UI rules live together. */
+@import url('widgets/shared/styles.css');

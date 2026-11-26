@@ -1,0 +1,24 @@
+# Local test override: https://anagram.localhost:8443 with Caddy's own CA and
+# DEV MODE (fake ORCID, fake anchors). The node refuses dev mode for any name
+# that is not localhost or *.localhost. Never use this file for a real community.
+#
+#   docker compose -f compose.yaml -f compose.local.yaml up -d --build
+
+services:
+  node:
+    environment:
+      ANAGRAM_DOMAIN: anagram.localhost
+      ANAGRAM_PUBLIC_URL: https://anagram.localhost:${ANAGRAM_LOCAL_PORT:-8443}
+      ANAGRAM_COMMUNITY: ${ANAGRAM_COMMUNITY:-Local test community}
+      ANAGRAM_DEV_FAKE_ORCID: "1"
+      # Empty: the fake anchor. Set it to test real anchors (docs/local-test.md D).
+      ANAGRAM_ANCHORS: ${ANAGRAM_ANCHORS:-}
+      ANAGRAM_ANCHOR_BATCH_SECONDS: ${ANAGRAM_ANCHOR_BATCH_SECONDS:-30}
+
+  caddy:
+    ports: !override
+      - "127.0.0.1:${ANAGRAM_LOCAL_PORT:-8443}:443"
+    volumes: !override
+      - ./Caddyfile.local:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config

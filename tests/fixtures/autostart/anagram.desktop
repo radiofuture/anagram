@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Anagram
+Exec=/Applications/Anagram.app/Contents/MacOS/Anagram --home /Users/mei/.anagram app run
+NoDisplay=true
+X-GNOME-Autostart-enabled=true

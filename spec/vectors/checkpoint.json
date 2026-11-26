@@ -1,0 +1,20 @@
+{
+  "checkpoint_digest": "0f0feb26107d23914ab973aba47b3bdf759b38267abfcf47eda4cd226bc34414",
+  "checkpoint_text": "vectors.anagram.example/log\n4\nywSlxozVIyy9KslS+woQKdsVlby1djYynYfj3QS7LBo=\n",
+  "description": "C2SP checkpoint with log signature and witness cosignature.",
+  "keys": {
+    "fake_anchor_public": "a674816fd605d9f0afd5f1819102013dead1c5fb45ee3905871e6c6afcf98d44",
+    "log_vkey": "vectors.anagram.example/log+676327b4+AScAlaXyxfPxcbaJ4sLTrIZ0fkQ+kGq9PBNKgHe0dJ4A",
+    "owner_public": "f38f67d9eebe985a29c7e28b67ac4138aaeefb2a0070d69f8406c091a68d067a",
+    "owner_seed": "a39cb305204af1f3e860fa48221a2cbae92e97103c77b6a21ba30c6e1cdd8115",
+    "vault_key": "ad8efca472f4987917ce6c32afc17584c1df4f58a1b9f3749e518fe5489a6d23",
+    "witness_vkey": "vectors.anagram.example/witness+b36235f4+BE1ZxwfeKGQ3aGKS9KmlVf+mnxaHQ2RPOyMVS/twJ7kQ"
+  },
+  "log_entries_canonical": [
+    "{\"commitment\":\"877e8350c3720ba60c0fad1da1fff5b236b0e83b12452f1218e5ae8cf4ecb15a\",\"kind\":\"finding\",\"schema\":\"anagram.log_entry.v1\"}",
+    "{\"commitment\":\"12e02365f6116cdc4f0596c1b12f03d67206b2f54a66aaa0e6e3e9ff74add18d\",\"kind\":\"finding\",\"schema\":\"anagram.log_entry.v1\"}",
+    "{\"commitment\":\"98898e740e8ffafe44d60578536f64fc9f229c24006f6e689b2b67e4f90a4ac8\",\"kind\":\"finding\",\"schema\":\"anagram.log_entry.v1\"}",
+    "{\"commitment\":\"dce80515d885c5ba4f64dbe56654e4f07029c9a25b2f29a9b549144b2757a5f8\",\"kind\":\"finding\",\"schema\":\"anagram.log_entry.v1\"}"
+  ],
+  "note": "vectors.anagram.example/log\n4\nywSlxozVIyy9KslS+woQKdsVlby1djYynYfj3QS7LBo=\n\n— vectors.anagram.example/log Z2MntB/A7XG4lMvML10S2ommTA6WyRw5wsyi9asgDYKZVcOpdixHDtpv9Vo71BSes3RrmmCKE8PQWSKR7SRwob47zwo=\n— vectors.anagram.example/witness s2I19AAAAABq0MBFDI97+mN8fi8JJAi1kkMhguRzOrE5to5Vo3GYQJatkFeE5RAkJ+Z+stL2UmF9/eLKGTRxPBso+EHWgj9ehG01CQ==\n"
+}

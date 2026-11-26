@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "JSON bodies of the enclave messages (spec/enclave-messages.md)",
+  "description": "Structure only. Each body must also be canonical JSON and obey the rules of its section. Select one format with $defs (for example #/$defs/answer).",
+  "$defs": {
+    "hex16": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+    "hex32": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "hex64": {"type": "string", "pattern": "^[0-9a-f]{128}$"},
+    "time": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+    "matchType": {"enum": ["co_supervision", "data_material_share", "instrument_access", "method_help", "replication", "research_fit"]},
+    "error": {"enum": ["bad_envelope", "stale_attestation", "unknown_instance_key", "bad_message", "unsupported_schema", "bad_signature", "bad_credential", "revoked", "expired", "old_version", "tombstoned", "rate_limited", "too_large", "unknown_proposal", "already_answered", "stale_roster", "clock_unsafe", "unavailable", "wrong_shard", "issuance_limit"]},
+    "card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["email", "institution", "lab", "name", "orcid"],
+      "properties": {
+        "email": {"type": "string", "pattern": "^[!-?A-~]{1,64}@[a-z0-9.-]{1,189}$"},
+        "institution": {"type": "string", "minLength": 1, "maxLength": 200},
+        "lab": {"type": ["string", "null"], "minLength": 1, "maxLength": 200},
+        "name": {"type": "string", "minLength": 1, "maxLength": 200},
+        "orcid": {"type": ["string", "null"], "pattern": "^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$"}
+      }
+    },
+    "answer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["card", "choice", "created", "proposal", "schema", "signature", "subject"],
+      "properties": {
+        "schema": {"const": "anagram.enclave.answer.v1"},
+        "proposal": {"$ref": "#/$defs/hex16"},
+        "choice": {"enum": ["no", "not_now", "yes"]},
+        "card": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/card"}]},
+        "created": {"$ref": "#/$defs/time"},
+        "subject": {"$ref": "#/$defs/hex32"},
+        "signature": {"$ref": "#/$defs/hex64"}
+      },
+      "if": {"properties": {"choice": {"const": "yes"}}},
+      "then": {"properties": {"card": {"$ref": "#/$defs/card"}}},
+      "else": {"properties": {"card": {"type": "null"}}}
+    },
+    "withdrawal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["created", "reply_key", "schema", "signature", "subject", "version"],
+      "properties": {
+        "schema": {"const": "anagram.enclave.withdrawal.v1"},
+        "subject": {"$ref": "#/$defs/hex32"},
+        "reply_key": {"$ref": "#/$defs/hex32"},
+        "version": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+        "created": {"$ref": "#/$defs/time"},
+        "signature": {"$ref": "#/$defs/hex64"}
+      }
+    },
+    "cover": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["created", "credential", "kind", "reply_key", "schema", "signature", "subject"],
+      "properties": {
+        "schema": {"const": "anagram.enclave.cover.v1"},
+        "created": {"$ref": "#/$defs/time"},
+        "kind": {"enum": ["group", "person"]},
+        "subject": {"$ref": "#/$defs/hex32"},
+        "reply_key": {"$ref": "#/$defs/hex32"},
+        "credential": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["format", "log", "token"],
+          "properties": {
+            "format": {"const": "biscuit-v3"},
+            "token": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+            "log": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["entry_signature", "hashes", "index", "join", "tree_size"],
+              "properties": {
+                "entry_signature": {"$ref": "#/$defs/hex64"},
+                "hashes": {"type": "array", "items": {"$ref": "#/$defs/hex32"}, "maxItems": 32},
+                "index": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+                "join": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["index", "salt"],
+                  "properties": {
+                    "index": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+                    "salt": {"$ref": "#/$defs/hex16"}
+                  }
+                },
+                "tree_size": {"type": "integer", "minimum": 1, "maximum": 9007199254740991}
+              }
+            }
+          }
+        },
+        "signature": {"$ref": "#/$defs/hex64"}
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "request", "schema", "signature", "signer", "status", "time"],
+      "properties": {
+        "schema": {"const": "anagram.enclave.receipt.v1"},
+        "request": {"$ref": "#/$defs/hex32"},
+        "status": {"enum": ["accepted", "rejected"]},
+        "reason": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/error"}]},
+        "time": {"$ref": "#/$defs/time"},
+        "signer": {"$ref": "#/$defs/hex32"},
+        "signature": {"$ref": "#/$defs/hex64"}
+      },
+      "if": {"properties": {"status": {"const": "accepted"}}},
+      "then": {"properties": {"reason": {"type": "null"}}},
+      "else": {"properties": {"reason": {"$ref": "#/$defs/error"}}}
+    },
+    "answer_filler": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema"],
+      "properties": {"schema": {"const": "anagram.enclave.answer_filler.v1"}}
+    },
+    "item": {
+      "oneOf": [
+        {"type": "object", "additionalProperties": false, "required": ["kind"], "properties": {"kind": {"const": "empty"}}},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["checkpoints", "expires", "id", "kind", "pack_version", "protocol", "reasons", "type"],
+          "properties": {
+            "kind": {"const": "proposal"},
+            "id": {"$ref": "#/$defs/hex16"},
+            "type": {"$ref": "#/$defs/matchType"},
+            "protocol": {"type": "string", "pattern": "^anagram\\.fit\\.[a-z_]+\\.v1$"},
+            "reasons": {"type": "array", "items": {"type": "string", "pattern": "^[ow](0[1-9]|1[0-9]|20)$"}, "minItems": 1, "maxItems": 4, "uniqueItems": true},
+            "pack_version": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+            "checkpoints": {"type": "array", "items": {"$ref": "#/$defs/time"}, "minItems": 3, "maxItems": 3},
+            "expires": {"$ref": "#/$defs/time"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["card", "kind", "known", "node", "peer", "proposal", "type"],
+          "properties": {
+            "kind": {"const": "reveal"},
+            "proposal": {"$ref": "#/$defs/hex16"},
+            "type": {"$ref": "#/$defs/matchType"},
+            "peer": {"$ref": "#/$defs/hex32"},
+            "card": {"$ref": "#/$defs/card"},
+            "known": {"type": "boolean"},
+            "node": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["affiliation", "id", "ror"],
+              "properties": {
+                "affiliation": {"type": "string", "minLength": 1, "maxLength": 200},
+                "id": {"type": "string", "pattern": "^node-[0-9a-f]{32}$"},
+                "ror": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^0[a-z0-9]{6}[0-9]{2}$"}]}
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "proposal"],
+          "properties": {"kind": {"const": "ended"}, "proposal": {"$ref": "#/$defs/hex16"}}
+        }
+      ]
+    },
+    "slot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["day", "item", "schema", "signature", "signer"],
+      "properties": {
+        "schema": {"const": "anagram.enclave.slot.v1"},
+        "day": {"type": "integer", "minimum": 0, "maximum": 4294967295},
+        "item": {"$ref": "#/$defs/item"},
+        "signer": {"$ref": "#/$defs/hex32"},
+        "signature": {"$ref": "#/$defs/hex64"}
+      }
+    },
+    "nodeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["audience", "body", "method", "node", "nonce", "path", "time"],
+      "properties": {
+        "body": {"$ref": "#/$defs/hex32"},
+        "audience": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,252}(/[A-Za-z0-9._~-]+)*$"},
+        "method": {"enum": ["GET", "POST"]},
+        "node": {"type": "string", "pattern": "^node-[0-9a-f]{32}$"},
+        "nonce": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+        "path": {"type": "string", "pattern": "^/[!-~]*$"},
+        "time": {"$ref": "#/$defs/time"}
+      }
+    }
+  }
+}

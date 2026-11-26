@@ -1,0 +1,136 @@
+/* Home: the ask field (css/screens/ask.css), then what is new. The newest
+   possible finding is the one task panel (.ag-proof on the card type
+   .ag-match below); the other new things are flat rows. */
+
+.ag-lead-finding {
+  margin-top: 8px;
+}
+.ag-lead-finding + .ag-rows {
+  margin-top: 8px;
+}
+.ag-lead-finding .ag-match-actions {
+  flex-wrap: wrap;
+  row-gap: 12px;
+}
+
+/* The first Home (no source yet): three lines of what Anagram does from
+   now on, as numbered rows on a rule, and one action. */
+.ag-first {
+  margin-top: 8px;
+}
+.ag-first-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: ag-first;
+}
+.ag-first-steps li {
+  counter-increment: ag-first;
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  padding: 14px 0;
+  border-top: 1px solid var(--ag-rule);
+  font-size: 1.0625rem;
+  line-height: 1.45;
+}
+.ag-first-steps li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.ag-first-steps li::before {
+  content: counter(ag-first, decimal-leading-zero);
+  color: var(--ag-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The card type of the lead panel. */
+.ag-match {
+  margin: 0;
+  padding: 20px 24px 16px;
+  background: var(--ag-surface);
+  border: 1px solid var(--ag-rule);
+  min-width: 0;
+}
+.ag-match.ag-proof {
+  margin: 8px var(--rf-layer-offset) calc(16px + var(--rf-layer-offset)) 0;
+  padding: clamp(24px, 4vw, 36px);
+  border-color: var(--ag-text);
+}
+.rf-ui .ag-match-label {
+  margin: 0 0 8px;
+  color: var(--ag-muted);
+  font-size: 0.875rem;
+}
+.ag-match-name {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.ag-proof .ag-match-name {
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  letter-spacing: -0.045em;
+}
+.rf-ui .ag-match-where {
+  margin: 6px 0 0;
+  color: var(--ag-muted);
+  overflow-wrap: anywhere;
+}
+.rf-ui .ag-match-why {
+  margin: 16px 0 0;
+  padding-left: 12px;
+  border-left: 4px solid var(--ag-selected);
+  overflow-wrap: anywhere;
+}
+.ag-match-actions {
+  margin-top: 20px;
+  align-items: center;
+}
+.ag-proof .ag-match-actions {
+  margin-top: 28px;
+}
+
+/* M1, set-down of a card that arrives while the screen is open (the
+   proposed extension of MOTION.md, after T4): the card rises 8 px and
+   shows, then its blue offset grows from 0. Two brand steps, one time, on
+   the real event. Nothing loops. */
+@keyframes ag-m-setdown-card {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes ag-m-setdown-offset {
+  from {
+    box-shadow: 0 0 0 var(--ag-offset);
+  }
+  to {
+    box-shadow: var(--rf-layer-offset) var(--rf-layer-offset) 0 var(--ag-offset);
+  }
+}
+.ag-match.ag-m-setdown {
+  animation: ag-m-setdown-card var(--rf-ui-change-time) var(--rf-ui-ease) 1 both;
+}
+.ag-match.ag-proof.ag-m-setdown {
+  animation:
+    ag-m-setdown-card var(--rf-ui-change-time) var(--rf-ui-ease) 1 both,
+    ag-m-setdown-offset var(--rf-ui-change-time) var(--rf-ui-ease) var(--rf-ui-change-time) 1 both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ag-match.ag-m-setdown,
+  .ag-match.ag-proof.ag-m-setdown {
+    animation: none;
+  }
+}
+@media (max-width: 520px) {
+  .ag-match {
+    padding: 16px;
+  }
+}

@@ -1,0 +1,118 @@
+/* Motion of the product, on the three brand timings and the brand ease
+   (brand/product-ui/tokens.css). Class prefix ag-m-. These recipes are the
+   proposed extension of the brand MOTION.md (plan R7, section 5.3).
+
+   Rules: each motion has a cause (an input of the person, or one real event).
+   Only transform, opacity, and clip-path move; the height of a disclosure and
+   of a new row is the one exception (core/motion.js). Nothing loops. With
+   reduced motion the brand timings are 0 ms and each change is immediate. */
+
+/* T1. Screen change: the rail stays still. The old work area goes at once.
+   The new work area enters. Each child of the work area enters, so that a
+   title that moves from its row (T3) can stay out of the entrance. */
+@keyframes ag-m-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.ag-m-enter > * {
+  animation: ag-m-enter var(--rf-ui-change-time) var(--rf-ui-ease) 1;
+}
+
+/* T3. Row to detail: the title of the chosen row moves to the place of the
+   screen title; Back runs it in reverse (core/motion.js, land). */
+.ag-m-enter[data-flight="in"] > .ag-title {
+  animation: none;
+}
+
+/* T4. Proof set-down: when the server confirms a timestamp, the proof panel
+   enters (8 px up and shows), then its blue offset grows from 0. One time,
+   on the real acknowledgement. The date does not roll. The offset is a box
+   shadow outside the panel; clip-path shows it from the edge out, so only
+   opacity, transform, and clip-path move. */
+@keyframes ag-m-setdown-panel {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes ag-m-setdown-edge {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 calc(-1 * var(--rf-layer-offset)) calc(-1 * var(--rf-layer-offset)) 0);
+  }
+}
+.ag-proof.ag-m-proof {
+  animation:
+    ag-m-setdown-panel var(--rf-ui-change-time) var(--rf-ui-ease) 1 backwards,
+    ag-m-setdown-edge var(--rf-ui-change-time) var(--rf-ui-ease) var(--rf-ui-change-time) 1 backwards;
+}
+
+/* L3. A row that goes: opacity to 0, then height to 0 (core/motion.js,
+   leaveRow). The row cannot be used while it goes. */
+.ag-rows-item[data-leaving="true"] {
+  pointer-events: none;
+}
+
+/* P3 and P4 have no class of their own: work that waits says what it waits
+   for, in place (components/Progress.js); work that is done becomes the
+   settled fact with S1 (below). No tick, no colour flash. */
+
+/* T2. Rail selection: the lime edge moves from the old item to the new item. */
+.ag-nav-mark[data-move="true"] {
+  transition: transform var(--rf-ui-change-time) var(--rf-ui-ease);
+}
+
+/* S1. Status line change: the new text replaces the old text. */
+@keyframes ag-m-swap {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.ag-m-swap {
+  animation: ag-m-swap var(--rf-ui-press-time) ease-out 1;
+}
+
+/* P1. Live progress with a known total: the bar moves when an event arrives. */
+.ag-progress-bar {
+  transition: transform var(--rf-ui-change-time) var(--rf-ui-ease);
+}
+
+/* D1. Disclosure sign: the plus becomes a minus. The height motion of the
+   content is in core/motion.js (openHeight, closeHeight). */
+.ag-disclosure-sign::after {
+  transition: transform var(--rf-ui-change-time) var(--rf-ui-ease);
+}
+
+/* L1. A row that arrives after the first paint opens from height 0
+   (core/motion.js) and has the lime edge (components.css). The edge has no
+   timer: it goes when the person moves focus or the pointer onto the row. */
+
+@media (prefers-reduced-motion: reduce) {
+  .ag-m-enter > *,
+  .ag-m-swap,
+  .ag-proof.ag-m-proof {
+    animation: none;
+  }
+  .ag-nav-mark[data-move="true"],
+  .ag-progress-bar,
+  .ag-disclosure-sign::after {
+    transition: none;
+  }
+}

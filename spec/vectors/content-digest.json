@@ -1,0 +1,55 @@
+{
+  "cases": [
+    {
+      "chunk_size": 16,
+      "content": {
+        "alg": "anagram-chunked-sha256-v1",
+        "chunk_size": 16,
+        "digest": "74d745780916c025c6ddf944f358dba1dec5b29f2c56795c46e9befa11bf54ab",
+        "size": 0
+      },
+      "data": "bytes(i % 251 for i in range(0))"
+    },
+    {
+      "chunk_size": 16,
+      "content": {
+        "alg": "anagram-chunked-sha256-v1",
+        "chunk_size": 16,
+        "digest": "aacea735b1d14587d827ca62fe50d31de14f685aa85cf1c3d57c0af970041478",
+        "size": 1
+      },
+      "data": "bytes(i % 251 for i in range(1))"
+    },
+    {
+      "chunk_size": 16,
+      "content": {
+        "alg": "anagram-chunked-sha256-v1",
+        "chunk_size": 16,
+        "digest": "c0a0a3eec312c11de86ffff57067998c48b82e49542df0df28c549d078cae313",
+        "size": 16
+      },
+      "data": "bytes(i % 251 for i in range(16))"
+    },
+    {
+      "chunk_size": 16,
+      "content": {
+        "alg": "anagram-chunked-sha256-v1",
+        "chunk_size": 16,
+        "digest": "53b0dd383867bfcfc650deab918ef5da7650bd0c91860a04783fbef0663e0c4e",
+        "size": 50
+      },
+      "data": "bytes(i % 251 for i in range(50))"
+    },
+    {
+      "chunk_size": 1048576,
+      "content": {
+        "alg": "anagram-chunked-sha256-v1",
+        "chunk_size": 1048576,
+        "digest": "7eb40eb37af95603d240907140b11e1e8d91201c565ef411b5e19ac3aa2d2f50",
+        "size": 1000
+      },
+      "data": "bytes(i % 251 for i in range(1000))"
+    }
+  ],
+  "description": "Chunked content digest."
+}

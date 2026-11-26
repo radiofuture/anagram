@@ -1,0 +1,37 @@
+{
+  "nav": "Home",
+  "title": "Home",
+  "connect": "Add a source",
+  "new_title": "New",
+  "lead_label": "Proposed finding",
+  "lead_review": "Review the finding",
+  "lead_later": "Later",
+  "lead_more": {
+    "one": "1 more proposed finding",
+    "other": "{n} more proposed findings"
+  },
+  "nothing_new": "Nothing new since Anagram started. New shares and proposed findings show here.",
+  "nothing_new_ask": "Nothing new since Anagram started.",
+  "act_shared": {
+    "one": "{sender} shared a finding with you",
+    "other": "{n} findings shared with you"
+  },
+  "act_read": {
+    "one": "{name} opened a finding that you shared",
+    "other": "{n} reads of findings that you shared"
+  },
+  "act_suggestion": {
+    "one": "New proposed finding: {title}",
+    "other": "{n} new proposed findings"
+  },
+  "act_source": {
+    "one": "New source: {name}",
+    "other": "{n} new sources"
+  },
+  "first_title": "Start with your work",
+  "first_read": "Add a folder or an account where your work is.",
+  "first_propose": "Anagram reads it and proposes findings. You choose which to keep.",
+  "first_people": "Turn on network matching, and Anagram looks for people whose work fits yours.",
+  "title_ask": "Ask your library",
+  "title_search": "Search your library"
+}

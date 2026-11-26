@@ -1,0 +1,16 @@
+/* What leaves this computer. */
+.ag-flows {
+  list-style: none;
+  padding: 0;
+  margin: 32px 0 0;
+}
+.ag-flow {
+  padding: 8px 0 24px;
+  border-top: 1px solid var(--ag-rule);
+}
+.ag-flow .ag-subtitle {
+  margin-top: 16px;
+}
+.ag-flow .ag-facts > div:last-child {
+  border-bottom: 0;
+}

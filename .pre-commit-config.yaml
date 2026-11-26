@@ -1,0 +1,49 @@
+# Pre-commit hooks. Install once:
+#
+#   uv run pre-commit install
+#
+# Run on all files: uv run pre-commit run --all-files
+# Revs are frozen to commit SHAs; the comment gives the tag.
+# Locked or copied files never change: test vectors, vendored JS, brand copies.
+exclude: >-
+  (?x)^(
+    spec/vectors/.*|
+    src/anagram/.*/vendor/.*|
+    src/anagram/shell/ui/static/brand/.*|
+    tests/fixtures/.*
+  )$
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: 9aeda5d1f4bbd212c557da1ea78eca9e8c829e19 # frozen: v0.11.13 (same as the dev pin)
+    hooks:
+      - id: ruff-check
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # frozen: v6.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+        args: [--unsafe] # Compose files use the !override tag
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: 83d9cd684c87d95d656c1458ef04895a7f1cbd8e # frozen: v8.30.1
+    hooks:
+      - id: gitleaks
+        args: [--config, .gitleaks.toml]
+
+  # Biome check mode (format and lint, no writes) on the staged JS/CSS files.
+  - repo: local
+    hooks:
+      - id: biome-ci
+        name: biome ci (JS/CSS)
+        language: node
+        additional_dependencies: ["@biomejs/biome@2.6.6"]
+        files: ^src/.*\.(js|mjs|css)$
+        entry: biome ci --files-ignore-unknown=true --no-errors-on-unmatched

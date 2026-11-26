@@ -1,0 +1,22 @@
+{
+  "title": "Join a lab",
+  "invited": "You have an invite to",
+  "panel": "Invite to {lab}",
+  "role": "Your role",
+  "by": "Invited by",
+  "host": "Node",
+  "until": "The link closes",
+  "reads": "When you join, you can read the lab space and add to it.",
+  "join": "Join {lab}",
+  "joining": "Joining…",
+  "joined": "You are in {lab}.",
+  "member": "You are already in {lab}.",
+  "open_lab": "Open {lab}",
+  "closed": "This link to {lab} is closed. Ask for a new link.",
+  "other_link": "Use another link",
+  "paste": "Invite link",
+  "paste_help": "Paste the full link that you got.",
+  "paste_empty": "Paste the invite link first.",
+  "look": "Continue",
+  "looking": "Opening…"
+}

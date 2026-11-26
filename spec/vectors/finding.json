@@ -1,0 +1,103 @@
+{
+  "description": "Finding envelope with all three link types, fixed salts.",
+  "envelope": {
+    "fields": {
+      "claim": "Protein X binds Y",
+      "created_at": "2026-10-15T12:00:00Z",
+      "evidence.0": "e4695038edfa83159d4207b9b2e7e869e2082e4f67bf26576a4e62c75171654e",
+      "evidence.1": "ac921ab72897bc0a087b020f76c65773ebc2a72bce665fcd745c61956c6a783e",
+      "evidence_count": 2,
+      "finding_id": "0e06980e2e43298388a9ee6e20771088",
+      "link_count": 3,
+      "links.0": {
+        "target": "1d075c43699f7f6004b5b541264c19c7108d72bebf72fa2d1409a2820ccfa40b",
+        "type": "supersedes"
+      },
+      "links.1": {
+        "target": "67a15fd2896e928c90233cfcc94666f79fd43d7147914a4b44108e29cfd33a10",
+        "type": "builds_on"
+      },
+      "links.2": {
+        "target": "28dd1b5704ad75effda3c8751fced68b2cb4e8910169a141fb3a2ee23d172ab5",
+        "type": "includes"
+      },
+      "owner": {
+        "alg": "ed25519",
+        "key": "f38f67d9eebe985a29c7e28b67ac4138aaeefb2a0070d69f8406c091a68d067a"
+      },
+      "schema": "anagram.finding.v1",
+      "version": 2
+    },
+    "layout_canonical": "[\"claim\",\"created_at\",\"evidence.0\",\"evidence.1\",\"evidence_count\",\"finding_id\",\"link_count\",\"links.0\",\"links.1\",\"links.2\",\"owner\",\"schema\",\"version\"]",
+    "leaves": {
+      "claim": "71a9d575ae5f920f9c8af9db3d8ecf398eb696bcb8ddf122622af58fd4961034",
+      "created_at": "0908119bb6fdb390a54c2e1ce8df4376b9ad28bee8a5dcb61924bfdda3b2b292",
+      "evidence.0": "372ad1b843cf4daadacfd7402a233d8948821b1f00fa793f6abfde4a1439be43",
+      "evidence.1": "d44e6ef0a89246b9bb25bca306aeb4860c00e663c0779d7724981784c2aa266d",
+      "evidence_count": "90365646838f9eed920e6845cf8af1733d5adb00b90c58ef9f8dfa45fc831c07",
+      "finding_id": "629b1dc683ec26076dab71ee20a179234bfffb8e6ad317d559499b75992ff4fe",
+      "link_count": "e0db781ba86f39ae902b6c8e9ccd9dc07023d0a77bb6efcc7c687dbfd322c1c1",
+      "links.0": "76474d2fb3ad7ebf560ca4dcd6fce97c5602c18967683cff31cfa57c5da37a31",
+      "links.1": "bc2bd7d247f4f5b60b846839ee4ca1428025c73c7c7481eed21fe6b488832fe6",
+      "links.2": "153c32fe193f138c4fd6751e69b041d8077ff33f45994ebfbbdc6dab353ca341",
+      "owner": "a4815982d796a4c196cd0b8fd29afea5b1c5e51eda4de602b6c6429dbe19969d",
+      "schema": "8b16615a82c8d58c06983570deb35e26710034b37ea498cecdb61abb71dc0cfd",
+      "version": "3ed5ef6da83529adb5731c8632d21a122e497a2c7d4d30a00f8295df25a89a33"
+    },
+    "mth": "922477a63634426c1eb7d5aa19662ad3dc3d3cc46e223b9be5cd080c90b2b7f5",
+    "order": [
+      "claim",
+      "created_at",
+      "evidence.0",
+      "evidence.1",
+      "evidence_count",
+      "finding_id",
+      "link_count",
+      "links.0",
+      "links.1",
+      "links.2",
+      "owner",
+      "schema",
+      "version"
+    ],
+    "root": "add813b9897ab0ae91624fe052c463580c08b3a0e62f490c2576327160b80ddf",
+    "salts": {
+      "claim": "d103e75d55e005926a35bd0fdd97bf077b8fec244ecaf016f6b7f4100f1ccce0",
+      "created_at": "c6d957513b9f2e886e3fc198618527633586a3c6d546f8adf279e9ef6e2c177e",
+      "evidence.0": "c0913439c2a60fd35658e4b07d1708da3b9e529d380680cf43b73e5a5ee15ea5",
+      "evidence.1": "690ca9549e0b252c734b46d3342b77169e232ab484675713d235f2386afb39f6",
+      "evidence_count": "de4fa3fd7b57f6270649684f4fe4fc17d3e98dc1176209a338d7854fb0e9eded",
+      "finding_id": "e3c1e1c53699f6c2410cb57759e9d9348bde2e01e74eb0b16467aa8f46889777",
+      "link_count": "5e19c12a1577cae02e14aef256c81d320143d5f544a84d63758dffd7bd13f343",
+      "links.0": "88496560752135204263e78ef8c10d3b5de0e14ae24d1eba6c3ea7e64d325e73",
+      "links.1": "c6bb54b92eb82996fca837753320f76975b82b63f44d7c8cbfc3a4d2bfe7d66f",
+      "links.2": "ba42b9c0d2137a2cfde0e9feeaa831cc1fbcbfbf578480e477a2dff2ca0580a9",
+      "owner": "eb2343c1b693122c53f5d1d0031fcfb9023323d743796425562c7a3c10555413",
+      "schema": "a10b8300fda15a56447616fc70238fe050461032b27aa68ba88e11bf0f07c773",
+      "version": "925aa97e4ea12286844d9bb681772963dad162f8eb329e7568d48f211beac272"
+    }
+  },
+  "keys": {
+    "fake_anchor_public": "a674816fd605d9f0afd5f1819102013dead1c5fb45ee3905871e6c6afcf98d44",
+    "log_vkey": "vectors.anagram.example/log+676327b4+AScAlaXyxfPxcbaJ4sLTrIZ0fkQ+kGq9PBNKgHe0dJ4A",
+    "owner_public": "f38f67d9eebe985a29c7e28b67ac4138aaeefb2a0070d69f8406c091a68d067a",
+    "owner_seed": "a39cb305204af1f3e860fa48221a2cbae92e97103c77b6a21ba30c6e1cdd8115",
+    "vault_key": "ad8efca472f4987917ce6c32afc17584c1df4f58a1b9f3749e518fe5489a6d23",
+    "witness_vkey": "vectors.anagram.example/witness+b36235f4+BE1ZxwfeKGQ3aGKS9KmlVf+mnxaHQ2RPOyMVS/twJ7kQ"
+  },
+  "log_entry": {
+    "commitment": "dce80515d885c5ba4f64dbe56654e4f07029c9a25b2f29a9b549144b2757a5f8",
+    "kind": "finding",
+    "schema": "anagram.log_entry.v1"
+  },
+  "log_entry_canonical": "{\"commitment\":\"dce80515d885c5ba4f64dbe56654e4f07029c9a25b2f29a9b549144b2757a5f8\",\"kind\":\"finding\",\"schema\":\"anagram.log_entry.v1\"}",
+  "subject": {
+    "kind": "finding",
+    "owner": {
+      "alg": "ed25519",
+      "key": "f38f67d9eebe985a29c7e28b67ac4138aaeefb2a0070d69f8406c091a68d067a"
+    },
+    "root": "add813b9897ab0ae91624fe052c463580c08b3a0e62f490c2576327160b80ddf",
+    "signature": "b4f8ad098b659ba028c4bd0260810ad9b15d3de9b2b65c1a2d55c351067923ca02acf84b0f628c30f20e036743cbee5b2d52d95d0bac7a206b636d217e656602"
+  }
+}

@@ -1,0 +1,146 @@
+{
+  "bundle": {
+    "anchors": [
+      {
+        "digest": "0f0feb26107d23914ab973aba47b3bdf759b38267abfcf47eda4cd226bc34414",
+        "key": "a674816fd605d9f0afd5f1819102013dead1c5fb45ee3905871e6c6afcf98d44",
+        "signature": "98c654eb520ccc4dbe26c6c9773f96cf87710151ea8f84cb4989a2b651c3d7670ddef338e2ba19bdd47126e05a2301139345b5b584ce16ffb85d1d0470a4650d",
+        "time": "2026-10-15T12:00:10Z",
+        "type": "fake"
+      }
+    ],
+    "log": {
+      "checkpoint": "vectors.anagram.example/log\n4\nywSlxozVIyy9KslS+woQKdsVlby1djYynYfj3QS7LBo=\n\n— vectors.anagram.example/log Z2MntB/A7XG4lMvML10S2ommTA6WyRw5wsyi9asgDYKZVcOpdixHDtpv9Vo71BSes3RrmmCKE8PQWSKR7SRwob47zwo=\n— vectors.anagram.example/witness s2I19AAAAABq0MBFDI97+mN8fi8JJAi1kkMhguRzOrE5to5Vo3GYQJatkFeE5RAkJ+Z+stL2UmF9/eLKGTRxPBso+EHWgj9ehG01CQ==\n",
+      "entry": {
+        "commitment": "dce80515d885c5ba4f64dbe56654e4f07029c9a25b2f29a9b549144b2757a5f8",
+        "kind": "finding",
+        "schema": "anagram.log_entry.v1"
+      },
+      "inclusion": [
+        "c14e8b6edbedb00bc42f7282915f1584264862fb46fc4342183848e00ed58f7c",
+        "992e7328f55b460656d294db0f5d5c64f5ccb7fc459ac65c4cdd210cae24011f"
+      ],
+      "leaf_index": 3,
+      "tree_size": 4
+    },
+    "openings": {
+      "evidence": [
+        {
+          "fields": [
+            {
+              "index": 0,
+              "layout": [
+                "content",
+                "media_type",
+                "name",
+                "schema",
+                "source"
+              ],
+              "name": "content",
+              "path": [
+                "76887e3f927090c095e06def6645e79fa8671b1803d4aac9f86111e4ca65aa0c",
+                "c3e83e58dac938e3eab7a3e83f24fa6d5da77477bcce6211c2c57a90c23bebf8",
+                "09da06a97caa910925ae8a03d7c09577da19d101cd04a7936701985e6c613e68"
+              ],
+              "salt": "251e18d000e74c9efd5361eff9ab5eae211ef00e1d02a1b210c67910ec51c896",
+              "size": 5,
+              "value": {
+                "alg": "anagram-chunked-sha256-v1",
+                "chunk_size": 64,
+                "digest": "052c3fd4291d962d0d7b8e65544ca2b7d771cd9c991de71b892046dd619beaa3",
+                "size": 27
+              }
+            }
+          ],
+          "slot": 0
+        }
+      ],
+      "finding": [
+        {
+          "index": 0,
+          "layout": [
+            "claim",
+            "created_at",
+            "evidence.0",
+            "evidence.1",
+            "evidence_count",
+            "finding_id",
+            "link_count",
+            "links.0",
+            "links.1",
+            "links.2",
+            "owner",
+            "schema",
+            "version"
+          ],
+          "name": "claim",
+          "path": [
+            "f46ad669a67d88841b0449c77e24b49d169ccba4aa5624694dfd7106ba378530",
+            "6ab6288350d7501b4d41a0b92adab03e30afa91ef25c557ed3d176bf364b7b88",
+            "fbf60eade2e87fc8790714cdadb62ba35f1c1620bf57334dcbe08e93258ead03",
+            "29f41449277ae6ce7756a6e67806da428e0aa6fce6c54ab40be699c77828d89c"
+          ],
+          "salt": "d103e75d55e005926a35bd0fdd97bf077b8fec244ecaf016f6b7f4100f1ccce0",
+          "size": 13,
+          "value": "Protein X binds Y"
+        },
+        {
+          "index": 2,
+          "layout": [
+            "claim",
+            "created_at",
+            "evidence.0",
+            "evidence.1",
+            "evidence_count",
+            "finding_id",
+            "link_count",
+            "links.0",
+            "links.1",
+            "links.2",
+            "owner",
+            "schema",
+            "version"
+          ],
+          "name": "evidence.0",
+          "path": [
+            "acb5fc1ed6a992a07b61be7c017c6bd957276d9ed54cb5d6865d4e842cb2489f",
+            "241428dcb6b32d12e8c7a1e74e8083cccbfbabadfed826124cf2242f2691504f",
+            "fbf60eade2e87fc8790714cdadb62ba35f1c1620bf57334dcbe08e93258ead03",
+            "29f41449277ae6ce7756a6e67806da428e0aa6fce6c54ab40be699c77828d89c"
+          ],
+          "salt": "c0913439c2a60fd35658e4b07d1708da3b9e529d380680cf43b73e5a5ee15ea5",
+          "size": 13,
+          "value": "e4695038edfa83159d4207b9b2e7e869e2082e4f67bf26576a4e62c75171654e"
+        }
+      ]
+    },
+    "schema": "anagram.proof_bundle.v1",
+    "sealed_opening": {
+      "alg": "chacha20-poly1305",
+      "ciphertext": "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",
+      "key_id": "a32bffa09b77a11d",
+      "nonce": "ab4ad50d1d9a6acc7e502746",
+      "schema": "anagram.sealed_opening.v1",
+      "subject_root": "add813b9897ab0ae91624fe052c463580c08b3a0e62f490c2576327160b80ddf"
+    },
+    "subject": {
+      "kind": "finding",
+      "owner": {
+        "alg": "ed25519",
+        "key": "f38f67d9eebe985a29c7e28b67ac4138aaeefb2a0070d69f8406c091a68d067a"
+      },
+      "root": "add813b9897ab0ae91624fe052c463580c08b3a0e62f490c2576327160b80ddf",
+      "signature": "b4f8ad098b659ba028c4bd0260810ad9b15d3de9b2b65c1a2d55c351067923ca02acf84b0f628c30f20e036743cbee5b2d52d95d0bac7a206b636d217e656602"
+    }
+  },
+  "description": "Full proof bundle. verify_bundle must accept it with these keys.",
+  "expected_not_after": "2026-10-15T12:00:05Z",
+  "keys": {
+    "fake_anchor_public": "a674816fd605d9f0afd5f1819102013dead1c5fb45ee3905871e6c6afcf98d44",
+    "log_vkey": "vectors.anagram.example/log+676327b4+AScAlaXyxfPxcbaJ4sLTrIZ0fkQ+kGq9PBNKgHe0dJ4A",
+    "owner_public": "f38f67d9eebe985a29c7e28b67ac4138aaeefb2a0070d69f8406c091a68d067a",
+    "owner_seed": "a39cb305204af1f3e860fa48221a2cbae92e97103c77b6a21ba30c6e1cdd8115",
+    "vault_key": "ad8efca472f4987917ce6c32afc17584c1df4f58a1b9f3749e518fe5489a6d23",
+    "witness_vkey": "vectors.anagram.example/witness+b36235f4+BE1ZxwfeKGQ3aGKS9KmlVf+mnxaHQ2RPOyMVS/twJ7kQ"
+  }
+}

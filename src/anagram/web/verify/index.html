@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Check a proof</title>
+<link rel="icon" href="/brand/assets/four-squares.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/brand/tokens.css">
+<link rel="stylesheet" href="/brand/product-ui/tokens.css">
+<link rel="stylesheet" href="/brand/product-ui/components.css">
+<link rel="stylesheet" href="/brand/node.css">
+<link rel="stylesheet" href="/verify/assets/verify.css">
+<script type="module" src="/verify/assets/verify.js"></script>
+</head>
+<body class="rf-ui">
+<div class="ag-node ag-node--wide">
+<header class="ag-node-brand"><svg class="ag-node-mark" viewBox="0 0 1232 90" aria-hidden="true" focusable="false"><path d="M7 90V7H225V90 M263 0V83H481V0 M519 90V7H969V90 M1007 90V7H1225V90" fill="none" stroke="currentColor" stroke-width="14" stroke-linejoin="miter"/></svg><span class="ag-node-name">Anagram</span></header>
+<main class="ag-node-main">
+<h1 class="ag-node-title" id="title">Check a proof</h1>
+<p class="ag-node-lead" id="lead">Drop a proof certificate or a proof file here. Add the files of the finding to see if they are the same files. Your files stay in this browser.</p>
+
+<div class="vf-drop" id="drop">
+<input class="vf-input" type="file" id="files" multiple>
+<label class="vf-target" for="files">
+<span class="vf-target-main">Drop files here, or choose them</span>
+<span class="vf-target-help">A certificate (.html) or a proof file (.json), and the files that it names</span>
+</label>
+</div>
+
+<div id="state" class="vf-state" role="status" aria-live="polite"></div>
+<section id="result" class="vf-result" hidden aria-labelledby="result-title"></section>
+
+<p class="vf-note">This node checks its own log. For an independent check, use the Anagram command with no network: <code>anagram verify &lt;proof file&gt; --file &lt;your file&gt;</code></p>
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,273 @@
+/* Node pages (anagram.shell.pages): the organizer page, the join page, the sign-in
+   pages. Load after brand/tokens.css, brand/product-ui/tokens.css, and
+   brand/product-ui/components.css. Square corners, DM Sans, the brand palette.
+   One reading column on the lavender field. No offset panel and no shadow:
+   these pages are short notices and plain forms.
+
+   The node serves this file at /brand/node.css; the local UI serves it at
+   /static/css/node.css. It does not load base.css, so the dark pairs are
+   repeated here (tests/test_pages.py checks that they equal base.css). */
+
+:root {
+  --ag-field: var(--rf-lavender);
+  --ag-surface: var(--rf-paper);
+  --ag-stock: var(--rf-stock);
+  --ag-text: var(--rf-ink);
+  --ag-muted: var(--rf-muted);
+  --ag-rule: var(--rf-rule);
+  --ag-action: var(--rf-blue);
+  --ag-mark: var(--rf-vermilion);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ag-field: #1d1b23;
+    --ag-surface: #27242e;
+    --ag-stock: #34303c;
+    --ag-text: #eeebf3;
+    --ag-muted: #b6afc0;
+    --ag-rule: rgba(238, 235, 243, 0.2);
+    --ag-action: #aab6ff;
+    --ag-on-action: #1d1b23;
+    --ag-error: #ffa08c;
+  }
+  :root:not([data-theme="light"]) .rf-ui {
+    --rf-paper: var(--ag-surface);
+    --rf-lavender: var(--ag-field);
+    --rf-ink: var(--ag-text);
+    --rf-muted: var(--ag-muted);
+    --rf-stock: var(--ag-stock);
+    --rf-rule: var(--ag-rule);
+    --rf-blue: var(--ag-action);
+    --rf-ui-error: var(--ag-error);
+    --rf-ui-on-action: var(--ag-on-action);
+    color-scheme: dark;
+  }
+}
+
+body.rf-ui {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--ag-field);
+  color: var(--ag-text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.ag-node {
+  max-width: 36rem;
+  margin: 0 auto;
+  padding: clamp(32px, 9vh, 96px) var(--rf-gutter) 96px;
+}
+.ag-node--wide {
+  max-width: var(--rf-reading-width);
+}
+
+.ag-node-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 clamp(40px, 8vh, 72px);
+  color: var(--ag-text);
+}
+.ag-node-mark {
+  width: 88px;
+  height: auto;
+  display: block;
+}
+.ag-node-name {
+  font-size: 1.375rem;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.ag-node-main > :first-child {
+  margin-top: 0;
+}
+:where(.ag-node-main) p {
+  margin: 8px 0;
+}
+.ag-node-eyebrow {
+  margin: 0 0 8px;
+  color: var(--ag-muted);
+  font-size: 0.875rem;
+}
+.ag-node-title {
+  font-size: 2rem;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  font-weight: 400;
+  margin: 0 0 16px;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.ag-node-lead {
+  margin: 0 0 8px;
+  max-width: 34rem;
+}
+.ag-node-section {
+  font-size: 1.5rem;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  font-weight: 400;
+  margin: 56px 0 12px;
+}
+.ag-node-label {
+  margin: 0 0 4px;
+  color: var(--ag-muted);
+  font-size: 0.875rem;
+}
+.rf-ui .ag-node-warn {
+  color: var(--ag-text);
+  font-size: 0.9375rem;
+}
+.ag-node-warn::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  background: var(--ag-mark);
+}
+.ag-node-warn:empty {
+  display: none;
+}
+
+.ag-node-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 32px 0 16px;
+}
+.rf-ui .ag-node-actions .rf-ui-button {
+  text-decoration: none;
+}
+
+/* A value to copy: an invite link or a one-time code. One click selects it. */
+.ag-node-code {
+  margin: 24px 0;
+}
+.rf-ui .ag-node-code pre {
+  margin: 0;
+  padding: 12px 16px;
+  background: var(--ag-surface);
+  border: 1px solid var(--ag-rule);
+  font: 400 0.9375rem / 1.5 var(--rf-sans);
+  font-variant-numeric: tabular-nums;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+/* Facts rows: a label and a value on one line, a rule under each row. */
+.ag-node-facts {
+  width: 100%;
+  border-collapse: collapse;
+  border-top: 1px solid var(--ag-rule);
+}
+.ag-node-facts th,
+.ag-node-facts td {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--ag-rule);
+  text-align: left;
+  vertical-align: top;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.ag-node-facts th {
+  width: 45%;
+  padding-right: 16px;
+  color: var(--ag-muted);
+}
+.ag-node-facts td {
+  font-variant-numeric: tabular-nums;
+}
+.ag-node-empty {
+  margin: 0;
+  padding: 10px 0;
+  color: var(--ag-muted);
+  border-top: 1px solid var(--ag-rule);
+  border-bottom: 1px solid var(--ag-rule);
+}
+
+/* Forms on the page, with no panel around them. */
+.ag-node-form {
+  margin: 16px 0;
+}
+.ag-node-form .rf-ui-field {
+  margin: 16px 0;
+}
+.ag-node-form .rf-ui-field label {
+  display: block;
+  margin-bottom: 8px;
+}
+.ag-node-form .rf-ui-input {
+  width: 100%;
+}
+.ag-node-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+.ag-node-form .ag-node-inline .rf-ui-field {
+  margin: 0;
+  flex: 0 1 18rem;
+  min-width: 0;
+}
+.ag-node-inline .rf-ui-input[type="number"] {
+  width: 8rem;
+}
+.ag-node-inline .rf-ui-field:has(input[type="number"]) {
+  flex: 0 0 auto;
+}
+.rf-ui .ag-node-foot .rf-ui-button--quiet {
+  padding-left: 0;
+  padding-right: 0;
+}
+.ag-node-or {
+  margin: 24px 0 0;
+  padding-top: 24px;
+  border-top: 1px solid var(--ag-rule);
+}
+.ag-node-foot {
+  margin-top: 72px;
+  padding-top: 8px;
+  border-top: 1px solid var(--ag-rule);
+}
+
+.ag-node-more {
+  margin: 24px 0;
+}
+.rf-ui .ag-node-more summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--ag-action);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+@media (max-width: 700px) {
+  .ag-node-facts th,
+  .ag-node-facts td {
+    display: block;
+    width: auto;
+    padding: 0;
+    border: 0;
+  }
+  .ag-node-facts tr {
+    display: block;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--ag-rule);
+  }
+  .ag-node-facts td {
+    margin-top: 2px;
+  }
+  .ag-node-mark {
+    width: 56px;
+  }
+}

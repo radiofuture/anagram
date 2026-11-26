@@ -1,0 +1,18 @@
+{
+  "files": {
+    "pdf.min.mjs": {
+      "license": "Apache-2.0",
+      "package": "pdfjs-dist",
+      "sha256": "3a88402882cfa3e7e72c2c9b5149f52f0f88baf1c5b62aa11a41abdbc2072440",
+      "source": "https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-6.5.438.tgz#package/build/pdf.min.mjs",
+      "version": "6.5.438"
+    },
+    "pdf.worker.min.mjs": {
+      "license": "Apache-2.0",
+      "package": "pdfjs-dist",
+      "sha256": "1e64c8240e54735ec5913b37acd5134747799cb8c6bb3777c70adbc01232d2aa",
+      "source": "https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-6.5.438.tgz#package/build/pdf.worker.min.mjs",
+      "version": "6.5.438"
+    }
+  }
+}

@@ -1,0 +1,206 @@
+[project]
+name = "anagram"
+dynamic = ["version"]  # from src/anagram/core/version.py ([tool.hatch.version])
+description = "Anagram by Radiofuture: private priority proofs for research findings, and private matching"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Radiofuture", email = "hello@radiofuture.com" }]
+keywords = [
+    "research",
+    "priority",
+    "timestamp",
+    "transparency-log",
+    "privacy",
+    "matching",
+    "confidential-computing",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: Science/Research",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Security :: Cryptography",
+]
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "asn1crypto>=1.5.1",
+    "cryptography>=50.0.0",
+    "fastapi>=0.115.0",
+    "fastembed>=0.9.1",
+    # The HTTP client of the app (node, enclave and model calls).
+    "httpx>=0.28.1",
+    "keyring>=25.6.0",
+    "markitdown[docx,pdf,pptx,xlsx]>=0.1.9",
+    "opentimestamps>=0.4.5",
+    "pycryptodome>=3.20",
+    "pyyaml>=6.0",
+    "sqlcipher3>=0.6.4",
+    "sqlite-vec>=0.1.9",
+    "uvicorn>=0.30.0",
+    "watchdog>=6.0.0",
+]
+
+[project.optional-dependencies]
+node = [
+    # Member credentials (node) and their checks (enclave intake).
+    "biscuit-python==0.4.0",
+    "webauthn>=2.5.0",
+]
+anthropic = [
+    "anthropic>=2.3.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/radiofuture/anagram"
+Source = "https://github.com/radiofuture/anagram"
+Issues = "https://github.com/radiofuture/anagram/issues"
+Changelog = "https://github.com/radiofuture/anagram/blob/main/CHANGELOG.md"
+
+[project.scripts]
+anagram = "anagram.shell.cli.main:main"
+
+[dependency-groups]
+bench = [
+    "chromadb>=1.5.9",
+    "lancedb>=0.41.0",
+    "psutil>=7.2.2",
+    "usearch>=2.26.6",
+]
+dev = [
+    "biscuit-python==0.4.0",
+    "fastapi>=0.115.0",
+    "httpx>=0.28.1",
+    "jsonschema>=4.26.0",
+    "mypy>=2.4.1",
+    "pip-audit>=2.10.1",
+    "playwright>=1.47",
+    "pre-commit>=4.7.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff==0.11.13",
+    "webauthn>=2.5.0",
+]
+packaging = [
+    "pyinstaller>=6.11",
+]
+
+[tool.uv]
+package = true
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E4", "E7", "E9", "F", "I", "UP", "B", "S",
+    # Code quality (clean-up wave 6): complexity and no reach into private names.
+    "C901", "PLR0911", "PLR0912", "PLR0915", "SLF001",
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.ruff.lint.pylint]
+max-branches = 15
+max-statements = 60
+max-returns = 8
+
+[tool.ruff.lint.per-file-ignores]
+# Tests may assert, reach into private state, and be long.
+"tests/**/*.py" = ["S101", "SLF001", "C901", "PLR0911", "PLR0912", "PLR0915"]
+# A router factory holds its route handlers as nested functions, and each
+# handler counts toward the factory. Each handler stays small.
+"src/anagram/**/routes.py" = ["C901", "PLR0915"]
+"src/anagram/shell/ui/routers/*.py" = ["C901", "PLR0915"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+# Type checking: mypy. It reads this file, runs from the uv lock with no Node
+# runtime, and sets strictness per module, so the strict set can grow one
+# module at a time.
+#
+# Plan:
+#   1. Strict now: the packages and modules in `files` below. A package is
+#      named by its directory, so a new module in it is strict at once. CI
+#      keeps them at zero errors (`uv run mypy`).
+#   2. Polish pass (2026-11-26): core, network.formats and network.matching
+#      went to 0 strict errors (from core 46, formats 175, matching.trust 102,
+#      and 555 in the rest of network.matching: room 327, app 122, services
+#      65, node 41).
+#   3. Then: one layer at a time (identity, proofs, admission, local, the rest
+#      of network, gateway, models, shell): add the layer to the strict
+#      override and to `files`. Lenient count of the rest on 2026-11-26:
+#      `uv run mypy src/anagram` gives 333 errors in 103 files.
+#   4. When all layers pass: move the strict flags up to [tool.mypy] and drop
+#      the override.
+[tool.mypy]
+python_version = "3.13"
+mypy_path = "src"
+explicit_package_bases = true
+# Lenient default for code outside the strict set.
+ignore_missing_imports = true
+follow_imports = "silent"
+warn_unused_configs = true
+warn_redundant_casts = true
+files = [
+    "src/anagram/core",
+    "src/anagram/network/formats",
+    "src/anagram/network/matching",
+]
+
+# The strict set: the same flags as `mypy --strict`. The packages are named
+# whole, so a module of these packages is strict when it is in `files`.
+[[tool.mypy.overrides]]
+module = [
+    "anagram.core.*",
+    "anagram.network.formats.*",
+    "anagram.network.matching.*",
+]
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+warn_unused_ignores = true
+warn_return_any = true
+no_implicit_reexport = true
+strict_equality = true
+extra_checks = true
+
+# Coverage: CI fails below fail_under (the total on 2026-11-25 minus 1 point).
+[tool.coverage.run]
+source = ["src/anagram"]
+branch = true
+omit = ["src/anagram/vectors/*"]
+
+[tool.coverage.report]
+fail_under = 89
+show_missing = false
+skip_covered = true
+exclude_also = [
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/anagram/core/version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/anagram"]

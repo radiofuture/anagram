@@ -1,0 +1,8 @@
+Anagram
+Copyright 2026 Radiofuture
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party JavaScript modules are in src/anagram/shell/ui/static/vendor and
+src/anagram/web/reader/vendor. They keep their own licenses; the
+manifest.json file in each folder names the package, version and license.

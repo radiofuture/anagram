@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Keys that packaging/anagram.spec adds to the Info.plist of Anagram.app.
+  PyInstaller writes CFBundleExecutable, CFBundlePackageType, and the version.
+  LSUIElement: no Dock icon (the app is a launcher and a login service).
+  CFBundleURLTypes: anagram:// links open the app.
+-->
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>Anagram</string>
+	<key>CFBundleIdentifier</key>
+	<string>org.radiofuture.anagram</string>
+	<key>CFBundleName</key>
+	<string>Anagram</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>org.radiofuture.anagram</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>anagram</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>Radiofuture</string>
+</dict>
+</plist>

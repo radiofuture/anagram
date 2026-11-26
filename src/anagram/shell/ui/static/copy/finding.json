@@ -1,0 +1,18 @@
+{
+  "title": "Finding",
+  "back": "Library",
+  "proof": "Proof",
+  "proven_label": "Proven to exist by",
+  "stamp_label": "Proof",
+  "check": "Version {n}. Anyone can check this proof with the public log. They do not see your files.",
+  "download": "Download the proof file",
+  "evidence": "Evidence",
+  "evidence_help": "A file proof shows that one file is equal to the file in this proof. It shows that file only.",
+  "third_party": "Has other people's words",
+  "prove": "Prove this file",
+  "prove_name": "Prove the file {name}",
+  "not_here": "Not on this computer",
+  "versions": "Versions",
+  "id": "Finding ID",
+  "fingerprint": "Version fingerprint"
+}

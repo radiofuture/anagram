@@ -1,0 +1,31 @@
+name: Feature request
+description: Propose a new feature or a change to Anagram.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What do you want to do that Anagram does not let you do? Who has this problem?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should Anagram do? Tell us the result, not only the method.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Other solutions that you considered.
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: Impact
+      options:
+        - label: It changes behaviour on the wire (the spec in spec/ must change first).
+        - label: It changes what leaves the person's computer.
+        - label: It changes the matching enclave or its trust model.

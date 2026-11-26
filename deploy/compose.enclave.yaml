@@ -1,0 +1,222 @@
+# Local test override: a development network for matching through the
+# enclave, SIMULATED PROFILE (no privacy; development and tests only).
+# Use it with compose.yaml and compose.local.yaml (deploy/local_e2e.py does):
+#
+#   docker compose -p anagram-e2e -f compose.yaml -f compose.local.yaml \
+#     -f compose.enclave.yaml up -d
+#
+# Services: devnet (makes the keys once), log, witness-1..3, roster,
+# enclave-a (writer) and enclave-b (standby), and a second node (node-b) at
+# https://anagram-b.localhost:8443. Caddy also serves the log read API at
+# https://log.localhost:8443 for the apps on the host. The operator steps
+# (release, line, failover) run with `docker compose run --rm devnet ...`.
+# The enclave instances start only after the release (see docs/enclave.md).
+#
+# Every process reads the development clock in .e2e/clock/offset, so the
+# test can move all of them across days.
+#
+# Keys: `devnet init --keys /keys` writes one key file for each service in
+# the devnet-keys volume (SERVICE/key.json). Each service mounts only its
+# own folder of that volume at /key and reads it with `--key`; the devnet
+# volume holds only public files (devnet.json, release.json). The operator
+# steps run in the devnet service, which holds the operator key.
+
+x-service: &service
+  image: anagram-node:local
+  pull_policy: never
+  restart: unless-stopped
+  depends_on:
+    devnet:
+      condition: service_completed_successfully
+  environment:
+    ANAGRAM_DEV_CLOCK_FILE: /clock/offset
+  volumes:
+    - devnet:/devnet:ro
+    - ./.e2e/clock:/clock:ro
+
+x-health: &health
+  interval: 3s
+  timeout: 3s
+  retries: 40
+  start_period: 5s
+
+services:
+  devnet:
+    image: anagram-node:local
+    pull_policy: never
+    user: root
+    restart: "no"
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        test -f /devnet/devnet.json ||
+        anagram enclave devnet init --dir /devnet --keys /keys --network net.anagram.localhost
+        --origin log.anagram.localhost/enclave;
+        chown -R 10001:10001 /devnet /keys /snapshots
+    volumes:
+      - devnet:/devnet
+      - devnet-keys:/keys
+      - enclave-snapshots:/snapshots
+      - ./.e2e/clock:/clock:ro
+    environment:
+      ANAGRAM_DEV_CLOCK_FILE: /clock/offset
+
+  log:
+    <<: *service
+    command: [log, serve, --devnet, /devnet, --key, /key/key.json, --state, /data/log,
+              --host, 0.0.0.0, --port, "8780",
+              --witness, "http://witness-1:8781", --witness, "http://witness-2:8781",
+              --witness, "http://witness-3:8781"]
+    volumes:
+      - devnet:/devnet:ro
+      - {type: volume, source: devnet-keys, target: /key, read_only: true, volume: {subpath: log}}
+      - ./.e2e/clock:/clock:ro
+      - log-data:/data
+    healthcheck:
+      <<: *health
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8780/healthz', timeout=2)"]
+
+  witness-1: &witness
+    <<: *service
+    command: [witness, serve, --devnet, /devnet, --key, /key/key.json, --number, "1",
+              --state, /data/witness, --log-url, "http://log:8780", --host, 0.0.0.0, --port, "8781"]
+    volumes:
+      - devnet:/devnet:ro
+      - {type: volume, source: devnet-keys, target: /key, read_only: true, volume: {subpath: witness-1}}
+      - ./.e2e/clock:/clock:ro
+      - witness-1-data:/data
+    healthcheck:
+      <<: *health
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8781/healthz', timeout=2)"]
+
+  witness-2:
+    <<: *witness
+    command: [witness, serve, --devnet, /devnet, --key, /key/key.json, --number, "2",
+              --state, /data/witness, --log-url, "http://log:8780", --host, 0.0.0.0, --port, "8781"]
+    volumes:
+      - devnet:/devnet:ro
+      - {type: volume, source: devnet-keys, target: /key, read_only: true, volume: {subpath: witness-2}}
+      - ./.e2e/clock:/clock:ro
+      - witness-2-data:/data
+
+  witness-3:
+    <<: *witness
+    command: [witness, serve, --devnet, /devnet, --key, /key/key.json, --number, "3",
+              --state, /data/witness, --log-url, "http://log:8780", --host, 0.0.0.0, --port, "8781"]
+    volumes:
+      - devnet:/devnet:ro
+      - {type: volume, source: devnet-keys, target: /key, read_only: true, volume: {subpath: witness-3}}
+      - ./.e2e/clock:/clock:ro
+      - witness-3-data:/data
+
+  roster:
+    <<: *service
+    command: [roster, serve, --devnet, /devnet, --key, /key/key.json, --state, /data/roster,
+              --log-url, "http://log:8780", --host, 0.0.0.0, --port, "8782"]
+    volumes:
+      - devnet:/devnet:ro
+      - {type: volume, source: devnet-keys, target: /key, read_only: true, volume: {subpath: roster}}
+      - ./.e2e/clock:/clock:ro
+      - roster-data:/data
+    healthcheck:
+      <<: *health
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8782/healthz', timeout=2)"]
+
+  enclave-a: &enclave
+    <<: *service
+    command: [enclave, serve, --profile, simulated, --devnet, /devnet, --key, /key/key.json,
+              --release, /devnet/release.json, --state, /data/enclave, --snapshots, /snapshots,
+              --log-url, "http://log:8780", --roster-url, "http://roster:8782", --first-line,
+              --feed-rewrite, "https://anagram.localhost:8443=http://node:8787",
+              --feed-rewrite, "https://anagram-b.localhost:8443=http://node-b:8787",
+              --host, 0.0.0.0, --port, "8790"]
+    volumes:
+      - devnet:/devnet:ro
+      - {type: volume, source: devnet-keys, target: /key, read_only: true, volume: {subpath: enclave}}
+      - ./.e2e/clock:/clock:ro
+      - enclave-a-data:/data
+      - enclave-snapshots:/snapshots
+    healthcheck:
+      <<: *health
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8790/healthz', timeout=2)"]
+
+  enclave-b:
+    <<: *enclave
+    command: [enclave, serve, --profile, simulated, --devnet, /devnet, --key, /key/key.json,
+              --release, /devnet/release.json, --state, /data/enclave, --snapshots, /snapshots,
+              --log-url, "http://log:8780", --roster-url, "http://roster:8782",
+              --standby-of, "http://enclave-a:8790",
+              --feed-rewrite, "https://anagram.localhost:8443=http://node:8787",
+              --feed-rewrite, "https://anagram-b.localhost:8443=http://node-b:8787",
+              --host, 0.0.0.0, --port, "8790"]
+    volumes:
+      - devnet:/devnet:ro
+      - {type: volume, source: devnet-keys, target: /key, read_only: true, volume: {subpath: enclave}}
+      - ./.e2e/clock:/clock:ro
+      - enclave-b-data:/data
+      - enclave-snapshots:/snapshots
+
+  node:
+    depends_on:
+      devnet:
+        condition: service_completed_successfully
+    environment: &node-enclave
+      ANAGRAM_DEV_CLOCK_FILE: /clock/offset
+      ANAGRAM_ENCLAVE_URLS: "http://enclave-a:8790,http://enclave-b:8790"
+      ANAGRAM_ENCLAVE_LOG_URL: "http://log:8780"
+      ANAGRAM_ENCLAVE_PINS: /devnet/devnet.json
+      ANAGRAM_ENCLAVE_AFFILIATION: Laboratory A
+      ANAGRAM_ENCLAVE_ADMIN: admin@anagram.localhost
+      ANAGRAM_ENCLAVE_TICK_SECONDS: "2"
+    volumes:
+      - anagram-data:/data
+      - devnet:/devnet:ro
+      - ./.e2e/clock:/clock:ro
+
+  node-b:
+    image: anagram-node:local
+    pull_policy: never
+    restart: unless-stopped
+    depends_on:
+      devnet:
+        condition: service_completed_successfully
+    environment:
+      <<: *node-enclave
+      ANAGRAM_DOMAIN: anagram-b.localhost
+      ANAGRAM_PUBLIC_URL: https://anagram-b.localhost:${ANAGRAM_LOCAL_PORT:-8443}
+      ANAGRAM_COMMUNITY: Local test community B
+      ANAGRAM_DEV_FAKE_ORCID: "1"
+      ANAGRAM_ENCLAVE_AFFILIATION: Laboratory B
+      ANAGRAM_ENCLAVE_ADMIN: admin@anagram-b.localhost
+    volumes:
+      - anagram-b-data:/data
+      - devnet:/devnet:ro
+      - ./.e2e/clock:/clock:ro
+    expose:
+      - "8787"
+
+  caddy:
+    depends_on:
+      node:
+        condition: service_healthy
+      node-b:
+        condition: service_healthy
+      log:
+        condition: service_started
+    volumes: !override
+      - ./Caddyfile.enclave:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  devnet:
+  devnet-keys:
+  enclave-snapshots:
+  log-data:
+  witness-1-data:
+  witness-2-data:
+  witness-3-data:
+  roster-data:
+  enclave-a-data:
+  enclave-b-data:
+  anagram-b-data:

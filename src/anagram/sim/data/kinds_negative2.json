@@ -1,0 +1,244 @@
+[
+ [
+  "notebook/2026-09-14.md",
+  "finding",
+  "negative",
+  "# 14 Sep\n\nRedid the {thing} comparison from 11 Aug, same {method}, new set from {place}.\nAug: +6.2 {unit} over control. Today: +0.3 {unit}, spread 2.8 {unit}.\n{first2} ran a blind second pass on the same set: +0.1 {unit}.\nThe August shift in {measure} could not be reproduced with fresh material.\nI think August was a one-off; flagging it in the group log before anyone cites it.\n",
+  [
+   "The August shift in {measure} could not be reproduced with fresh material."
+  ]
+ ],
+ [
+  "updates/status-0921.txt",
+  "finding",
+  "negative",
+  "{T} vs control is indistinguishable from baseline across all three batches (n=18). Dropping it from the panel. -{person}\n",
+  [
+   "{T} vs control is indistinguishable from baseline across all three batches (n=18)."
+  ]
+ ],
+ [
+  "docs/results-summary.md",
+  "finding",
+  "negative",
+  "# Results summary, spring round\n\nPrepared by {person} for the {org} review.\n\nWe screened five candidate factors against {thing} using {method}.\nControl range for {measure}: 31 to 35 {unit} over 40 cases.\nFactor scores fell between 32 and 34 {unit}; the largest gap to control was 0.9 {unit}.\nNone of the five candidate factors moved {measure} beyond the control range.\nWe will not carry any of them into the autumn round.\n",
+  [
+   "None of the five candidate factors moved {measure} beyond the control range."
+  ]
+ ],
+ [
+  "inbox/re-autumn-numbers.txt",
+  "finding",
+  "negative",
+  "From: {person}\nTo: {person2}\nSubject: Re: autumn numbers\n\nHi {first2},\n\nFinal tally is in. We see no difference in {measure} between the {thing2} arm and the control arm.\nMeans were 22.4 and 22.6 {unit}, 30 cases each, and the interval sits right on zero.\nI know you hoped for more. I'd rather we write it up as it is than keep slicing.\n\nBest,\n{person}\n",
+  [
+   "We see no difference in {measure} between the {thing2} arm and the control arm."
+  ]
+ ],
+ [
+  "results/batch7-readout.txt",
+  "result",
+  "negative",
+  "Batch 7 readout, {instrument}\n\ntreated  mean {measure} 14.2 {unit}  sd 1.9\ncontrol  mean {measure} 14.0 {unit}  sd 2.1\ndifference 0.2 {unit}, within noise of the {instrument} (+/- 0.5)\nsame pattern as batches 5 and 6\n",
+  []
+ ],
+ [
+  "notebook/2026-10-03.md",
+  "finding",
+  "negative",
+  "# 3 Oct\n\nReran the {thing} contrasts with all twelve comparisons in the model, as {person2} asked.\nUncorrected, the {thing2} contrast looked fine (p = 0.03).\nAfter correction for the twelve comparisons, the {thing2} effect did not survive.\nAdjusted p = 0.31. Nothing else came close either.\nMoving the {thing2} idea to the 'tried' list.\n",
+  [
+   "After correction for the twelve comparisons, the {thing2} effect did not survive."
+  ]
+ ],
+ [
+  "docs/replication-check.md",
+  "finding",
+  "negative",
+  "# Replication check: our 2025 {topic} result\n\nLast year we reported that {thing} raised {measure} by 7 {unit}. This term {person} repeated the work from scratch with a new set from {place} and the same {method}.\nOn the new set the gap in {measure} vanished: 0.4 {unit}, well inside the run-to-run spread.\nA second, independent repeat by {person2} gave 0.2 {unit}.\nWe are adding a correction note to the {venue} record.\n",
+  [
+   "On the new set the gap in {measure} vanished: 0.4 {unit}, well inside the run-to-run spread."
+  ]
+ ],
+ [
+  "notebook/dose-series.md",
+  "finding",
+  "negative",
+  "# Dose series, {thing}\n\nFour levels of {thing2}, six repeats each, read with {instrument}.\nLevel 1: 18.1 {unit}; level 2: 18.4; level 3: 17.9; level 4: 18.2.\n{T} left {measure} flat across every dose of {thing2}.\nThe slope estimate is 0.01 per level, interval spans zero.\n",
+  [
+   "{T} left {measure} flat across every dose of {thing2}."
+  ]
+ ],
+ [
+  "docs/subgroup-notes.md",
+  "finding",
+  "negative",
+  "# Subgroup look, {topic}\n\nOverall, {thing2} had no measurable effect on {measure} in the full sample.\nFull sample: 0.3 {unit} gap, 120 cases, interval -0.8 to 1.4.\nIn the small {place} subgroup (14 cases) there was a 2.1 {unit} gap, but that was one of nine subgroups we checked and we did not plan it.\nWe report the main outcome as null and list the subgroup as a lead only.\n",
+  [
+   "Overall, {thing2} had no measurable effect on {measure} in the full sample."
+  ]
+ ],
+ [
+  "results/repeat-4.txt",
+  "result",
+  "negative",
+  "Repeat 4: {measure} 12.1 {unit} with {thing}, 12.0 {unit} control. Same as repeats 1-3.\n",
+  []
+ ],
+ [
+  "docs/round2-decision.md",
+  "finding",
+  "negative",
+  "# Round 2 decision\n\nAfter three rounds with {dataset}, {thing} gave {measure} of 9.8, 10.1 and 9.9 {unit}; the plain baseline gave 10.0, 9.9 and 10.0 {unit}.\n{T} performs the same as the plain baseline on {measure}, so we drop it from the next round.\n{person} will move the freed time to {thing2}.\n",
+  [
+   "{T} performs the same as the plain baseline on {measure}, so we drop it from the next round."
+  ]
+ ],
+ [
+  "inbox/re-quick-question.txt",
+  "finding",
+  "negative",
+  "From: {person}\nTo: {author}\nSubject: Re: quick question about {thing2}\n\nDear {author},\n\nShort answer: {thing2} does nothing to {measure} in our hands.\nWe tried it twice this year with {method}, 16 cases per run, and both times the change was under 1 {unit}.\nHappy to send the raw sheets if they help your review.\n\nRegards,\n{person}\n{org}\n",
+  [
+   "Short answer: {thing2} does nothing to {measure} in our hands."
+  ]
+ ],
+ [
+  "reports/pooled-estimate.md",
+  "finding",
+  "negative",
+  "# Pooled estimate across sites\n\nSites: {place} and two partner groups under {grant}.\nEach site found a small gap, two up and one down.\nThe pooled estimate for {thing} on {measure} is 0.1 {unit}, which is consistent with zero.\nHeterogeneity was low, so the null is not hiding a large split between sites.\n",
+  [
+   "The pooled estimate for {thing} on {measure} is 0.1 {unit}, which is consistent with zero."
+  ]
+ ],
+ [
+  "notebook/2026-10-20.md",
+  "finding",
+  "positive",
+  "# 20 Oct\n\nSide-by-side run with {method}, eight repeats each.\nThe control failed to show any change, while {thing} raised {measure} by 9 {unit}.\nNot one control repeat moved more than 1 {unit}. {first2} confirmed the reads on {instrument}.\n",
+  [
+   "The control failed to show any change, while {thing} raised {measure} by 9 {unit}."
+  ]
+ ],
+ [
+  "docs/necessity-test.md",
+  "finding",
+  "positive",
+  "# Is {thing2} needed?\n\nWe removed {thing2} from the {thing} setup and kept all else fixed.\nWithout {thing2}, {measure} did not rise; with it, {measure} rose in all eight repeats.\nMean rise with {thing2}: 5.6 {unit}. Mean change without: 0.2 {unit}.\nSo {thing2} is required for the effect, not a side detail.\n",
+  [
+   "Without {thing2}, {measure} did not rise; with it, {measure} rose in all eight repeats."
+  ]
+ ],
+ [
+  "updates/reply-to-review.md",
+  "finding",
+  "positive",
+  "# Note for the {venue} reviewers\n\nReviewer 2 suggested the {topic} result may be a null dressed up.\nThis is not a null: {thing} lowered {measure} by 4.5 {unit} in every one of the 20 cases.\nNo case went the other way, and the sham condition showed no shift at all.\n",
+  [
+   "This is not a null: {thing} lowered {measure} by 4.5 {unit} in every one of the 20 cases."
+  ]
+ ],
+ [
+  "inbox/re-did-it-hold.txt",
+  "finding",
+  "positive",
+  "From: {person2}\nTo: {person}\nSubject: Re: did it hold?\n\n{person},\n\nYes. The effect held in the repeat: {measure} was 6 {unit} higher with {thing}, and no run went the other way.\nI was worried the first set was a fluke, but it was not. Numbers attached.\n\n{first2}\n",
+  [
+   "The effect held in the repeat: {measure} was 6 {unit} higher with {thing}, and no run went the other way."
+  ]
+ ],
+ [
+  "results/blind-scores.txt",
+  "result",
+  "positive",
+  "Blind scoring, {measure}, scorer did not know the labels\n\nwith {thing}: 27.3 {unit} (n=15)\nwithout:     19.8 {unit} (n=15)\ngap 7.5 {unit}; no overlap between the two ranges\n",
+  []
+ ],
+ [
+  "results/pilot-values.txt",
+  "result",
+  "unclear",
+  "Pilot values, {thing}, {instrument}\n\ncase 1  {measure} 11.4 {unit}\ncase 2  {measure} 15.0 {unit}\ncase 3  {measure} 9.7 {unit}\ncase 4  {measure} 13.2 {unit}\nno control run yet\n",
+  []
+ ],
+ [
+  "docs/mixed-picture.md",
+  "finding",
+  "unclear",
+  "# Mixed picture on {thing}\n\n{T} raised {measure} in the first set but lowered it in the second.\nFirst set: +3.1 {unit}. Second set: -2.4 {unit}. The sets differ in source ({place} vs elsewhere).\nWe cannot yet say which way it goes; a third set is planned.\n",
+  [
+   "{T} raised {measure} in the first set but lowered it in the second."
+  ]
+ ],
+ [
+  "notes/instrument-log.md",
+  "note",
+  null,
+  "# {instrument} log\n\n- 2 Oct: no power after the weekend. Fuse failed.\n- 3 Oct: replaced the fuse; still no reading on channel 2.\n- 6 Oct: service visit booked. Do not use for {measure} until then.\n",
+  []
+ ],
+ [
+  "admin/order-status.txt",
+  "admin",
+  null,
+  "Order 4471 for {thing2} supplies: delivery failed (wrong address). Supplier says no stock until December.\nCharge to {grant} is on hold. Contact: {person}.\n",
+  []
+ ],
+ [
+  "plans/preregistration.md",
+  "plan",
+  null,
+  "# Pre-registration: {thing} and {measure}\n\nAuthor: {person}\n\nMain question: does {thing} change {measure}?\nWe will compare 40 cases against 40 controls using {method}.\nIf we find no effect, we will report the null in full and not run extra subgroups.\nA negative result will still go to {venue}.\n",
+  []
+ ],
+ [
+  "methods/controls.md",
+  "method",
+  null,
+  "# Controls for the {measure} read\n\n1. Run one negative control with each batch.\n2. The negative control must show no signal above 1 {unit}.\n3. If it fails, discard the batch and do not average it in.\n4. Log the control value next to each case in the sheet.\n",
+  []
+ ],
+ [
+  "reading/other-group-null.md",
+  "reference",
+  null,
+  "# {author} et al., {venue}\n\nThey tested {thing2} on {measure} in a large sample and found no effect.\nTheir {method} differs from ours in one step, so their null may not apply to us.\nWorth citing in the background section.\n",
+  []
+ ],
+ [
+  "inbox/login-failed.txt",
+  "correspondence",
+  null,
+  "From: help desk, {org}\nTo: {person}\nSubject: Your login to the {dataset} portal\n\nHello,\n\nYour login failed three times and the account is now locked. This is not a problem with your files; nothing was lost.\nReply to this message to get a reset link.\n\nIT help desk\n",
+  []
+ ],
+ [
+  "notes/todo.md",
+  "note",
+  null,
+  "# To do\n\n- [ ] find out why the night run failed (log says no space on disk)\n- [ ] ask {person2} about the null control batch from Tuesday\n- [ ] no meeting this Friday; move check-in to Monday\n- [x] send {grant} report\n",
+  []
+ ],
+ [
+  "drafts/intro-v2.md",
+  "draft",
+  null,
+  "# Introduction (draft 2)\n\nPrior work on {topic} has given mixed answers. Some groups report no effect of {thing2} on {measure}; others report large ones. [CITE {author}]\nHere we test {thing} with a fixed {method} and a pre-set analysis. TODO: do not claim more than the data show.\n",
+  []
+ ],
+ [
+  "admin/room-booking.txt",
+  "admin",
+  null,
+  "Booking for the {place} room on 12 Nov did not work: the form returned an error. No room is held for the {topic} meeting yet. {person} to try again by phone.\n",
+  []
+ ],
+ [
+  "inbox/re-shared-drive.txt",
+  "correspondence",
+  null,
+  "From: {person2}\nTo: {person}\nSubject: Re: shared drive\n\nThe sync did not work again last night, so the folder still shows no files from {place}.\nI'll copy them over by hand tomorrow morning. Can you check you have edit rights?\n\n{first2}\n",
+  []
+ ]
+]

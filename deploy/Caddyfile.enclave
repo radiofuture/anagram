@@ -1,0 +1,29 @@
+# Local test only (compose.enclave.yaml): node A, node B and the enclave log
+# read API, with Caddy's own CA. Trust the root (deploy/local-ca.crt) in the
+# client only. Simulated profile: development and tests only.
+{
+	local_certs
+	skip_install_trust
+}
+
+anagram.localhost {
+	tls internal
+	reverse_proxy node:8787
+}
+
+anagram-b.localhost {
+	tls internal
+	reverse_proxy node-b:8787
+}
+
+# The log read API only: the write API stays inside the Compose network.
+log.localhost {
+	tls internal
+	@read path /log/checkpoint /log/checkpoint/* /log/entries /healthz
+	handle @read {
+		reverse_proxy log:8780
+	}
+	handle {
+		respond 404
+	}
+}

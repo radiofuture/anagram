@@ -258,6 +258,61 @@ def test_flipped_bytes_anywhere_give_only_refusals(fake: FakeAmd) -> None:
         raise AssertionError(f"a flip in {name} passed")
 
 
+def _version_byte(der: bytes) -> int:
+    """The offset of the version INTEGER's value in a certificate or CRL."""
+    at = der.find(b"\xa0\x03\x02\x01")  # certificate: [0] EXPLICIT INTEGER
+    if at >= 0:
+        return at + 4
+    return der.find(b"\x02\x01\x01") + 2  # CRL v2: INTEGER 1
+
+
+@pytest.mark.parametrize(
+    ("part", "file"),
+    [("leaf", "milan_vcek.der"), ("ask", "milan_ask.der"), ("crl", "milan_ark.crl")],
+)
+def test_an_unknown_version_is_refused(part: str, file: str) -> None:
+    raw = bytearray(_file(file))
+    raw[_version_byte(bytes(raw))] = 5
+    assert refused(real_evidence(**{part: bytes(raw)})).code in (
+        "bad_attestation",
+        "untrusted_root",
+    )
+
+
+def test_unused_bits_in_the_crl_signature_are_refused() -> None:
+    raw = _file("milan_ark.crl")
+    from cryptography import x509 as _x
+
+    sig = _x.load_der_x509_crl(raw).signature
+    at = raw.rfind(sig) - 1  # the unused-bits byte just before the value
+    assert raw[at] == 0
+    for unused in (1, 2):
+        bad = raw[:at] + bytes([unused]) + raw[at + 1 :]
+        assert refused(real_evidence(crl=bad)).code in ("bad_attestation", "untrusted_root")
+
+
+def test_flipped_bits_in_real_evidence_give_only_refusals() -> None:
+    import random
+
+    rng = random.Random(11)  # noqa: S311 - reproducible test flips, not a secret
+    parts = {
+        "ark": _file("milan_ark.der"),
+        "ask": _file("milan_ask.der"),
+        "crl": _file("milan_ark.crl"),
+        "leaf": _file("milan_vcek.der"),
+        "report": _file("milan_report.bin"),
+    }
+    for _ in range(1500):
+        name = rng.choice(sorted(parts))
+        raw = bytearray(parts[name])
+        raw[rng.randrange(len(raw))] ^= 1 << rng.randrange(8)
+        try:
+            snp_claims(real_evidence(**{name: bytes(raw)}), None, PROD)  # type: ignore[arg-type]
+        except Refused:
+            continue
+        raise AssertionError(f"a flip in {name} passed")
+
+
 def test_a_revoked_chain_with_a_wrong_tcb_gives_the_tcb_code(fake: FakeAmd) -> None:
     v = variant(fake, revoke=("leaf",), spl={"boot_loader": 1, "tee": 0, "snp": 1, "microcode": 1})
     got = _refused(v, v.report())

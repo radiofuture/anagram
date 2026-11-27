@@ -634,8 +634,9 @@ Guest policy bits: 7:0 ABI minor, 15:8 ABI major, 16 SMT, 17 reserved
 SNP, 7 microcode. Turin: byte 0 FMC, 1 boot loader, 2 TEE, 3 SNP, 7
 microcode.
 
-A certificate, CRL or extension that does not parse gives
-`bad_attestation`, at whatever step reads it.
+A certificate, CRL or extension that does not parse (any error of the
+parser, such as an unknown version) gives `bad_attestation`, at whatever
+step reads it.
 
 Product: from the CPUID fields (version ≥ 3), which must equal the
 product that the leaf's product name extension (1.3.6.1.4.1.3704.1.2, an
@@ -655,8 +656,9 @@ Rules:
      signature is RSASSA-PSS with SHA-384, MGF1 SHA-384 and salt 48. The
      inner and outer AlgorithmIdentifier are exactly the DER of those
      parameters, with or without an explicit `trailerField` 1 (AMD's
-     certificates carry it, its CRLs do not). The outer copy is not
-     signed, so this keeps every byte of the evidence fixed.
+     certificates carry it, its CRLs do not), and the signature BIT
+     STRING has no unused bits. The outer copy is not signed; these rules
+     stop its bytes from changing without a refusal.
   5. The leaf key is ECDSA P-384, and its product name is the product.
   6. The leaf SPL extensions (1.3.6.1.4.1.3704.1.3.1 boot loader, .3.2
      TEE, .3.3 SNP, .3.8 microcode, each a DER INTEGER 0 to 255) equal

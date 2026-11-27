@@ -26,7 +26,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 
 from cryptography import x509
-from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, padding, rsa
 from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
@@ -69,26 +69,42 @@ PRODUCTS = ("milan", "genoa", "turin")
 VCEK, VLEK = 0, 1
 
 
-def _load_cert(der: bytes, what: str) -> x509.Certificate:
+@contextmanager
+def untrusted(what: str) -> Iterator[None]:
+    """Parse untrusted DER: any parse error of the library is
+    `bad_attestation`, so every check stays total."""
     try:
-        with warnings.catch_warnings():
-            # AMD issues VCEKs with serial 0, which cryptography warns about.
-            warnings.simplefilter("ignore")
-            return x509.load_der_x509_certificate(der)
-    except ValueError as exc:
-        raise Refused("bad_attestation", f"{what} is not a DER certificate") from exc
+        yield
+    except Refused:
+        raise
+    except Exception as exc:  # noqa: BLE001 - totality: the library's error types are open-ended (InvalidVersion is not a ValueError)
+        raise Refused("bad_attestation", f"{what}: {type(exc).__name__}") from exc
+
+
+def _load_cert(der: bytes, what: str) -> x509.Certificate:
+    with untrusted(f"{what} is not a DER certificate"), warnings.catch_warnings():
+        # AMD issues VCEKs with serial 0, which cryptography warns about.
+        warnings.simplefilter("ignore")
+        return x509.load_der_x509_certificate(der)
 
 
 def _load_crl(der: bytes) -> x509.CertificateRevocationList:
-    try:
+    with untrusted("crl is not a DER CRL"):
         return x509.load_der_x509_crl(der)
-    except ValueError as exc:
-        raise Refused("bad_attestation", "crl is not a DER CRL") from exc
 
 
 def _cn(name: x509.Name) -> str:
     got = name.get_attributes_for_oid(NameOID.COMMON_NAME)
     return str(got[0].value) if len(got) == 1 else ""
+
+
+def _bit_string_unused(der: bytes) -> int:
+    """The unused-bits byte of the DER BIT STRING at the start of `der`."""
+    if len(der) < 3 or der[0] != 0x03:
+        return -1
+    n = der[1]
+    head = 2 if n < 0x80 else 2 + (n & 0x7F)
+    return der[head] if len(der) > head else -1
 
 
 def _pss_signed(
@@ -104,6 +120,8 @@ def _pss_signed(
     alg = next((a for a in _PSS_ALG_IDS if outer.startswith(a + b"\x03")), None)
     if alg is None or alg not in tbs:
         raise Refused("untrusted_root", f"{what}: RSASSA-PSS parameters")
+    if _bit_string_unused(outer[len(alg) :]) != 0:
+        raise Refused("untrusted_root", f"{what}: signature has unused bits")
     try:
         key.verify(sig, tbs, _PSS, hashes.SHA384())
     except InvalidSignature as exc:
@@ -167,27 +185,6 @@ class Chain:
     leaf_key: ec.EllipticCurvePublicKey
     csp_id: str | None  # VLEK only
     crl_next_update: int  # Unix seconds
-
-
-_MALFORMED = (
-    ValueError,
-    TypeError,
-    UnsupportedAlgorithm,
-    x509.DuplicateExtension,
-    x509.UnsupportedGeneralNameType,
-)
-
-
-@contextmanager
-def untrusted(what: str) -> Iterator[None]:
-    """Parse untrusted DER: any parse error of the library is
-    `bad_attestation`, so every check stays total."""
-    try:
-        yield
-    except Refused:
-        raise
-    except _MALFORMED as exc:
-        raise Refused("bad_attestation", f"{what}: {type(exc).__name__}") from exc
 
 
 def _check_leaf_claims(

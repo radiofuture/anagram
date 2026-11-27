@@ -104,14 +104,21 @@ def test_https_fetch_refuses_plain_http():
 def test_checker_checks_one_time_each_day_and_reports_changes():
     now = [1000.0]
     seen = []
-    f = Fetch(manifest())
+    # A download for every platform, so the result does not hang on the OS
+    # that runs the test (the checker uses the computer's own platform).
+    every = {
+        "macos": "https://r.example.org/A.dmg",
+        "linux": "https://r.example.org/a",
+        "windows": "https://r.example.org/A.exe",
+    }
+    f = Fetch(manifest(url=every, min_os={}))
     c = UpdateChecker(URL, RELEASE.public_bytes().hex(), fetch=f, on_change=seen.append,
                       clock=lambda: now[0])  # fmt: skip
     c.tick()
     c.tick()
     assert len(f.calls) == 1 and c.status()["available"] and len(seen) == 1
     now[0] += update.CHECK_EVERY_S
-    f.data = manifest(key=OTHER)  # a bad manifest keeps the last result
+    f.data = manifest(key=OTHER, url=every, min_os={})  # a bad manifest keeps the last result
     c.tick()
     assert len(f.calls) == 2 and c.status()["available"] and len(seen) == 1
 

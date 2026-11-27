@@ -6,7 +6,7 @@ require (
 	github.com/google/go-sev-guest v0.15.1-0.20261120002523-d591100d9985
 	github.com/google/go-tdx-guest v0.3.2-0.20261126170015-6df265d7c30a
 	golang.org/x/sys v0.19.0
-	google.golang.org/protobuf v1.34.2
+	google.golang.org/protobuf v1.36.12
 )
 
 require (

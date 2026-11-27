@@ -266,7 +266,7 @@ def pck_extensions(leaf: x509.Certificate) -> Pck:
     cpu_tag, cpu = tcb["18"]
     if cpu_tag != 0x04 or len(cpu) != 16 or tuple(cpu) != comps:
         raise Refused("untrusted_root", "PCK CPUSVN")
-    _uint(*top["5"], 1, "SGX type")
+    _uint(*top["5"], 2, "SGX type")  # Standard, Scalable, ScalableWithIntegrity
     return Pck(
         cpu_svn=comps,
         pce_svn=pce_svn,
@@ -511,10 +511,10 @@ def tdx_tcb(
     info = signed_json(raw, "tcbInfo", key, w)
     if _field(info, "id", str, w) != "TDX" or _field(info, "version", int, w) != 3:
         raise Refused("bad_attestation", "tcb_info is not TDX TCB Info version 3")
-    if _hex(info, "fmspc", 6, w) != pck.fmspc or _hex(info, "pceId", 2, w) != pck.pce_id:
-        raise Refused("untrusted_root", "tcb_info is for another platform")
     if _field(info, "tcbType", int, w) != 0:
         raise Refused("bad_attestation", "tcb_info.tcbType")
+    if _hex(info, "fmspc", 6, w) != pck.fmspc or _hex(info, "pceId", 2, w) != pck.pce_id:
+        raise Refused("untrusted_root", "tcb_info is for another platform")
     number = _svn(info, "tcbEvaluationDataNumber", 2**32 - 1, w)
     next_update = _time(info, "nextUpdate", w)
     _time(info, "issueDate", w)

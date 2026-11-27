@@ -567,7 +567,7 @@ def _bad_ext_cases() -> list[tuple[bytes, str]]:
             ),
             "PCK TCB component 1",
         ),
-        (seq(*top[:4], pair(f"{SGX}.5", der(0x0A, b"\x02"))), "PCK SGX type"),
+        (seq(*top[:4], pair(f"{SGX}.5", der(0x0A, b"\x03"))), "PCK SGX type"),
         (seq(*top[:4], pair(f"{SGX}.5", der(0x04, b"\x00"))), "PCK SGX type"),
         (seq(*top[:2], pair(f"{SGX}.3", der(0x04, b"\x00")), *top[3:]), "PCK PCE-ID"),
         (seq(der_oid("1.2")), "PCK SGX extensions: structure"),

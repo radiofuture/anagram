@@ -756,7 +756,8 @@ STRING has no unused bits):
    root, with a P-256 key.
 4. The leaf's SGX extensions (OID `1.2.840.113741.1.13.1`) are strict DER
    with each OID once: PPID, TCB (the 16 component SVNs, PCESVN, and a
-   CPUSVN equal to the 16 SVNs), PCE-ID, FMSPC and SGX type; else
+   CPUSVN equal to the 16 SVNs), PCE-ID, FMSPC and SGX type (0 Standard,
+   1 Scalable, 2 ScalableWithIntegrity); else
    `untrusted_root`.
 5. The root CRL is the root's (issuer and signature), and lists neither
    the CA nor the TCB signing certificate; the PCK CRL is the CA's, and
@@ -787,7 +788,8 @@ STRING has no unused bits):
     2 hex digits>` (compared without case) must match `MRSIGNERSEAM` and `SEAMATTRIBUTES` the
     same way (else `untrusted_root`), and the module TCB status is that of
     its first level whose `isvsvn` ≤ `TEE_TCB_SVN[0]`; otherwise it is
-    `UpToDate`. A status that is not one of Intel's names
+    `UpToDate`. A module identity that is missing or listed twice, or
+    has no such level, gives the module status `Unsupported`. A status that is not one of Intel's names
     (`UpToDate`, `SWHardeningNeeded`, `ConfigurationNeeded`,
     `ConfigurationAndSWHardeningNeeded`, `OutOfDate`,
     `OutOfDateConfigurationNeeded`, `Revoked`) is `bad_attestation`. No

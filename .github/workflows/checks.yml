@@ -23,7 +23,9 @@ jobs:
   check:
     name: Lint, tests, coverage, audit
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The full suite with coverage takes about 23 minutes on a laptop, so 30
+    # minutes on a runner cut it off before the end.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -37,7 +39,8 @@ jobs:
       - run: uv run --no-sync ruff format --check src tests
       - run: uv run --no-sync playwright install --with-deps chromium
       # The coverage floor is fail_under in pyproject.toml.
-      - run: uv run --no-sync pytest -q -p no:randomly --cov --cov-report=term --cov-report=xml
+      # -rfE lists each failure and error at the end; --durations shows where the time goes.
+      - run: uv run --no-sync pytest -q -p no:randomly -rfE --durations=30 --cov --cov-report=term --cov-report=xml
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

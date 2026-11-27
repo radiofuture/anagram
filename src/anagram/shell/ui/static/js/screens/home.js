@@ -4,7 +4,7 @@
 // with the reason and the next useful action; then the other new things as
 // rows. A proposal that arrives while the screen is open sets down (motion
 // recipe M1, css/screens/home.css), one time, on the real event.
-import { html, useLayoutEffect, useRef } from '../core/html.js';
+import { effect, html, useLayoutEffect, useRef } from '../core/html.js';
 import { t } from '../core/copy.js';
 import { store } from '../core/store.js';
 import { cleanText, fmtRange, fmtTime } from '../core/format.js';
@@ -67,10 +67,17 @@ const FIRST = ['first_read', 'first_propose', 'first_people'];
 
 function First() {
   const ref = useRef(null);
-  useLayoutEffect(() => {
-    if (store.arrived.peek() && ref.current) ref.current.firstElementChild.classList.add('ag-m-proof');
-    store.arrived.value = false;
-  }, []);
+  // Watch the flag while the panel is shown: the save of the setup can
+  // bring Home (the new overview) before or after it sets the flag.
+  useLayoutEffect(
+    () =>
+      effect(() => {
+        if (!store.arrived.value) return;
+        store.arrived.value = false;
+        ref.current?.firstElementChild?.classList.add('ag-m-proof');
+      }),
+    [],
+  );
   const settle = (e) => {
     const el = e.currentTarget.firstElementChild;
     if (el?.getAnimations().every((x) => x.playState === 'finished')) el.classList.remove('ag-m-proof');

@@ -84,11 +84,13 @@ def bind_local(port: int = 0) -> socket.socket:
     """A TCP socket bound to 127.0.0.1 `port` (0: a free port). Give it to the
     server (`uvicorn.Server.run(sockets=[...])`): the port stays bound from the
     choice to the start, so no other process can take it. Raise OSError when
-    the port is in use."""
+    the port is in use. The socket listens at once: on Linux, SO_REUSEADDR
+    lets a second socket bind a port that is bound but not listening."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # as uvicorn does
         sock.bind(("127.0.0.1", port))
+        sock.listen(socket.SOMAXCONN)
     except OSError:
         sock.close()
         raise

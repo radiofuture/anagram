@@ -4,7 +4,7 @@ Status: draft (written 2026-11-25), revised after a spec review and after
 a simulated enclave slice (fixes in sections 12 and 13).
 Not locked. Licence: CC BY 4.0.
 Vectors: [vectors/enclave-trust.json](vectors/enclave-trust.json).
-Reference code (Apache-2.0): `anagram.network.matching.trust` (the
+Reference code (MIT): `anagram.network.matching.trust` (the
 `simulated` profile in `trust.profiles.simulated`, the log entries, and
 pure parsers of the SEV-SNP report and the TDX quote in `trust.profiles`).
 

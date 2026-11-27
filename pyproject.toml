@@ -3,7 +3,7 @@ name = "anagram"
 dynamic = ["version"]  # from src/anagram/core/version.py ([tool.hatch.version])
 description = "Anagram by Radiofuture: private priority proofs for research findings, and private matching"
 readme = "README.md"
-license = "Apache-2.0"
+license = "MIT"
 license-files = ["LICENSE", "NOTICE"]
 authors = [{ name = "Radiofuture", email = "hello@radiofuture.com" }]
 keywords = [

@@ -278,7 +278,7 @@ findings, so a new computer gets them back.
 
 ## License
 
-Code: Apache License 2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Code: MIT License, see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 Specifications in `spec/`: [CC BY 4.0](spec/LICENSE.md).
 
 ## Contributing

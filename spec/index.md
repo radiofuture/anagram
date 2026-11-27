@@ -625,8 +625,8 @@ Bundled files in `src/anagram/local/understanding/vocab/`:
 | File | Contents | Licence |
 | --- | --- | --- |
 | `openalex-topics-2026-10-15.json.gz` | all 4,516 OpenAlex Topics: ID, name, keywords, field | CC0 (OpenAlex) |
-| `capabilities-v1.json` | 56 curated needs and offers, with phrases | Apache-2.0 (this repo) |
-| `topic-aliases-v1.json` | extra phrases for some topics (for example "cryo-EM") | Apache-2.0 |
+| `capabilities-v1.json` | 56 curated needs and offers, with phrases | MIT (this repo) |
+| `topic-aliases-v1.json` | extra phrases for some topics (for example "cryo-EM") | MIT |
 
 - Topic IDs: `openalex:t<number>`. Need and offer IDs: `anagram:<slug>`. One
   ID is both a need and an offer.

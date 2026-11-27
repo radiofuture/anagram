@@ -1,8 +1,13 @@
 Anagram
 Copyright 2026 Radiofuture
 
-This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+This product is licensed under the MIT License (see LICENSE).
 
 Third-party JavaScript modules are in src/anagram/shell/ui/static/vendor and
 src/anagram/web/reader/vendor. They keep their own licenses; the
 manifest.json file in each folder names the package, version and license.
+
+Some test fixtures in tests/fixtures/snp and tests/fixtures/tdx come from
+google/go-sev-guest and google/go-tdx-guest (Apache License 2.0, Copyright
+Google LLC). They keep that license; the README.md in each folder names
+each file and its source.

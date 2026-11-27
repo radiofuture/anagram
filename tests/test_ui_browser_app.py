@@ -12,6 +12,7 @@ Set ANAGRAM_UI_SHOTS=DIR to save screenshots.
 from __future__ import annotations
 
 import os
+import time
 from pathlib import Path
 
 import pytest
@@ -84,6 +85,14 @@ def shot(page, name: str) -> None:
         page.screenshot(path=str(Path(SHOTS) / f"{name}.png"), full_page=True)
 
 
+def settled(check, timeout: float = 10.0) -> None:
+    """The switch moves at once and the server acts after it: wait for it."""
+    end = time.monotonic() + timeout
+    while not check():
+        assert time.monotonic() < end, "the server did not act in time"
+        time.sleep(0.05)
+
+
 def test_switch_keys_sentence_and_live_helper(browser, app):
     svc, server, rt, login = app
     ctx, page, faults = open_account(browser, server)
@@ -94,7 +103,7 @@ def test_switch_keys_sentence_and_live_helper(browser, app):
         expect(switch).not_to_be_checked()
         switch.click()
         expect(switch).to_be_checked()
-        assert login.command() == service_command(svc.home)
+        settled(lambda: login.command() == service_command(svc.home))
         # Tests use the file keystore: the sentence of plan section 10.
         expect(section).to_contain_text(copy("computer.keys_files"))
         expect(section).to_contain_text(copy("computer.helper_running"))
@@ -114,7 +123,7 @@ def test_switch_keys_sentence_and_live_helper(browser, app):
         assert rt.restarts == 1 and page.evaluate("window.__same_page === true")
         switch.click()
         expect(switch).not_to_be_checked()
-        assert login.command() is None
+        settled(lambda: login.command() is None)
         assert faults == []
     finally:
         ctx.close()

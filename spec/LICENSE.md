@@ -7,5 +7,5 @@ Full text: https://creativecommons.org/licenses/by/4.0/legalcode
 
 Attribution: "Anagram specifications, Radiofuture".
 
-The code in this repository (outside `spec/`) is licensed under the Apache
-License 2.0. See `../LICENSE`.
+The code in this repository (outside `spec/`) is licensed under the MIT
+License. See `../LICENSE`.

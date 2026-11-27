@@ -1,7 +1,7 @@
 # Anagram specifications
 
 Status: version 1, locked on 2026-10-15.
-Licence: [CC BY 4.0](LICENSE.md). The code is Apache-2.0.
+Licence: [CC BY 4.0](LICENSE.md). The code is MIT.
 
 These documents define the formats that make a priority proof. A proof that
 you make today must verify in many years, with a different implementation. So

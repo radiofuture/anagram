@@ -6,17 +6,21 @@ publication 56860, the ATTESTATION_REPORT structure table and the guest
 policy table; the TCB_VERSION layouts (Milan/Genoa and Turin). Offsets
 agree with google/go-sev-guest `abi/abi.go`. Integers are little-endian.
 
-This module checks the layout and the must-be-zero fields only. It does not
-check the signature, the certificate chain or any policy.
+`parse_report` checks the layout and the must-be-zero fields only.
+`SnpEvidence` is the evidence step of the profile (rule 8): the AMD chain
+(`profiles/amd.py`), the report signature, the leaf TCB and hwID; then the
+claims that the other rules read (`trust/attestation.py`).
 """
 
 from __future__ import annotations
 
+import base64
 from dataclasses import dataclass
 
 from anagram.core.canonical import JsonObject
 from anagram.network.formats.strict import Refused
-from anagram.network.matching.trust.profiles import Unverified
+from anagram.network.matching.trust.profiles import Claims, amd, evidence_object
+from anagram.network.matching.trust.roots import Roots
 
 REPORT_SIZE = 0x4A0
 SIGNATURE_OFFSET = 0x2A0
@@ -215,9 +219,111 @@ def claims(report: SnpReport) -> JsonObject:
     }
 
 
-# The evidence verifier of the profile: a stub that refuses, so this build
-# claims no production profile.
-VERIFIER = Unverified(
-    "raw-snp",
-    "the report parser is here; the VCEK chain, the TCB and the policy checks are not yet",
-)
+EVIDENCE_FIELDS = frozenset({"ark", "ask", "crl", "leaf", "report"})
+_SIGNING_KEY_NAMES = {0: "vcek", 1: "vlek"}
+
+
+def _b64(evidence: JsonObject, name: str) -> bytes:
+    value = evidence[name]
+    try:
+        if not isinstance(value, str):
+            raise ValueError
+        return base64.b64decode(value, validate=True)
+    except ValueError as exc:  # binascii.Error is a ValueError
+        raise Refused("bad_attestation", f"{name} is not base64") from exc
+
+
+def product_of(report: SnpReport, leaf_der: bytes) -> str:
+    """The product: from CPUID (version >= 3), which must agree with the
+    leaf's product name; from the leaf alone for a version 2 report."""
+    named = amd.leaf_product(leaf_der)
+    if report.cpuid is not None and report.product != named:
+        raise Refused("untrusted_root", f"CPUID product {report.product}, leaf {named or '?'}")
+    if not named:
+        raise Refused("untrusted_root", "unknown product")
+    return named
+
+
+def floor_items(product: str, tcb: JsonObject) -> JsonObject:
+    """The TCB claims under their floor names (spec section 4.8):
+    `<product>_<component>`."""
+    return {f"{product}_{name}": value for name, value in tcb.items()}
+
+
+def snp_claims(platform_evidence: object, gpu_evidence: object, roots: Roots) -> Claims:
+    """Rule 8 for `raw-snp`, then the claims that rules 1 to 5 read."""
+    evidence = evidence_object(platform_evidence, "platform_evidence")
+    if set(evidence) != EVIDENCE_FIELDS:
+        raise Refused("bad_attestation", "raw-snp evidence fields")
+    if gpu_evidence is not None:
+        raise Refused("bad_attestation", "raw-snp has no GPU evidence")
+    raw = {name: _b64(evidence, name) for name in EVIDENCE_FIELDS}
+    report = parse_report(raw["report"])
+    product = product_of(report, raw["leaf"])
+    if report.mask_chip_key:
+        raise Refused("untrusted_root", "MASK_CHIP_KEY is set")
+    chain = amd.verify_chain(
+        product,
+        report.signing_key,
+        raw["ark"],
+        raw["ask"],
+        raw["leaf"],
+        raw["crl"],
+        roots.amd_arks,
+    )
+    tcb = decode_tcb(report.reported_tcb, product)
+    if chain.spl != tcb:
+        raise Refused("untrusted_root", "leaf TCB differs from REPORTED_TCB")
+    if chain.hwid is not None and chain.hwid != report.chip_id:
+        raise Refused("untrusted_root", "VCEK hwID differs from CHIP_ID")
+    amd.verify_report_signature(
+        chain.leaf_key, report.signed_bytes, report.signature_r, report.signature_s
+    )
+
+    # Rule 5: REPORT_DATA = report_data || 32 zero bytes. Any other tail
+    # leaves the whole field, which then differs from the binding.
+    data = report.report_data
+    report_data = data[:32].hex() if not any(data[32:]) else data.hex()
+    reference = {
+        "family_id": report.family_id.hex(),
+        "host_data": report.host_data.hex(),
+        "image_id": report.image_id.hex(),
+        "measurement": report.measurement.hex(),
+        "product": product,
+        "vmpl": report.vmpl,
+    }
+    applicable = floor_items(product, tcb)
+    cpu: JsonObject = {
+        "csp_id": chain.csp_id,
+        "debug": report.policy["debug"],
+        "migratable": report.policy["migrate_ma"],
+        "policy": report.policy,
+        "reference": reference,
+        "report_data": report_data,
+        "signing_key": _SIGNING_KEY_NAMES[report.signing_key],
+        "tcb": {"report_version": report.version, **applicable},
+        "tcb_not_applicable": sorted(
+            f"{p}_{c}"
+            for p in amd.PRODUCTS
+            if p != product
+            for c in ("boot_loader", "tee", "snp", "microcode", "fmc")
+        ),
+        "tcb_required": sorted(["report_version", *applicable]),
+        "valid_until": chain.crl_next_update,
+    }
+    return Claims(cpu, None)
+
+
+@dataclass(frozen=True)
+class SnpEvidence:
+    """The evidence verifier of the `raw-snp` profile."""
+
+    profile: str = "raw-snp"
+    reason: str = "AMD SEV-SNP: the report, the AMD chain to a pinned ARK, and its CRL"
+    available: bool = True
+
+    def claims(self, doc: JsonObject, roots: Roots) -> Claims:
+        return snp_claims(doc["platform_evidence"], doc["gpu_evidence"], roots)
+
+
+VERIFIER = SnpEvidence()

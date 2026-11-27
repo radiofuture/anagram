@@ -141,6 +141,7 @@ def verify_evidence(
     # Rule 4: age by signed time (the checkpoint that the evidence binds).
     if now - issued > MAX_EVIDENCE_AGE or issued > now + MAX_SKEW:
         raise Refused("evidence_expired")
+    _check_collateral(cpu, now)
 
     # Rule 3: policy bits.
     if cpu.get("debug") is not False or cpu.get("migratable") is not False:
@@ -205,14 +206,36 @@ def _pre_checks(doc: JsonObject, release: JsonObject, roots: Roots) -> tuple[byt
     return bind.value(), issued
 
 
+def _check_collateral(cpu: JsonObject, now: int) -> None:
+    """Rule 4 for a profile with collateral (the AMD CRL): `now` is before
+    its next update."""
+    valid_until = cpu.get("valid_until")
+    if valid_until is not None and (type(valid_until) is not int or now >= valid_until):
+        raise Refused("evidence_expired", "collateral (CRL) is past its next update")
+
+
 def _check_floor(floor: JsonObject, cpu: JsonObject, gpu: JsonObject | None) -> None:
-    claims = {"svn": evidence_object(cpu.get("tcb") or {}, "tcb").get("svn")}
+    """Rule 2. The CPU claims give their floor items in `tcb`; a profile may
+    name items that do not apply to this evidence (`tcb_not_applicable`:
+    another product's items) and items that the floor must name
+    (`tcb_required`), so a floor with no item for the evidence's hardware
+    never passes it."""
+    claims = dict(evidence_object(cpu.get("tcb") or {}, "tcb"))
+    skip = cpu.get("tcb_not_applicable") or []
+    required = cpu.get("tcb_required") or []
+    if not isinstance(skip, list) or not isinstance(required, list):
+        raise Refused("bad_attestation", "tcb claims form")
     if gpu is not None:
         claims["gpu_driver"] = gpu.get("driver_version")
         claims["gpu_vbios"] = gpu.get("vbios_version")
+    for name in required:
+        if name not in floor:
+            raise Refused("tcb_below_floor", f"the floor has no {name}")
     for name, minimum in floor.items():
         if name.startswith("gpu_") and gpu is None:
             continue  # no GPU evidence: rule 6 refuses it if the release needs a GPU
+        if name in skip:
+            continue
         if name not in claims or not meets(name, claims[name], minimum):
             raise Refused("tcb_below_floor", name)
 

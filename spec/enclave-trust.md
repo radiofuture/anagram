@@ -309,7 +309,18 @@ The app binary holds: the log origin and log key; the 3 witnesses (two keys
 and the `independent` flag each); the release key; the 2 rebuilder keys;
 the vendor roots of section 4 (AMD ARK per product, Intel SGX Root CA,
 Google Confidential Space root, Microsoft MAA signing chain, NVIDIA device
-identity root and RIM signing root) **(to confirm: exact certificates)**. A
+identity root and RIM signing root) **(to confirm: exact certificates,
+except AMD)**.
+
+The AMD ARKs are pinned by the SHA-256 of their DER, as AMD KDS serves
+them (`https://kdsintf.amd.com/{vcek,vlek}/v1/<Product>/cert_chain`; the
+VCEK and VLEK chains share the ARK):
+
+| Product | SHA-256 of the ARK DER |
+| --- | --- |
+| `milan` | `69d063b45344d26a2e94e1f4210de49ef555308287d4c174445c95639a540bcd` |
+| `genoa` | `4c6598d19c18719c5dfd4a7d335f674e5bfe1d8f800cea2cf270c10d103db2f1` |
+| `turin` | `1f084161a44bb6d93778a904877d4819cafa5d05ef4193b2ded9dd9c73dd3f6a` | A
 production app pins no development root, so it refuses the `simulated`
 profile with `untrusted_root`. A change to any pinned value needs a new app
 release.
@@ -460,7 +471,7 @@ Each rule has one or more refusal vectors in `vectors/enclave-trust.json`
 | 1 | Evidence → claims → reference object → measurement (section 3.3) equals `profiles[profile].measurement` of the release | `measurement_mismatch` |
 | 2 | Each item of the effective TCB floor (release floor, raised by `enclave_floor` entries, section 7.2) is met by the claims (section 4.8). The GPU items (`gpu_driver`, `gpu_vbios`) apply only to a document with GPU evidence; without GPU evidence rule 6 decides (a release whose reference has `"gpu": true` then gives `gpu_binding_mismatch`) | `tcb_below_floor` |
 | 3 | Policy: debug off, migration off, production launcher, GPU confidential mode on and GPU debug off (per profile, section 4) | `policy_refused` |
-| 4 | Age: `now − lower(checkpoint of the document) ≤ 24 h`, and `lower(...) ≤ now + 300 s`. A token-based profile also needs `nbf ≤ now < exp` | `evidence_expired` |
+| 4 | Age: `now − lower(checkpoint of the document) ≤ 24 h`, and `lower(...) ≤ now + 300 s`. A token-based profile also needs `nbf ≤ now < exp`. A profile with collateral (the AMD CRL, section 4.3) also needs `now <` its next update | `evidence_expired` |
 | 5 | The evidence carries `report_data` (section 3.2) in its binding place (section 4) | `binding_mismatch` |
 | 6 | If the release reference has `"gpu": true`: GPU evidence is present; its nonce is `gpu_nonce`; and `report_data` is the GPU form. If `report_data` equals the plain `binding` while GPU evidence is present, the CPU evidence does not cover the GPU | `gpu_binding_mismatch` |
 | 7 | (a) An `enclave_instance_key` entry matches `release`, `line_id`, `instance_id`, `key_epoch`, `intake_key`, `profile`, with `signer = output_key`; its latest such entry `e` has `now < lease_until ≤ logged_by(e) + 24 h`. (b) The line is authorised (section 5.6): it has one `enclave_line` entry with an independent quorum, its reason rules hold, no authorised total-loss line replaces it, and its shard is the shard of the app's subject. (c) No valid revoke targets the instance or the line. (d) The line is not forked (section 5.5). (e) The instance is the writer of the line: the `next_writer` of the latest state epoch, or its `instance_id` if `next_writer` is null. (f) The latest state epoch lists at most `max_instances` holders | (a) `instance_not_logged`, (b) `line_not_authorised`, (c) `instance_revoked`, (d) `line_forked`, (e) `instance_not_writer`, (f) `instance_limit` |
@@ -591,8 +602,13 @@ structure; AMD, *Versioned Chip Endorsement Key (VCEK) Certificate and KDS
 Interface Specification* (publication 57230). Offsets were checked against
 google/go-sev-guest `abi/abi.go` and `kds/kds.go`.
 
-Evidence: `{"report": <base64 of the 1184-byte report>, "vcek": <base64
-DER>, "ask": <base64 DER>, "ark": <base64 DER>}` (or a VLEK chain).
+Evidence: `{"ark", "ask", "crl", "leaf", "report"}`, each the standard
+base64 of: the ARK DER; the ASK DER (the ASVK for a VLEK); the ARK's CRL
+DER, as AMD KDS serves it (`.../<Product>/crl`); the VCEK or VLEK DER;
+the 1184-byte report. No other field. `gpu_evidence` is null (refuse:
+`bad_attestation`). The instance gets the chain and the CRL from AMD KDS
+(or the cloud's cache of it) when it makes the evidence; the app makes
+no network call for this profile.
 
 Report layout used (little-endian; size `0x4A0`): `VERSION` 0x00 (u32),
 `GUEST_SVN` 0x04, `POLICY` 0x08 (u64), `FAMILY_ID` 0x10 (16), `IMAGE_ID`
@@ -618,20 +634,58 @@ Guest policy bits: 7:0 ABI minor, 15:8 ABI major, 16 SMT, 17 reserved
 SNP, 7 microcode. Turin: byte 0 FMC, 1 boot loader, 2 TEE, 3 SNP, 7
 microcode.
 
+A certificate, CRL or extension that does not parse (any error of the
+parser, such as an unknown version) gives `bad_attestation`, at whatever
+step reads it.
+
+Product: from the CPUID fields (version ≥ 3), which must equal the
+product that the leaf's product name extension (1.3.6.1.4.1.3704.1.2, an
+IA5String such as `Milan-B0`) names; from the leaf alone for a version 2
+report. Any other product: `untrusted_root`.
+
 Rules:
 
-- Rule 8: verify the report signature with the VCEK (or VLEK) public key
-  over bytes 0x000 to 0x29F; ARK → ASK → VCEK chain to the pinned ARK of
-  the product (RSASSA-PSS, SHA-384); the VCEK `hwID` extension
-  (1.3.6.1.4.1.3704.1.4) equals `CHIP_ID` unless `MASK_CHIP_KEY = 1`
-  (refuse); the VCEK SPL extensions (1.3.6.1.4.1.3704.1.3.1 boot loader,
-  .3.2 TEE, .3.3 SNP, .3.8 microcode; FMC for Turin **(to confirm: OID)**) equal
-  `REPORTED_TCB`; the ASK and VCEK are not on the AMD KDS CRL.
+- Rule 8, in this order (each failure gives `untrusted_root` unless it
+  says otherwise):
+  1. `MASK_CHIP_KEY = 0`.
+  2. The SHA-256 of `ark` equals the pinned ARK of the product (2.6).
+  3. `SIGNING_KEY` is 0 (VCEK; the ASK's CN is `SEV-<Product>`) or 1
+     (VLEK; the ASVK's CN is `SEV-VLEK-<Product>`); the ARK's CN is
+     `ARK-<Product>`.
+  4. ARK (self-signed) → ASK → leaf: each issuer name matches, and each
+     signature is RSASSA-PSS with SHA-384, MGF1 SHA-384 and salt 48. The
+     inner and outer AlgorithmIdentifier are exactly the DER of those
+     parameters, with or without an explicit `trailerField` 1 (AMD's
+     certificates carry it, its CRLs do not), and the signature BIT
+     STRING has no unused bits. The outer copy is not signed; these rules
+     stop its bytes from changing without a refusal.
+  5. The leaf key is ECDSA P-384, and its product name is the product.
+  6. The leaf SPL extensions (1.3.6.1.4.1.3704.1.3.1 boot loader, .3.2
+     TEE, .3.3 SNP, .3.8 microcode, each a DER INTEGER 0 to 255) equal
+     `REPORTED_TCB`. For Turin the FMC extension is not confirmed
+     (section 10), so a Turin leaf is refused until it is: without it, a
+     leaf for a lower FMC could sign a report that claims a higher one.
+  7. A VCEK has a 64-byte `hwID` extension (1.3.6.1.4.1.3704.1.4) equal
+     to `CHIP_ID`. A VLEK has a `csp_id` extension
+     (1.3.6.1.4.1.3704.1.5, a string) that names the cloud provider.
+  8. The CRL is issued by the ARK (name and RSASSA-PSS signature as in
+     4) and has a next update; neither the ASK nor the leaf serial is on
+     it (else `cert_revoked`). Rule 4 checks its next update.
+  9. The report signature: ECDSA P-384 with SHA-384 by the leaf key over
+     bytes 0x000 to 0x29F; R and S are little-endian, and their bytes
+     48 to 71 are zero.
 - Rule 3: `POLICY.DEBUG = 0`; `POLICY.MIGRATE_MA = 0`; `VMPL` equals the
   reference `vmpl` (0 for a guest with no SVSM).
 - Rule 2: each `REPORTED_TCB` component ≥ the floor of the product;
   `SIGNATURE_ALGO = 1`; `VERSION ≥` the floor `report_version`.
 - Rule 5: `REPORT_DATA = report_data || 32 zero bytes`.
+- Claims (`trust/profiles/snp.py`): `debug`, `migratable`
+  (`MIGRATE_MA`), the whole decoded `policy`, `signing_key` (`vcek` or
+  `vlek`), `csp_id` (VLEK) or null, the reference object, `report_data`,
+  `valid_until` (the CRL's next update), and the TCB under the floor names
+  of section 4.8. Rule 3 reads only `debug` and `migratable` today;
+  `policy` and `csp_id` are there for the stricter policy that a later
+  change adds.
 - Reference object: `{"family_id", "host_data", "image_id",
   "measurement", "product", "vmpl"}` (hex values; `product` is `milan`,
   `genoa` or `turin` from the CPUID fields). `MEASUREMENT` is the launch
@@ -818,7 +872,7 @@ parts for `gpu_driver`, hexadecimal parts for `gpu_vbios`.
 | Profile | Items |
 | --- | --- |
 | `simulated` | `svn`, `gpu_driver`, `gpu_vbios` |
-| `raw-snp` | `report_version`, and per product (`milan`, `genoa`, `turin`): `boot_loader`, `tee`, `snp`, `microcode` (and `fmc` for Turin) |
+| `raw-snp` | `report_version`, and per product, named `<product>_<component>` (`milan_snp`, `genoa_microcode`, ...): `boot_loader`, `tee`, `snp`, `microcode` (and `fmc` for Turin). The floor must name `report_version` and every component of the evidence's product (else `tcb_below_floor`); the items of other products do not apply |
 | `raw-tdx` | `tcb_evaluation_data_number`, `tcb_status` (list), `qe_tcb_status` (list) |
 | `gcp-cs` | `swversion`, `tcb_evaluation_data_number`, `tcb_status` (list), `gpu_driver`, `gpu_vbios` |
 | `azure-cvm-gpu` | `bootloader_svn`, `tee_svn`, `snpfw_svn`, `microcode_svn`, `guest_svn`, `hcl_measurements` (list), `gpu_driver`, `gpu_vbios` |
@@ -1416,7 +1470,8 @@ logic; sharding (v1 has one line per shard).
 ## 10. To confirm in the platform spike
 
 1. AMD: the table numbers of 56860 in the current revision; the FMC SPL OID
-   of the Turin VCEK; the launch digest tool and inputs for our UKI image.
+   of the Turin VCEK (until then, Turin is refused, 4.3); the launch digest
+   tool and inputs for our UKI image.
 2. Intel: the quote version that the spike platform gives (4 or 5); that
    the guest boots with `SEPT_VE_DISABLE = 1`; RTMR values of the UKI boot.
 3. Google: the PKI token type, its root certificate and rotation; the
@@ -1440,6 +1495,7 @@ logic; sharding (v1 has one line per shard).
 - 2026-11-25: first draft.
 - 2026-11-25: fixes of a spec review (section 12).
 - 2026-11-25: fixes after a simulated enclave slice (section 13).
+- 2026-11-27: the `raw-snp` verifier (section 17).
 
 ## 12. Changes after the spec review (2026-11-25)
 
@@ -1543,3 +1599,20 @@ enclave-messages.md section 15.
   So anyone can count new members of each node in a month (network.md
   6.7). Vector: the `member_credential` entry of `enclave-trust.json` is a
   join entry, so the later leaf hashes and roots changed.
+
+## 17. The `raw-snp` verifier (2026-11-27)
+
+- The `raw-snp` evidence step is real: the AMD chain to a pinned ARK, the
+  leaf TCB and hwID, the CRL and the report signature, in a fixed order
+  (4.3). The evidence form is `{"ark", "ask", "crl", "leaf", "report"}`,
+  and the product comes from CPUID and the leaf's product name.
+- The AMD ARK pins are their SHA-256 values (2.6).
+- Rule 4 also checks the next update of a profile's collateral (3.5).
+- The `raw-snp` floor items are named `<product>_<component>`, and the
+  floor must name every component of the evidence's product (4.8).
+- A Turin leaf is refused until its FMC extension is confirmed (4.3, 10).
+- After review: the steps run in the listed order (`MASK_CHIP_KEY` first,
+  the CRL after the leaf checks); a part that does not parse gives
+  `bad_attestation`; the algorithm identifiers must be exact (4.3).
+- The policy rules (SMT, ciphertext hiding, page swap) and a VLEK-only
+  rule are not in this change; a later change adds them.

@@ -14,6 +14,15 @@ from anagram.network.formats.strict import Refused
 from anagram.proofs.log.checkpoint import open_checkpoint
 from anagram.proofs.log.note import NoteVerifier
 
+# SHA-256 of the DER of each product's ARK, as AMD KDS serves it
+# (https://kdsintf.amd.com/{vcek,vlek}/v1/<Product>/cert_chain; the VCEK
+# and VLEK chains share the ARK). Spec section 2.6.
+AMD_ARK_SHA256: tuple[tuple[str, str], ...] = (
+    ("genoa", "4c6598d19c18719c5dfd4a7d335f674e5bfe1d8f800cea2cf270c10d103db2f1"),
+    ("milan", "69d063b45344d26a2e94e1f4210de49ef555308287d4c174445c95639a540bcd"),
+    ("turin", "1f084161a44bb6d93778a904877d4819cafa5d05ef4193b2ded9dd9c73dd3f6a"),
+)
+
 
 @dataclass(frozen=True)
 class Witness:
@@ -31,6 +40,7 @@ class Roots:
     release_key: str
     rebuilders: tuple[str, ...]
     dev_root: str | None = None  # `simulated` only; None in a production app
+    amd_arks: tuple[tuple[str, str], ...] = AMD_ARK_SHA256  # product -> SHA-256 of the ARK DER
 
 
 def quorum_times(note_text: str, roots: Roots) -> tuple[bytes, int, int, int, bytes]:

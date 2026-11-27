@@ -7,9 +7,9 @@ registry is in `trust/platform.py`.
 
 - `simulated`: development and CI only; the development root signs the
   evidence (4.1, 4.2). It protects nothing.
-- `snp`, `tdx`: pure parsers of the AMD SEV-SNP report and the Intel TDX
-  quote. Their evidence verifiers are stubs that refuse: this build checks
-  no vendor chain, so it claims no production profile.
+- `snp` (`raw-snp`): the AMD SEV-SNP report and its AMD chain (`amd`).
+- `tdx`: a pure parser of the Intel TDX quote. Its evidence verifier is a
+  stub that refuses: this build checks no Intel chain.
 """
 
 from __future__ import annotations
@@ -25,8 +25,10 @@ from anagram.network.matching.trust.roots import Roots
 class Claims:
     """What the evidence of one instance says, after its roots passed.
 
-    `cpu` keys: `debug`, `migratable` (rule 3), `tcb` (`{"svn"}`, rule 2),
-    `reference` (rule 1) and `report_data` (rule 5). `gpu` keys: `ocsp`
+    `cpu` keys: `debug`, `migratable` (rule 3), `tcb` (floor items,
+    rule 2; optional `tcb_required` and `tcb_not_applicable`), `reference`
+    (rule 1), `report_data` (rule 5) and optional `valid_until` (rule 4:
+    the next update of the collateral, Unix seconds). `gpu` keys: `ocsp`
     (rule 8), `dbgstat`, `cc_mode` (rule 3), `driver_version`,
     `vbios_version` (rule 2) and `nonce` (rule 6)."""
 

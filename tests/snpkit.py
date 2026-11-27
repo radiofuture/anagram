@@ -71,6 +71,7 @@ class FakeAmd:
     leaf_product: str | None = None
     revoke: tuple[str, ...] = ()  # "ask", "leaf"
     leaf_ec: bool = True
+    extra_exts: tuple[tuple[str, bytes], ...] = ()  # (OID, raw) added to the leaf as is
 
     def __post_init__(self) -> None:
         self.ark_key = _rsa(f"ark-{self.product}")
@@ -115,6 +116,7 @@ class FakeAmd:
             exts.append((amd.OID_HWID, self.hwid if self.hwid is not None else self.chip_id))
         else:
             exts.append((amd.OID_CSP_ID, _der_ia5(self.csp_id)))
+        exts += [(x509.ObjectIdentifier(oid), raw) for oid, raw in self.extra_exts]
         leaf_pub = self.leaf_key.public_key() if self.leaf_ec else _rsa("leaf-rsa").public_key()
         leaf = self._cert("SEV-VCEK", ask_cn, leaf_pub, self.ask_key, 0x20000, exts)
         crl = (

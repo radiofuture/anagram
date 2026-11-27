@@ -259,9 +259,12 @@ def snp_claims(platform_evidence: object, gpu_evidence: object, roots: Roots) ->
         raise Refused("bad_attestation", "raw-snp has no GPU evidence")
     raw = {name: _b64(evidence, name) for name in EVIDENCE_FIELDS}
     report = parse_report(raw["report"])
-    product = product_of(report, raw["leaf"])
+    # Rule 8, step 1, then the product (spec section 4.3).
     if report.mask_chip_key:
         raise Refused("untrusted_root", "MASK_CHIP_KEY is set")
+    product = product_of(report, raw["leaf"])
+    tcb = decode_tcb(report.reported_tcb, product)
+    # Steps 2 to 8.
     chain = amd.verify_chain(
         product,
         report.signing_key,
@@ -270,12 +273,10 @@ def snp_claims(platform_evidence: object, gpu_evidence: object, roots: Roots) ->
         raw["leaf"],
         raw["crl"],
         roots.amd_arks,
+        tcb,
+        report.chip_id,
     )
-    tcb = decode_tcb(report.reported_tcb, product)
-    if chain.spl != tcb:
-        raise Refused("untrusted_root", "leaf TCB differs from REPORTED_TCB")
-    if chain.hwid is not None and chain.hwid != report.chip_id:
-        raise Refused("untrusted_root", "VCEK hwID differs from CHIP_ID")
+    # Step 9.
     amd.verify_report_signature(
         chain.leaf_key, report.signed_bytes, report.signature_r, report.signature_s
     )

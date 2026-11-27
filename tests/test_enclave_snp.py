@@ -213,6 +213,68 @@ def test_garbage_certificates_are_bad_attestation(fake: FakeAmd) -> None:
     assert got.code in ("bad_attestation", "untrusted_root")
 
 
+# --- totality and order (review of PR 4) -----------------------------------------
+
+
+def test_a_leaf_with_a_malformed_basic_constraints_is_refused(fake: FakeAmd) -> None:
+    v = variant(fake, extra_exts=(("2.5.29.19", b"\x30\x03\x01\x01"),))
+    got = refused(v.evidence(v.report()), SimpleNamespace(amd_arks=v.pins()))
+    assert got.code == "bad_attestation"
+
+
+def test_a_leaf_with_two_product_names_is_refused(fake: FakeAmd) -> None:
+    # The library will not build it, so build it with a stand-in OID of the
+    # same length and patch the DER (this breaks the ASK's signature, but
+    # the product name is read before that check).
+    stand_in = "1.3.6.1.4.1.3704.1.9"
+    v = variant(fake, extra_exts=((stand_in, b"\x16\x08Milan-B0"),))
+    leaf = v.chain()["leaf"]
+    oid9 = bytes.fromhex("06092b060104019c780109")  # 1.3.6.1.4.1.3704.1.9
+    oid2 = bytes.fromhex("06092b060104019c780102")  # 1.3.6.1.4.1.3704.1.2
+    assert leaf.count(oid9) == 1
+    patched = leaf.replace(oid9, oid2)
+    got = refused(v.evidence(v.report(), leaf=patched), SimpleNamespace(amd_arks=v.pins()))
+    assert got.code == "bad_attestation"
+
+
+def test_flipped_bytes_anywhere_give_only_refusals(fake: FakeAmd) -> None:
+    import random
+
+    rng = random.Random(4)  # noqa: S311 - reproducible test flips, not a secret
+    good = {**fake.chain(), "report": fake.report()}
+    roots = SimpleNamespace(amd_arks=fake.pins())
+    for _ in range(400):
+        name = rng.choice(sorted(good))
+        raw = bytearray(good[name])
+        for _ in range(rng.randint(1, 3)):
+            raw[rng.randrange(len(raw))] ^= 1 << rng.randrange(8)
+        evidence = {k: _b64(bytes(raw) if k == name else v) for k, v in good.items()}
+        try:
+            snp_claims(evidence, None, roots)  # type: ignore[arg-type]
+        except Refused:
+            continue
+        # Every byte of the evidence is signed or pinned (the outer
+        # algorithm identifiers must be exact), so no flip may pass.
+        raise AssertionError(f"a flip in {name} passed")
+
+
+def test_a_revoked_chain_with_a_wrong_tcb_gives_the_tcb_code(fake: FakeAmd) -> None:
+    v = variant(fake, revoke=("leaf",), spl={"boot_loader": 1, "tee": 0, "snp": 1, "microcode": 1})
+    got = _refused(v, v.report())
+    assert (got.code, got.detail) == ("untrusted_root", "leaf TCB differs from REPORTED_TCB")
+
+
+def test_a_revoked_chain_with_a_wrong_hwid_gives_the_hwid_code(fake: FakeAmd) -> None:
+    v = variant(fake, revoke=("ask",), hwid=bytes(64))
+    got = _refused(v, v.report())
+    assert (got.code, got.detail) == ("untrusted_root", "VCEK hwID differs from CHIP_ID")
+
+
+def test_mask_chip_key_comes_before_the_leaf(fake: FakeAmd) -> None:
+    got = _refused(fake, fake.report(mask_chip_key=True), leaf=b"not a certificate")
+    assert (got.code, got.detail) == ("untrusted_root", "MASK_CHIP_KEY is set")
+
+
 # --- rule 2 and rule 4 with the new claims ----------------------------------------
 
 

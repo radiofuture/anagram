@@ -21,11 +21,13 @@ from __future__ import annotations
 
 import hashlib
 import warnings
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 
 from cryptography import x509
-from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives import hashes
+from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, padding, rsa
 from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
 from cryptography.x509.oid import NameOID, SignatureAlgorithmOID
@@ -49,6 +51,20 @@ SPL_OIDS: dict[str, x509.ObjectIdentifier] = {
 TURIN_FMC_OID: x509.ObjectIdentifier | None = None
 
 _PSS = padding.PSS(mgf=padding.MGF1(hashes.SHA384()), salt_length=48)
+# The DER AlgorithmIdentifier of RSASSA-PSS with SHA-384, MGF1 SHA-384 and
+# salt 48: AMD's certificates carry trailerField 1, its CRLs leave it out.
+# The outer copy is outside the signature, so only these exact bytes pass:
+# nothing in the evidence can change without failing a check.
+_PSS_ALG_IDS = (
+    bytes.fromhex(
+        "304106092a864886f70d01010a3034a00f300d06096086480165030402020500"
+        "a11c301a06092a864886f70d010108300d06096086480165030402020500a203020130"
+    ),
+    bytes.fromhex(
+        "304606092a864886f70d01010a3039a00f300d06096086480165030402020500"
+        "a11c301a06092a864886f70d010108300d06096086480165030402020500a203020130a303020101"
+    ),
+)
 PRODUCTS = ("milan", "genoa", "turin")
 VCEK, VLEK = 0, 1
 
@@ -75,10 +91,19 @@ def _cn(name: x509.Name) -> str:
     return str(got[0].value) if len(got) == 1 else ""
 
 
-def _pss_signed(oid: x509.ObjectIdentifier, sig: bytes, tbs: bytes, key: object, what: str) -> None:
-    """RSASSA-PSS SHA-384 by `key`, whatever parameters the object claims."""
+def _pss_signed(
+    oid: x509.ObjectIdentifier, sig: bytes, tbs: bytes, key: object, what: str, der: bytes
+) -> None:
+    """RSASSA-PSS SHA-384 by `key`. The outer and inner algorithm
+    identifiers must be one of `_PSS_ALG_IDS` exactly (`der` is the whole
+    object: the outer identifier follows `tbs` in it)."""
     if oid != SignatureAlgorithmOID.RSASSA_PSS or not isinstance(key, rsa.RSAPublicKey):
         raise Refused("untrusted_root", f"{what}: not RSASSA-PSS")
+    at = der.find(tbs)
+    outer = der[at + len(tbs) :] if at >= 0 else b""
+    alg = next((a for a in _PSS_ALG_IDS if outer.startswith(a + b"\x03")), None)
+    if alg is None or alg not in tbs:
+        raise Refused("untrusted_root", f"{what}: RSASSA-PSS parameters")
     try:
         key.verify(sig, tbs, _PSS, hashes.SHA384())
     except InvalidSignature as exc:
@@ -94,6 +119,7 @@ def _issued_by(cert: x509.Certificate, issuer: x509.Certificate, what: str) -> N
         cert.tbs_certificate_bytes,
         issuer.public_key(),
         what,
+        cert.public_bytes(serialization.Encoding.DER),
     )
 
 
@@ -128,76 +154,77 @@ def _der_string(raw: bytes | None, what: str) -> str:
 
 def leaf_product(leaf_der: bytes) -> str:
     """The product that the leaf names (`Milan-B0` gives `milan`), or ""."""
-    name = _der_string(_ext(_load_cert(leaf_der, "leaf"), OID_PRODUCT_NAME), "product name")
+    with untrusted("leaf"):
+        name = _der_string(_ext(_load_cert(leaf_der, "leaf"), OID_PRODUCT_NAME), "product name")
     product = name.split("-", 1)[0].lower()
     return product if product in PRODUCTS else ""
 
 
 @dataclass(frozen=True)
 class Chain:
-    """A chain that passed: the leaf key, its TCB, and what the CRL says."""
+    """A chain that passed: the leaf key, and what the leaf and CRL say."""
 
     leaf_key: ec.EllipticCurvePublicKey
-    spl: dict[str, int]  # TCB component -> SPL of the leaf
-    hwid: bytes | None  # VCEK only
     csp_id: str | None  # VLEK only
     crl_next_update: int  # Unix seconds
 
 
-def verify_chain(
-    product: str,
-    signing_key: int,
-    ark_der: bytes,
-    ask_der: bytes,
-    leaf_der: bytes,
-    crl_der: bytes,
-    pins: tuple[tuple[str, str], ...],
-) -> Chain:
-    """Rule 8 for an AMD chain: the pinned ARK, ARK -> ASK (or ASVK) ->
-    leaf, the leaf kind that `signing_key` names, and the ARK's CRL."""
-    pinned = dict(pins).get(product)
-    if pinned is None or hashlib.sha256(ark_der).hexdigest() != pinned:
-        raise Refused("untrusted_root", f"ARK is not the pinned ARK of {product}")
-    ark = _load_cert(ark_der, "ark")
-    ask = _load_cert(ask_der, "ask")
-    leaf = _load_cert(leaf_der, "leaf")
-    title = product.capitalize()
-    if signing_key == VCEK:
-        want_ask = f"SEV-{title}"
-    elif signing_key == VLEK:
-        want_ask = f"SEV-VLEK-{title}"
-    else:
-        raise Refused("untrusted_root", f"report signing key {signing_key} is not VCEK or VLEK")
-    if _cn(ark.subject) != f"ARK-{title}" or _cn(ask.subject) != want_ask:
-        raise Refused("untrusted_root", "chain names")
-    _issued_by(ark, ark, "ark")
-    _issued_by(ask, ark, "ask")
-    _issued_by(leaf, ask, "leaf")
-    leaf_key = leaf.public_key()
-    if not isinstance(leaf_key, ec.EllipticCurvePublicKey) or leaf_key.curve.name != "secp384r1":
-        raise Refused("untrusted_root", "leaf key is not P-384")
-    if leaf_product(leaf_der) != product:
-        raise Refused("untrusted_root", "leaf product name")
+_MALFORMED = (
+    ValueError,
+    TypeError,
+    UnsupportedAlgorithm,
+    x509.DuplicateExtension,
+    x509.UnsupportedGeneralNameType,
+)
 
+
+@contextmanager
+def untrusted(what: str) -> Iterator[None]:
+    """Parse untrusted DER: any parse error of the library is
+    `bad_attestation`, so every check stays total."""
+    try:
+        yield
+    except Refused:
+        raise
+    except _MALFORMED as exc:
+        raise Refused("bad_attestation", f"{what}: {type(exc).__name__}") from exc
+
+
+def _check_leaf_claims(
+    leaf: x509.Certificate, product: str, signing_key: int, tcb: dict[str, int], chip_id: bytes
+) -> str | None:
+    """Steps 6 and 7: the leaf SPLs equal the TCB; a VCEK's hwID equals
+    CHIP_ID; a VLEK names its cloud (returned)."""
     components = dict(SPL_OIDS)
     if product == "turin":
         if TURIN_FMC_OID is None:
             raise Refused("untrusted_root", "Turin FMC SPL extension is not confirmed")
         components["fmc"] = TURIN_FMC_OID
     spl = {name: _der_small_int(_ext(leaf, oid), name) for name, oid in components.items()}
+    if spl != tcb:
+        raise Refused("untrusted_root", "leaf TCB differs from REPORTED_TCB")
+    if signing_key == VCEK:
+        if len(chip_id) != 64 or _ext(leaf, OID_HWID) != chip_id:
+            raise Refused("untrusted_root", "VCEK hwID differs from CHIP_ID")
+        return None
+    return _der_string(_ext(leaf, OID_CSP_ID), "csp_id")
 
-    hwid = _ext(leaf, OID_HWID)
-    csp = _ext(leaf, OID_CSP_ID)
-    if signing_key == VCEK and (hwid is None or len(hwid) != 64):
-        raise Refused("untrusted_root", "VCEK has no hwID")
-    if signing_key == VLEK and csp is None:
-        raise Refused("untrusted_root", "VLEK has no csp_id")
 
+def _check_crl(
+    crl_der: bytes, ark: x509.Certificate, ask: x509.Certificate, leaf: x509.Certificate
+) -> int:
+    """Step 8: the ARK's CRL, and neither the ASK nor the leaf on it.
+    Return its next update (Unix seconds) for rule 4."""
     crl = _load_crl(crl_der)
     if crl.issuer != ark.subject:
         raise Refused("untrusted_root", "crl issuer")
     _pss_signed(
-        crl.signature_algorithm_oid, crl.signature, crl.tbs_certlist_bytes, ark.public_key(), "crl"
+        crl.signature_algorithm_oid,
+        crl.signature,
+        crl.tbs_certlist_bytes,
+        ark.public_key(),
+        "crl",
+        crl_der,
     )
     next_update = crl.next_update_utc
     if next_update is None:
@@ -208,14 +235,58 @@ def verify_chain(
             serial = cert.serial_number
         if crl.get_revoked_certificate_by_serial_number(serial) is not None:
             raise Refused("cert_revoked", what)
+    return int(next_update.timestamp())
 
-    return Chain(
-        leaf_key=leaf_key,
-        spl=spl,
-        hwid=hwid if signing_key == VCEK else None,
-        csp_id=_der_string(csp, "csp_id") if signing_key == VLEK else None,
-        crl_next_update=int(next_update.timestamp()),
-    )
+
+def verify_chain(
+    product: str,
+    signing_key: int,
+    ark_der: bytes,
+    ask_der: bytes,
+    leaf_der: bytes,
+    crl_der: bytes,
+    pins: tuple[tuple[str, str], ...],
+    tcb: dict[str, int],
+    chip_id: bytes,
+) -> Chain:
+    """Rule 8 steps 2 to 8 of spec section 4.3, in that order: the pinned
+    ARK, the chain names, ARK -> ASK (or ASVK) -> leaf, the leaf key and
+    product, the leaf TCB (= `tcb`, the decoded REPORTED_TCB), the hwID
+    (= `chip_id`) or csp_id, and the ARK's CRL."""
+    with untrusted("amd chain"):
+        # Step 2.
+        pinned = dict(pins).get(product)
+        if pinned is None or hashlib.sha256(ark_der).hexdigest() != pinned:
+            raise Refused("untrusted_root", f"ARK is not the pinned ARK of {product}")
+        ark = _load_cert(ark_der, "ark")
+        ask = _load_cert(ask_der, "ask")
+        leaf = _load_cert(leaf_der, "leaf")
+        # Step 3.
+        title = product.capitalize()
+        if signing_key == VCEK:
+            want_ask = f"SEV-{title}"
+        elif signing_key == VLEK:
+            want_ask = f"SEV-VLEK-{title}"
+        else:
+            raise Refused("untrusted_root", f"report signing key {signing_key} is not VCEK or VLEK")
+        if _cn(ark.subject) != f"ARK-{title}" or _cn(ask.subject) != want_ask:
+            raise Refused("untrusted_root", "chain names")
+        # Step 4.
+        _issued_by(ark, ark, "ark")
+        _issued_by(ask, ark, "ask")
+        _issued_by(leaf, ask, "leaf")
+        # Step 5.
+        leaf_key = leaf.public_key()
+        if (
+            not isinstance(leaf_key, ec.EllipticCurvePublicKey)
+            or leaf_key.curve.name != "secp384r1"
+        ):
+            raise Refused("untrusted_root", "leaf key is not P-384")
+        if leaf_product(leaf_der) != product:
+            raise Refused("untrusted_root", "leaf product name")
+        csp_id = _check_leaf_claims(leaf, product, signing_key, tcb, chip_id)  # steps 6, 7
+        next_update = _check_crl(crl_der, ark, ask, leaf)  # step 8
+        return Chain(leaf_key=leaf_key, csp_id=csp_id, crl_next_update=next_update)
 
 
 def verify_report_signature(

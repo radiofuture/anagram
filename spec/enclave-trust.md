@@ -634,6 +634,9 @@ Guest policy bits: 7:0 ABI minor, 15:8 ABI major, 16 SMT, 17 reserved
 SNP, 7 microcode. Turin: byte 0 FMC, 1 boot loader, 2 TEE, 3 SNP, 7
 microcode.
 
+A certificate, CRL or extension that does not parse gives
+`bad_attestation`, at whatever step reads it.
+
 Product: from the CPUID fields (version ≥ 3), which must equal the
 product that the leaf's product name extension (1.3.6.1.4.1.3704.1.2, an
 IA5String such as `Milan-B0`) names; from the leaf alone for a version 2
@@ -649,8 +652,11 @@ Rules:
      (VLEK; the ASVK's CN is `SEV-VLEK-<Product>`); the ARK's CN is
      `ARK-<Product>`.
   4. ARK (self-signed) → ASK → leaf: each issuer name matches, and each
-     signature is RSASSA-PSS with SHA-384, MGF1 SHA-384 and salt 48,
-     whatever parameters the certificate claims.
+     signature is RSASSA-PSS with SHA-384, MGF1 SHA-384 and salt 48. The
+     inner and outer AlgorithmIdentifier are exactly the DER of those
+     parameters, with or without an explicit `trailerField` 1 (AMD's
+     certificates carry it, its CRLs do not). The outer copy is not
+     signed, so this keeps every byte of the evidence fixed.
   5. The leaf key is ECDSA P-384, and its product name is the product.
   6. The leaf SPL extensions (1.3.6.1.4.1.3704.1.3.1 boot loader, .3.2
      TEE, .3.3 SNP, .3.8 microcode, each a DER INTEGER 0 to 255) equal
@@ -1603,5 +1609,8 @@ enclave-messages.md section 15.
 - The `raw-snp` floor items are named `<product>_<component>`, and the
   floor must name every component of the evidence's product (4.8).
 - A Turin leaf is refused until its FMC extension is confirmed (4.3, 10).
+- After review: the steps run in the listed order (`MASK_CHIP_KEY` first,
+  the CRL after the leaf checks); a part that does not parse gives
+  `bad_attestation`; the algorithm identifiers must be exact (4.3).
 - The policy rules (SMT, ciphertext hiding, page swap) and a VLEK-only
   rule are not in this change; a later change adds them.

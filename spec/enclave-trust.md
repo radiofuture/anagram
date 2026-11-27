@@ -310,7 +310,7 @@ and the `independent` flag each); the release key; the 2 rebuilder keys;
 the vendor roots of section 4 (AMD ARK per product, Intel SGX Root CA,
 Google Confidential Space root, Microsoft MAA signing chain, NVIDIA device
 identity root and RIM signing root) **(to confirm: exact certificates,
-except AMD and Intel)**.
+except AMD, Intel and Google)**.
 
 The AMD ARKs are pinned by the SHA-256 of their DER, as AMD KDS serves
 them (`https://kdsintf.amd.com/{vcek,vlek}/v1/<Product>/cert_chain`; the
@@ -321,6 +321,13 @@ VCEK and VLEK chains share the ARK):
 | `milan` | `69d063b45344d26a2e94e1f4210de49ef555308287d4c174445c95639a540bcd` |
 | `genoa` | `4c6598d19c18719c5dfd4a7d335f674e5bfe1d8f800cea2cf270c10d103db2f1` |
 | `turin` | `1f084161a44bb6d93778a904877d4819cafa5d05ef4193b2ded9dd9c73dd3f6a` |
+
+The Confidential Space Root CA (`gcp-cs`) is pinned by the SHA-256 of its
+DER, as Google serves it
+(`https://confidentialcomputing.googleapis.com/.well-known/confidential_space_root.crt`;
+Google's page gives its SHA-1 fingerprint `B9:51:20:74:2C:24:E3:AA:34:04:2E:1C:3B:A3:AA:D2:8B:21:23:21`;
+it rotates every 10 years):
+`148b293821bb0c6a317f413c8ba475814091cb22d49b9e3c94198db8e8f86c39`.
 
 The Intel SGX Root CA is pinned by the SHA-256 of its DER, as Intel serves
 it (`https://certificates.trustedservices.intel.com/Intel_SGX_Provisioning_Certification_RootCA.cer`):
@@ -476,9 +483,9 @@ Each rule has one or more refusal vectors in `vectors/enclave-trust.json`
 | 1 | Evidence → claims → reference object → measurement (section 3.3) equals `profiles[profile].measurement` of the release | `measurement_mismatch` |
 | 2 | Each item of the effective TCB floor (release floor, raised by `enclave_floor` entries, section 7.2) is met by the claims (section 4.8). The GPU items (`gpu_driver`, `gpu_vbios`) apply only to a document with GPU evidence; without GPU evidence rule 6 decides (a release whose reference has `"gpu": true` then gives `gpu_binding_mismatch`) | `tcb_below_floor` |
 | 3 | Policy: debug off, migration off, production launcher, GPU confidential mode on and GPU debug off (per profile, section 4) | `policy_refused` |
-| 4 | Age: `now − lower(checkpoint of the document) ≤ 24 h`, and `lower(...) ≤ now + 300 s`. A token-based profile also needs `nbf ≤ now < exp`. A profile with collateral (the AMD CRL, section 4.3) also needs `now <` its next update | `evidence_expired` |
+| 4 | Age: `now − lower(checkpoint of the document) ≤ 24 h`, and `lower(...) ≤ now + 300 s`. A token-based profile also needs `valid_from ≤ now + 300 s` and `now < valid_until` (the token's `nbf` and `exp`, narrowed by its certificates, section 4.5). A profile with collateral (the AMD CRL, section 4.3) also needs `now <` its next update | `evidence_expired` |
 | 5 | The evidence carries `report_data` (section 3.2) in its binding place (section 4) | `binding_mismatch` |
-| 6 | If the release reference has `"gpu": true`: GPU evidence is present; its nonce is `gpu_nonce`; and `report_data` is the GPU form. If `report_data` equals the plain `binding` while GPU evidence is present, the CPU evidence does not cover the GPU | `gpu_binding_mismatch` |
+| 6 | If the release reference has `"gpu": true`: GPU evidence is present; its nonce is `gpu_nonce`; and `report_data` is the GPU form. If `report_data` equals the plain `binding` while GPU evidence is present, the CPU evidence does not cover the GPU. A profile whose CPU evidence itself carries the GPU claims (`gcp-cs`) has no GPU evidence and uses the plain form | `gpu_binding_mismatch` |
 | 7 | (a) An `enclave_instance_key` entry matches `release`, `line_id`, `instance_id`, `key_epoch`, `intake_key`, `profile`, with `signer = output_key`; its latest such entry `e` has `now < lease_until ≤ logged_by(e) + 24 h`. (b) The line is authorised (section 5.6): it has one `enclave_line` entry with an independent quorum, its reason rules hold, no authorised total-loss line replaces it, and its shard is the shard of the app's subject. (c) No valid revoke targets the instance or the line. (d) The line is not forked (section 5.5). (e) The instance is the writer of the line: the `next_writer` of the latest state epoch, or its `instance_id` if `next_writer` is null. (f) The latest state epoch lists at most `max_instances` holders | (a) `instance_not_logged`, (b) `line_not_authorised`, (c) `instance_revoked`, (d) `line_forked`, (e) `instance_not_writer`, (f) `instance_limit` |
 | 8 | The evidence chains to a pinned vendor root (and, for `simulated`, to the pinned development root). Every certificate in the chain and every RIM signing certificate has OCSP or CRL status "good" | `untrusted_root`; a revoked or not-good status gives `cert_revoked` |
 
@@ -817,50 +824,80 @@ Claims for the other rules:
 
 ### 4.5 `gcp-cs` (Google Confidential Space)
 
-Source: Google Cloud, *Confidential Space token claims* (sections
+Sources: Google Cloud, *Confidential Space token claims* (sections
 "Top-level claims", "Submods claims", "Workload container claims", "Intel
-TDX claims", "NVIDIA GPU claims"; read 2026-11-25).
+TDX claims", "NVIDIA GPU claims"); *Access resources not managed by Google
+Cloud IAM* (the PKI token and its validation); *Attestation token
+validation endpoint fields* (`root_ca_uri`). Read 2026-11-27. Parser:
+`anagram.network.matching.trust.profiles.gcp`.
 
-Evidence: `{"token": <Confidential Space attestation token, PKI type>}`.
-The instance asks the launcher for a custom token with audience
+Evidence: `{"token": <Confidential Space attestation token, PKI type>}`;
+any other field, or a GPU evidence, is `bad_attestation`. The instance
+asks the launcher for a custom token (`token_type = PKI`) with audience
 `anagram/v1/enclave` and one nonce: the 64-character lowercase hex of
-`report_data` (inside the 8 to 88 byte limit of `eat_nonce`).
+`report_data` (inside Google's nonce length limits).
 
-Claims and rules:
+Rule 8, in this order:
 
-- Rule 8: the token is a JWT signed by a key in the `x5c` chain, and the
-  chain ends at the pinned Confidential Space root certificate **(to confirm: the
-  PKI token type, its root and its rotation)**. `iss =
-  https://confidentialcomputing.googleapis.com`. `aud =
-  anagram/v1/enclave`.
-- Rule 4: `nbf ≤ now < exp` (the page states no lifetime; the instance
-  fetches a new token each hour), and the checkpoint age rule.
-- Rule 3: `dbgstat = disabled-since-boot`; `swname = CONFIDENTIAL_SPACE`;
-  `secboot = true`; `hwmodel = GCP_INTEL_TDX` (`GCP_AMD_SEV` and
-  `GCP_AMD_SEV_ES` are refused: they give no memory integrity);
-  `submods.container.restart_policy = Never`;
-  `submods.container.cmd_override` and `env_override` are absent or empty;
-  `submods.confidential_space.support_attributes` contains `STABLE`; with
-  a GPU, `submods.nvidia_gpu.cc_mode = ON` (`DEVTOOLS` and `OFF` are
-  refused) and `cc_feature = SPT`.
-- Rule 2: `swversion[0]` ≥ the floor `swversion`; `tdx.tcb_evaluation_data_number`
-  ≥ the floor; `tdx.gcp_attester_tcb_status` in the floor's list; with a
-  GPU, each `submods.nvidia_gpu.gpus[].driver_version` ≥ `gpu_driver` and
-  `vbios_version` ≥ `gpu_vbios`, and `hwmodel = GCP_NVIDIA_H100`.
-- Rule 5: `eat_nonce` (string, or the only item of the array) = hex of
-  `report_data`.
-- Rule 6 (GPU): Google verifies the GPU and puts its claims in the same
-  token, so the GPU binding is the token itself; Google is then in the
-  trusted base for the GPU. `report_data` uses the plain form: there is no
-  separate GPU evidence and `gpu_evidence` is null **(to confirm: the first design said GPU
-  in Confidential Space is not verified; the page now lists `nvidia_gpu`
-  claims; the spike decides if this replaces `azure-cvm-gpu`)**.
-- Reference object: `{"args", "env", "gpu", "hwmodel", "image_digest",
-  "restart_policy", "swname"}` from `submods.container.args`,
-  `submods.container.env`, `hwmodel`, `submods.container.image_digest`,
-  `submods.container.restart_policy` and `swname`. The image sets the
-  launch policy labels that refuse command and environment overrides
-  **(to confirm: label names)**.
+1. The token is at most 64 KiB of ASCII, a compact JWS of 3 base64url
+   parts (no padding); header and payload are JSON objects with no
+   duplicate names (else `bad_attestation`). The header has only `alg`,
+   `kid`, `typ` and `x5c`; `alg = RS256`; `typ`, if present, is `JWT`
+   (else `bad_attestation`).
+2. `x5c` is exactly 3 base64 certificates: leaf, intermediate, root (else
+   `untrusted_root`); the SHA-256 of the root's DER is the pinned root
+   (2.6) (else `untrusted_root`).
+3. The root is `Confidential Space Root CA` and signs itself; the root
+   signs the intermediate; the intermediate signs the leaf. Each is
+   sha256WithRSAEncryption with the exact algorithm identifier (with NULL
+   parameters) inside and outside the signed part, no unused bits in the
+   signature, an issuer name equal to its signer's subject, and RSA keys
+   of at least 2048 bits (else `untrusted_root`).
+4. The leaf key signs `header.payload` (RS256): else `untrusted_root`.
+5. `iss = https://confidentialcomputing.googleapis.com` (else
+   `untrusted_root`); `aud` is the string `anagram/v1/enclave`; `exp`,
+   `iat`, `nbf` are integers with `nbf ≤ iat < exp` (else
+   `bad_attestation`).
+
+A claim that the rules read with the wrong type, or that is absent, is
+`bad_attestation`.
+
+Claims and the other rules:
+
+- Rule 4: `valid_from` is the latest of `nbf` and the certificates'
+  not-before; `valid_until` the earliest of `exp` and their expiry
+  (3.5). The instance fetches a new token each hour.
+- Rule 3: `debug` is `dbgstat ≠ disabled-since-boot`; `migratable` is
+  false (Confidential Space VMs do not live-migrate). Also claimed for a
+  later change that checks them: `secboot`, `support_attributes`
+  (`STABLE` required), `cmd_override` and `env_override` (must be
+  empty). With a GPU: `cc_mode = ON` and `dbgstat = disabled` (the GPU
+  `dbgstat` is `enabled` when `cc_mode = DEVTOOLS`); `cc_feature` is
+  claimed.
+- Rule 2: `swversion` (the one value of `swversion`, decimal digits);
+  from the one object of `tdx` (absent unless `hwmodel = GCP_INTEL_TDX`):
+  `tcb_evaluation_data_number` and `tcb_status`
+  (`gcp_attester_tcb_status`). The floor must name all 3 (4.8), so a token
+  without TDX claims never passes. With a GPU: the lowest
+  `driver_version` and `vbios_version` of `submods.nvidia_gpu.gpus` meet
+  `gpu_driver` and `gpu_vbios`; the GPU models are claimed as `hwmodels`.
+- Rule 5: `eat_nonce` (a string, or an array of exactly one string) =
+  hex of `report_data`.
+- Rule 6 (GPU): Google verifies the GPUs and puts their claims in the
+  same token, so the token binds them; Google is then in the trusted base
+  for the GPU. The GPU claims carry `bound_by_cpu_evidence`, there is no
+  `gpu_evidence`, and `report_data` is the plain form (3.5) **(to confirm:
+  the spike decides if this replaces `azure-cvm-gpu`)**.
+- Reference object (rule 1): `{"args", "env", "gpu", "hwmodel",
+  "image_digest", "restart_policy", "swname"}` from
+  `submods.container.args`, `submods.container.env` (an empty object if
+  absent), whether the token has GPU claims, `hwmodel`,
+  `submods.container.image_digest`, `submods.container.restart_policy`
+  and `swname`. So the release's measurement fixes `hwmodel =
+  GCP_INTEL_TDX` (`GCP_AMD_SEV` and `GCP_AMD_SEV_ES` give no memory
+  integrity), `swname = CONFIDENTIAL_SPACE` and `restart_policy = Never`.
+  The image sets the launch policy labels that refuse command and
+  environment overrides **(to confirm: label names)**.
 
 ### 4.6 `azure-cvm-gpu` (Azure confidential VM with an H100)
 
@@ -948,7 +985,7 @@ parts for `gpu_driver`, hexadecimal parts for `gpu_vbios`.
 | `simulated` | `svn`, `gpu_driver`, `gpu_vbios` |
 | `raw-snp` | `report_version`, and per product, named `<product>_<component>` (`milan_snp`, `genoa_microcode`, ...): `boot_loader`, `tee`, `snp`, `microcode` (and `fmc` for Turin). The floor must name `report_version` and every component of the evidence's product (else `tcb_below_floor`); the items of other products do not apply |
 | `raw-tdx` | `tcb_evaluation_data_number`, `tcb_status` (list), `tdx_module_tcb_status` (list), `qe_tcb_status` (list). The floor must name all 4 (else `tcb_below_floor`) |
-| `gcp-cs` | `swversion`, `tcb_evaluation_data_number`, `tcb_status` (list), `gpu_driver`, `gpu_vbios` |
+| `gcp-cs` | `swversion`, `tcb_evaluation_data_number`, `tcb_status` (list), `gpu_driver`, `gpu_vbios`. The floor must name the first 3 (else `tcb_below_floor`) |
 | `azure-cvm-gpu` | `bootloader_svn`, `tee_svn`, `snpfw_svn`, `microcode_svn`, `guest_svn`, `hcl_measurements` (list), `gpu_driver`, `gpu_vbios` |
 
 A status claim (an item whose name ends in `_status`) of `Revoked` or
@@ -1552,8 +1589,8 @@ logic; sharding (v1 has one line per shard).
    tool and inputs for our UKI image.
 2. Intel: the quote version that the spike platform gives (4 or 5); that
    the guest boots with `SEPT_VE_DISABLE = 1`; RTMR values of the UKI boot.
-3. Google: the PKI token type, its root certificate and rotation; the
-   token lifetime; launch policy label names; whether `nvidia_gpu` claims
+3. Google: a real PKI token (its intermediate and leaf, and the token
+   lifetime; the root is pinned, 2.6); launch policy label names; whether `nvidia_gpu` claims
    (H100, TDX) make `gcp-cs` the GPU profile (the first design said GPU in
    Confidential Space is not verified).
 4. Azure: the guest attestation page and report format; that the HCL
@@ -1576,6 +1613,7 @@ logic; sharding (v1 has one line per shard).
 - 2026-11-25: fixes after a simulated enclave slice (section 13).
 - 2026-11-27: the `raw-snp` verifier (section 17).
 - 2026-11-27: the `raw-tdx` verifier (section 18).
+- 2026-11-27: the `gcp-cs` verifier (section 19).
 
 ## 12. Changes after the spec review (2026-11-25)
 
@@ -1715,3 +1753,17 @@ enclave-messages.md section 15.
   (4.8).
 - `SEPT_VE_DISABLE` and the advisory IDs are claimed; the rules that use
   them come in a later change.
+
+## 19. The `gcp-cs` verifier (2026-11-27)
+
+- The `gcp-cs` evidence step is real: a PKI Confidential Space token,
+  its `x5c` chain to the pinned Confidential Space Root CA, and the RS256
+  signature, issuer, audience and times, in a fixed order (4.5).
+- The Confidential Space root is pinned by its SHA-256 (2.6).
+- Rule 4 uses `valid_from` and `valid_until` for a token (3.5).
+- Rule 6 allows CPU evidence that carries the GPU claims (3.5, 4.5).
+- `hwmodel`, `swname` and `restart_policy` are fixed by the reference
+  object; the other Confidential Space policy claims are claimed, and a
+  later change checks them.
+- Google publishes no signed sample token: the tests use a fake root, and
+  a real token comes from the platform spike.

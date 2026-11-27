@@ -7,7 +7,7 @@
   profile: the evidence step (rule 8) and the claims that the other rules
   read. `evidence_verifier` finds it by profile name.
 
-`simulated`, `raw-snp` and `raw-tdx` are available in this build. Every other
+`simulated`, `raw-snp`, `raw-tdx` and `gcp-cs` are available in this build. Every other
 profile of the spec has a stub that refuses with `unknown_profile`.
 """
 
@@ -17,7 +17,7 @@ from typing import Protocol
 
 from anagram.core.canonical import JsonObject
 from anagram.network.formats.strict import Refused
-from anagram.network.matching.trust.profiles import Claims, Unverified, snp, tdx
+from anagram.network.matching.trust.profiles import Claims, Unverified, gcp, snp, tdx
 from anagram.network.matching.trust.profiles.simulated import SimulatedEvidence
 from anagram.network.matching.trust.roots import Roots
 
@@ -57,7 +57,7 @@ VERIFIERS: dict[str, EvidenceVerifier] = {
         SimulatedEvidence(),
         snp.VERIFIER,
         tdx.VERIFIER,
-        Unverified("gcp-cs", _CLOUD),
+        gcp.VERIFIER,
         Unverified("azure-cvm-gpu", _CLOUD),
     )
 }

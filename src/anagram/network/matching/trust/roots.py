@@ -26,6 +26,11 @@ AMD_ARK_SHA256: tuple[tuple[str, str], ...] = (
 # (https://certificates.trustedservices.intel.com/Intel_SGX_Provisioning_Certification_RootCA.cer).
 # Spec section 2.6.
 INTEL_ROOT_SHA256 = "44a0196b2b99f889b8e149e95b807a350e7424964399e885a7cbb8ccfab674d3"
+# SHA-256 of the DER of the Confidential Space Root CA, as Google serves it
+# (https://confidentialcomputing.googleapis.com/.well-known/confidential_space_root.crt,
+# SHA-1 fingerprint B9:51:20:74:...:21:23:21 as Google's page gives it).
+# Spec section 2.6.
+GCP_CS_ROOT_SHA256 = "148b293821bb0c6a317f413c8ba475814091cb22d49b9e3c94198db8e8f86c39"
 
 
 @dataclass(frozen=True)
@@ -46,6 +51,7 @@ class Roots:
     dev_root: str | None = None  # `simulated` only; None in a production app
     amd_arks: tuple[tuple[str, str], ...] = AMD_ARK_SHA256  # product -> SHA-256 of the ARK DER
     intel_root: str = INTEL_ROOT_SHA256  # SHA-256 of the Intel SGX Root CA DER
+    gcp_cs_root: str = GCP_CS_ROOT_SHA256  # SHA-256 of the Confidential Space Root CA DER
 
 
 def quorum_times(note_text: str, roots: Roots) -> tuple[bytes, int, int, int, bytes]:

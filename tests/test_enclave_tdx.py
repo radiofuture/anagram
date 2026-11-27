@@ -724,3 +724,12 @@ def test_a_crl_with_no_next_update_is_refused(fake: FakeIntel) -> None:
     )
     der = crl.public_bytes(serialization.Encoding.DER)
     assert claims_of(fake, root_crl=der)
+
+
+def test_deeply_nested_signed_collateral_is_refused_not_a_crash(fake: FakeIntel) -> None:
+    import tdxkit
+
+    body = b'{"a":' + b"[" * 30_000 + b"]" * 30_000 + b"}"
+    sig = tdxkit.raw_sig(fake.signer_key, body).hex().encode()
+    got = fake_refused(fake, tcb_info=b'{"tcbInfo":' + body + b',"signature":"' + sig + b'"}')
+    assert (got.code, got.detail) == ("bad_attestation", "tcb_info is not JSON")

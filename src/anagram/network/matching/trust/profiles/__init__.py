@@ -10,6 +10,7 @@ registry is in `trust/platform.py`.
 - `snp` (`raw-snp`): the AMD SEV-SNP report and its AMD chain (`amd`).
 - `tdx` (`raw-tdx`): the Intel TDX quote, its PCK chain and Intel's
   collateral (`intel`).
+- `gcp` (`gcp-cs`): a Google Confidential Space PKI token.
 """
 
 from __future__ import annotations
@@ -27,10 +28,11 @@ class Claims:
 
     `cpu` keys: `debug`, `migratable` (rule 3), `tcb` (floor items,
     rule 2; optional `tcb_required` and `tcb_not_applicable`), `reference`
-    (rule 1), `report_data` (rule 5) and optional `valid_until` (rule 4:
-    the next update of the collateral, Unix seconds). `gpu` keys: `ocsp`
-    (rule 8), `dbgstat`, `cc_mode` (rule 3), `driver_version`,
-    `vbios_version` (rule 2) and `nonce` (rule 6)."""
+    (rule 1), `report_data` (rule 5) and optional `valid_until` and
+    `valid_from` (rule 4: the next update of the collateral, the start of a
+    token, Unix seconds). `gpu` keys: `ocsp` (rule 8), `dbgstat`, `cc_mode`
+    (rule 3), `driver_version`, `vbios_version` (rule 2), and `nonce` or
+    `bound_by_cpu_evidence` (rule 6)."""
 
     cpu: JsonObject
     gpu: JsonObject | None

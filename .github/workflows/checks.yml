@@ -65,6 +65,33 @@ jobs:
       # The strict set and the plan to grow it are in [tool.mypy] in pyproject.toml.
       - run: uv run --no-sync mypy
 
+  differential:
+    # Plan scenario 3: the same evidence through Anagram's AMD and Intel
+    # verifiers and through Google's go-sev-guest and go-tdx-guest
+    # (tests/differential/refverify, pinned in its go.sum), offline.
+    name: Differential tests (go-sev-guest, go-tdx-guest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: tests/differential/refverify/go.mod
+          cache-dependency-path: tests/differential/refverify/go.sum
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: "3.13"
+      - run: go vet ./... && go build -o "$RUNNER_TEMP/refverify" .
+        working-directory: tests/differential/refverify
+      - run: uv sync --locked --all-extras
+      - run: uv run --no-sync pytest -q -p no:randomly --no-cov tests/test_enclave_differential.py
+        env:
+          ANAGRAM_REFVERIFY: ${{ runner.temp }}/refverify
+          ANAGRAM_DIFFERENTIAL_N: "5000"
+
   secrets:
     name: Secret scan
     runs-on: ubuntu-latest

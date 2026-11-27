@@ -215,6 +215,9 @@ def _check_collateral(cpu: JsonObject, now: int) -> None:
     valid_until = cpu.get("valid_until")
     if valid_until is not None and (type(valid_until) is not int or now >= valid_until):
         raise Refused("evidence_expired", "collateral (CRL) is past its next update")
+    valid_from = cpu.get("valid_from")
+    if valid_from is not None and (type(valid_from) is not int or now + MAX_SKEW < valid_from):
+        raise Refused("evidence_expired", "evidence (token) is not valid yet")
 
 
 def _check_floor(floor: JsonObject, cpu: JsonObject, gpu: JsonObject | None) -> None:
@@ -255,6 +258,12 @@ def _check_binding(
         if gpu_required:
             raise Refused("gpu_binding_mismatch", "no GPU evidence")
         if got != plain:
+            raise Refused("binding_mismatch")
+        return
+    if gpu.get("bound_by_cpu_evidence") is True:
+        # The CPU evidence itself names the GPU (gcp-cs, section 4.5): there is
+        # no separate GPU evidence, and the binding is the plain form.
+        if doc["gpu_evidence"] is not None or got != plain:
             raise Refused("binding_mismatch")
         return
     if got == plain:

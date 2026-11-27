@@ -411,7 +411,7 @@ def signed_json(
         raise Refused("untrusted_root", f"{what} signature")
     try:
         body = json.loads(m[2], object_pairs_hook=_no_duplicates, parse_constant=_no_constant)
-    except ValueError as exc:  # JSONDecodeError and UnicodeDecodeError
+    except (ValueError, RecursionError) as exc:  # bad JSON, bad UTF-8, or nested too deep
         raise Refused("bad_attestation", f"{what} is not JSON") from exc
     if not isinstance(body, dict):
         raise Refused("bad_attestation", f"{what} form")

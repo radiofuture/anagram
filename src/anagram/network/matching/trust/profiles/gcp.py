@@ -87,7 +87,7 @@ def _no_constant(name: str) -> None:
 def _json_object(raw: bytes, what: str) -> dict[str, Any]:
     try:
         obj = json.loads(raw, object_pairs_hook=_no_duplicates, parse_constant=_no_constant)
-    except ValueError as exc:  # JSONDecodeError and UnicodeDecodeError
+    except (ValueError, RecursionError) as exc:  # bad JSON, bad UTF-8, or nested too deep
         raise Refused("bad_attestation", f"token {what} is not JSON") from exc
     if not isinstance(obj, dict):
         raise Refused("bad_attestation", f"token {what} form")
@@ -140,7 +140,7 @@ def _verify_chain(x5c: object, pin: str) -> tuple[rsa.RSAPublicKey, int, int]:
         try:
             ders.append(base64.b64decode(text, validate=True))
         except (binascii.Error, ValueError) as exc:
-            raise Refused("bad_attestation", f"x5c[{i}] is not base64") from exc
+            raise Refused("untrusted_root", f"x5c[{i}] is not base64") from exc
     with untrusted("gcp chain"):
         # Step 2: the root is the pinned Confidential Space root.
         if hashlib.sha256(ders[2]).hexdigest() != pin:

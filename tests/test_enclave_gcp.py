@@ -218,7 +218,7 @@ def _hdr(g: FakeGoogle, **changes: object) -> dict:
         ({"x5c": ...}, "untrusted_root", "x5c is not leaf, intermediate, root"),
         ({"x5c": "abc"}, "untrusted_root", "x5c is not leaf, intermediate, root"),
         ({"x5c": ["a", "b"]}, "untrusted_root", "x5c is not leaf, intermediate, root"),
-        ({"x5c": ["!", "b", "c"]}, "bad_attestation", "x5c[0] is not base64"),
+        ({"x5c": ["!", "b", "c"]}, "untrusted_root", "x5c[0] is not base64"),
     ],
 )
 def test_each_bad_header_is_refused(g: FakeGoogle, changes: dict, code: str, detail: str) -> None:
@@ -335,3 +335,11 @@ def test_flipped_characters_anywhere_give_only_refusals(g: FakeGoogle) -> None:
     # changing its bytes (its low bits are padding); nothing else passes.
     ends = {i - 1 for i, ch in enumerate(good) if ch == "."} | {len(good) - 1}
     assert set(passed) <= ends
+
+
+@pytest.mark.parametrize("depth", [10_000, 20_000])  # both under the 64 KiB limit
+def test_a_deeply_nested_header_is_refused_not_a_crash(g: FakeGoogle, depth: int) -> None:
+    deep = ("[" * depth + "]" * depth).encode()
+    for raw in (deep, b'{"alg":"RS256","kid":' + deep + b"}"):
+        got = refused(g, b64url(raw) + ".e30.AA")
+        assert (got.code, got.detail) == ("bad_attestation", "token header is not JSON")

@@ -1,5 +1,5 @@
 """The platform ports (review H4): one evidence verifier for each profile of
-the spec; `simulated` and `raw-snp` available, and stubs that refuse clearly
+the spec; `simulated`, `raw-snp` and `raw-tdx` available, and stubs that refuse clearly
 for the profiles that this build does not verify yet."""
 
 from __future__ import annotations
@@ -19,10 +19,12 @@ from anagram.network.matching.trust.profiles.simulated import SimulatedPlatform
 
 def test_one_verifier_for_each_profile_of_the_spec() -> None:
     assert set(VERIFIERS) == set(PROFILES)
-    assert available_profiles() == ("simulated", "raw-snp")
+    assert available_profiles() == ("simulated", "raw-snp", "raw-tdx")
 
 
-@pytest.mark.parametrize("profile", [p for p in PROFILES if p not in ("simulated", "raw-snp")])
+@pytest.mark.parametrize(
+    "profile", [p for p in PROFILES if p not in ("simulated", "raw-snp", "raw-tdx")]
+)
 def test_a_profile_with_no_verifier_is_unknown(profile: str) -> None:
     with pytest.raises(Refused) as exc:
         evidence_verifier(profile)
@@ -47,6 +49,6 @@ def test_the_simulated_platform_names_its_profile() -> None:
 
 
 def test_pins_of_a_profile_that_this_build_does_not_verify_are_refused() -> None:
-    doc = {"schema": "anagram.enclave.devnet.v1", "profile": "raw-tdx"}
+    doc = {"schema": "anagram.enclave.devnet.v1", "profile": "gcp-cs"}
     with pytest.raises(ValueError, match="verifies only"):
         Pins.from_json(doc)

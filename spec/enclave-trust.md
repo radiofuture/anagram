@@ -310,7 +310,7 @@ and the `independent` flag each); the release key; the 2 rebuilder keys;
 the vendor roots of section 4 (AMD ARK per product, Intel SGX Root CA,
 Google Confidential Space root, Microsoft MAA signing chain, NVIDIA device
 identity root and RIM signing root) **(to confirm: exact certificates,
-except AMD)**.
+except AMD and Intel)**.
 
 The AMD ARKs are pinned by the SHA-256 of their DER, as AMD KDS serves
 them (`https://kdsintf.amd.com/{vcek,vlek}/v1/<Product>/cert_chain`; the
@@ -320,8 +320,13 @@ VCEK and VLEK chains share the ARK):
 | --- | --- |
 | `milan` | `69d063b45344d26a2e94e1f4210de49ef555308287d4c174445c95639a540bcd` |
 | `genoa` | `4c6598d19c18719c5dfd4a7d335f674e5bfe1d8f800cea2cf270c10d103db2f1` |
-| `turin` | `1f084161a44bb6d93778a904877d4819cafa5d05ef4193b2ded9dd9c73dd3f6a` | A
-production app pins no development root, so it refuses the `simulated`
+| `turin` | `1f084161a44bb6d93778a904877d4819cafa5d05ef4193b2ded9dd9c73dd3f6a` |
+
+The Intel SGX Root CA is pinned by the SHA-256 of its DER, as Intel serves
+it (`https://certificates.trustedservices.intel.com/Intel_SGX_Provisioning_Certification_RootCA.cer`):
+`44a0196b2b99f889b8e149e95b807a350e7424964399e885a7cbb8ccfab674d3`.
+
+A production app pins no development root, so it refuses the `simulated`
 profile with `untrusted_root`. A change to any pinned value needs a new app
 release.
 
@@ -697,13 +702,22 @@ Rules:
 Sources: Intel, *Intel TDX DCAP Quoting Library API* (the "Quote Format"
 appendix, quote version 4: header, TD quote body, signature data); Intel,
 *Intel TDX Module ABI Specification* (TD attributes); Intel, *Intel SGX
-and TDX PCS API* version 4 (`/tdx/certification/v4/tcb`, `/tdx/
-certification/v4/qe/identity`) and the TCB Info and Enclave Identity
-formats. Offsets were checked against google/go-tdx-guest `abi/abi.go`
-and `validate/validate.go`.
+PCK Certificate and Certificate Revocation List Profile Specification*
+(the chain, the SGX extensions, the CRLs); Intel, *Intel SGX and TDX PCS
+API* version 4 (`/tdx/certification/v4/tcb`, `/tdx/certification/v4/qe/
+identity`, `/sgx/certification/v4/pckcrl`) and the TCB Info (TDX, version
+3) and Enclave Identity (TD QE, version 2) formats. Offsets and the TCB
+level rules were checked against google/go-tdx-guest `abi/abi.go` and
+`verify/verify.go`.
 
-Evidence: `{"quote": <base64 quote v4>, "tcb_info": <JSON with
-signature>, "qe_identity": <JSON with signature>, "crls": [...]}`.
+Evidence: `{"quote", "tcb_info", "qe_identity", "tcb_signing", "root_crl",
+"pck_crl"}`, each base64 of: the quote, exactly its declared length (the
+guest removes the padding of its buffer); the TCB Info and the QE Identity
+responses, byte for byte as Intel PCS serves them; the DER of the Intel
+SGX TCB Signing certificate (the first certificate of PCS's issuer chain
+header); the DER CRL of the Intel SGX Root CA; the DER CRL of the PCK CA
+that issued the PCK certificate. Any other field, a GPU evidence, or a
+part that does not parse is `bad_attestation`.
 
 Quote layout used (little-endian): header 48 bytes (version 4,
 attestation key type 2 = ECDSA-256 with P-256, TEE type `0x00000081`, 4
@@ -711,30 +725,90 @@ reserved bytes, QE vendor ID 16, user data 20); TD quote body 584 bytes:
 `TEE_TCB_SVN` 16, `MRSEAM` 48, `MRSIGNERSEAM` 48, `SEAMATTRIBUTES` 8,
 `TDATTRIBUTES` 8, `XFAM` 8, `MRTD` 48, `MRCONFIGID` 48, `MROWNER` 48,
 `MROWNERCONFIG` 48, `RTMR0..3` 48 each, `REPORTDATA` 64; then a u32
-signature data length, the ECDSA signature (64), the attestation key (64)
-and the certification data (type u16, size u32, data; type 6 holds the QE
-report, its signature, QE authentication data and the PCK chain). Quote
-version 5 (TD 1.5 body) is not parsed here **(to confirm: which version the spike
-platform gives)**. Parser: `anagram.network.matching.trust.profiles.tdx`.
+signature data length, the ECDSA signature (64, r || s), the attestation
+key (64, x || y) and the certification data (type u16, size u32, data).
+No byte may follow. The certification data must be type 6: the QE report
+(384), its signature (64), the QE authentication data (u16 size, data),
+then certification data type 5: the PCK chain as PEM (leaf, CA, root),
+with at most one NUL after it. Quote version 5 (TD 1.5 body) is not
+parsed here **(to confirm: which version the spike platform gives)**.
+Parser: `anagram.network.matching.trust.profiles.tdx`; chain and
+collateral: `...profiles.intel`.
 
 TD attribute bits: 0 `DEBUG`, 28 `SEPT_VE_DISABLE`, 29 `MIGRATABLE`, 30
 `PKS`, 31 `KL`, 63 `PERFMON`.
 
-Rules:
+Rule 8, in this order (signatures are ECDSA P-256 with SHA-256; the
+certificates' and CRLs' outer and inner algorithm identifiers must be
+exactly `ecdsa-with-SHA256` with no parameters, and their signature BIT
+STRING has no unused bits):
 
-- Rule 8: QE report signature by the PCK key; PCK chain to the pinned
-  Intel SGX Root CA; PCK and intermediate not on the PCS CRLs; quote
-  signature by the attestation key over header and body; the QE report
-  data binds the attestation key; TCB Info and QE Identity signatures by
-  the TCB signing chain to the same root.
-- Rule 3: `TDATTRIBUTES.DEBUG = 0`, `TDATTRIBUTES.MIGRATABLE = 0`,
-  `TDATTRIBUTES.SEPT_VE_DISABLE = 1` **(to confirm: the guest boots with
-  it)**.
-- Rule 2: the TCB level that matches the PCK SVNs, PCE SVN and
-  `TEE_TCB_SVN` has a `tcbStatus` in the floor's `tcb_status` list
-  (default `["UpToDate"]`); the TCB Info `tcbEvaluationDataNumber` ≥ the
-  floor; `MRSIGNERSEAM` and `SEAMATTRIBUTES` match the TDX module identity
-  of the TCB Info; the QE Identity `tcbStatus` is `UpToDate`.
+1. The quote and its certification data parse as above, and the QE
+   vendor ID is Intel's (`939a7233f79c4ca9940a0db3957f0607`): else
+   `bad_attestation`.
+2. The PCK chain has exactly 3 certificates, and the SHA-256 of the third
+   is the pinned Intel SGX Root CA (2.6): else `untrusted_root`.
+3. Names and signatures (`untrusted_root`): the root is
+   `Intel SGX Root CA` and signs itself; the CA is `Intel SGX PCK Platform
+   CA` or `Intel SGX PCK Processor CA`, signed by the root; the leaf is
+   `Intel SGX PCK Certificate`, signed by the CA, with a P-256 key; the
+   `tcb_signing` certificate is `Intel SGX TCB Signing`, signed by the
+   root, with a P-256 key.
+4. The leaf's SGX extensions (OID `1.2.840.113741.1.13.1`) are strict DER
+   with each OID once: PPID, TCB (the 16 component SVNs, PCESVN, and a
+   CPUSVN equal to the 16 SVNs), PCE-ID, FMSPC and SGX type (0 Standard,
+   1 Scalable, 2 ScalableWithIntegrity); else
+   `untrusted_root`.
+5. The root CRL is the root's (issuer and signature), and lists neither
+   the CA nor the TCB signing certificate; the PCK CRL is the CA's, and
+   does not list the leaf. A listed certificate is `cert_revoked`; a CRL
+   with no next update is `bad_attestation`.
+6. The leaf key signs the QE report: else `untrusted_root`.
+7. The QE Identity is signed by the TCB signing key over the exact bytes
+   of its `enclaveIdentity` body (`untrusted_root`); its body is JSON
+   with no duplicate names, `id = "TD_QE"`, `version = 2`
+   (`bad_attestation`); the QE report's `MRSIGNER` and `ISVPRODID` equal
+   it, and its `MISCSELECT` and `ATTRIBUTES` equal it under its masks
+   (else `untrusted_root`: not Intel's quoting enclave). The QE TCB status
+   is that of the first level whose `isvsvn` ≤ the report's `ISVSVN`.
+8. The QE report's `REPORTDATA` is `SHA-256(attestation key || QE
+   authentication data) || 32 zero bytes`: else `untrusted_root`.
+9. The attestation key signs the header and the body: else
+   `untrusted_root`.
+10. The TCB Info is signed like the QE Identity, with `id = "TDX"`,
+    `version = 3`, `tcbType = 0` (`bad_attestation`); its `fmspc` and
+    `pceId` are the leaf's (else `untrusted_root`); `MRSIGNERSEAM` equals
+    `tdxModule.mrsigner` and `SEAMATTRIBUTES` equals its `attributes`
+    under `attributesMask` (else `untrusted_root`: not Intel's TDX module).
+    The TCB status is that of the first level where each of the leaf's 16
+    SVNs ≥ the level's `sgxtcbcomponents`, the leaf's PCESVN ≥ `pcesvn`,
+    and each `TEE_TCB_SVN` byte ≥ the level's `tdxtcbcomponents` (bytes 0
+    and 1 are not compared when `TEE_TCB_SVN[1] > 0`). When
+    `TEE_TCB_SVN[1] > 0`, the TDX module identity `TDX_<TEE_TCB_SVN[1] as
+    2 hex digits>` (compared without case) must match `MRSIGNERSEAM` and `SEAMATTRIBUTES` the
+    same way (else `untrusted_root`), and the module TCB status is that of
+    its first level whose `isvsvn` ≤ `TEE_TCB_SVN[0]`; otherwise it is
+    `UpToDate`. A module identity that is missing or listed twice, or
+    has no such level, gives the module status `Unsupported`. A status that is not one of Intel's names
+    (`UpToDate`, `SWHardeningNeeded`, `ConfigurationNeeded`,
+    `ConfigurationAndSWHardeningNeeded`, `OutOfDate`,
+    `OutOfDateConfigurationNeeded`, `Revoked`) is `bad_attestation`. No
+    matching level gives the status `Unsupported`.
+
+The collateral's `valid_until` (rule 4) is the earliest of: the TCB Info
+and QE Identity `nextUpdate`, the two CRLs' next update, and the expiry of
+the 4 certificates.
+
+Claims for the other rules:
+
+- Rule 3: `debug` (`TDATTRIBUTES.DEBUG`), `migratable`
+  (`TDATTRIBUTES.MIGRATABLE`); all the decoded attribute bits are in
+  `td_attributes`. `SEPT_VE_DISABLE = 1` is checked by a later change
+  **(to confirm: the guest boots with it)**.
+- Rule 2: `tcb_status`, `tdx_module_tcb_status`, `qe_tcb_status`, and
+  `tcb_evaluation_data_number` (the lower of the TCB Info's and the QE
+  Identity's). The floor must name all 4 (4.8). The advisory IDs of the
+  matched levels are claimed as `advisory_ids` for a later advisory rule.
 - Rule 5: `REPORTDATA = report_data || 32 zero bytes`.
 - Reference object: `{"mr_config_id", "mr_owner", "mr_owner_config",
   "mr_td", "rtmr0", "rtmr1", "rtmr2", "rtmr3", "xfam"}`. `RTMR3` is zero
@@ -873,9 +947,13 @@ parts for `gpu_driver`, hexadecimal parts for `gpu_vbios`.
 | --- | --- |
 | `simulated` | `svn`, `gpu_driver`, `gpu_vbios` |
 | `raw-snp` | `report_version`, and per product, named `<product>_<component>` (`milan_snp`, `genoa_microcode`, ...): `boot_loader`, `tee`, `snp`, `microcode` (and `fmc` for Turin). The floor must name `report_version` and every component of the evidence's product (else `tcb_below_floor`); the items of other products do not apply |
-| `raw-tdx` | `tcb_evaluation_data_number`, `tcb_status` (list), `qe_tcb_status` (list) |
+| `raw-tdx` | `tcb_evaluation_data_number`, `tcb_status` (list), `tdx_module_tcb_status` (list), `qe_tcb_status` (list). The floor must name all 4 (else `tcb_below_floor`) |
 | `gcp-cs` | `swversion`, `tcb_evaluation_data_number`, `tcb_status` (list), `gpu_driver`, `gpu_vbios` |
 | `azure-cvm-gpu` | `bootloader_svn`, `tee_svn`, `snpfw_svn`, `microcode_svn`, `guest_svn`, `hcl_measurements` (list), `gpu_driver`, `gpu_vbios` |
+
+A status claim (an item whose name ends in `_status`) of `Revoked` or
+`Unsupported` (no TCB level of the collateral matches) is
+`tcb_below_floor` whatever the floor lists.
 
 The values come from the vendors' current advisories at release time.
 The platform spike records the values of the spike platforms.
@@ -1488,7 +1566,8 @@ logic; sharding (v1 has one line per shard).
 6. Guest time: Secure TSC (SNP) and TSC protection (TDX) on the spike
    hosts.
 7. Snapshot size buckets (from the sharding sizes).
-8. Exact vendor root certificates for section 2.6.
+8. Exact vendor root certificates for section 2.6 (AMD and Intel are
+   pinned).
 
 ## 11. Changes
 
@@ -1496,6 +1575,7 @@ logic; sharding (v1 has one line per shard).
 - 2026-11-25: fixes of a spec review (section 12).
 - 2026-11-25: fixes after a simulated enclave slice (section 13).
 - 2026-11-27: the `raw-snp` verifier (section 17).
+- 2026-11-27: the `raw-tdx` verifier (section 18).
 
 ## 12. Changes after the spec review (2026-11-25)
 
@@ -1616,3 +1696,22 @@ enclave-messages.md section 15.
   `bad_attestation`; the algorithm identifiers must be exact (4.3).
 - The policy rules (SMT, ciphertext hiding, page swap) and a VLEK-only
   rule are not in this change; a later change adds them.
+
+## 18. The `raw-tdx` verifier (2026-11-27)
+
+- The `raw-tdx` evidence step is real: the quote and QE report
+  signatures, the PCK chain to the pinned Intel SGX Root CA, the PCK's SGX
+  extensions, both CRLs, and Intel's signed TCB Info and QE Identity, in a
+  fixed order (4.4). The evidence form is `{"quote", "tcb_info",
+  "qe_identity", "tcb_signing", "root_crl", "pck_crl"}`, and no byte may
+  follow the quote.
+- The Intel root is pinned by its SHA-256 (2.6).
+- The TDX module identity (`MRSIGNERSEAM`, `SEAMATTRIBUTES`) and the
+  quoting enclave identity are rule 8 checks (`untrusted_root`): a
+  mismatch means the evidence is not from Intel's module or enclave. The
+  first draft listed the module check under rule 2.
+- The floor has a fourth item, `tdx_module_tcb_status`, for TDX 1.5
+  modules (`TEE_TCB_SVN[1] > 0`); `Revoked` and `Unsupported` never pass
+  (4.8).
+- `SEPT_VE_DISABLE` and the advisory IDs are claimed; the rules that use
+  them come in a later change.

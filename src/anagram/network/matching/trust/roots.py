@@ -22,6 +22,10 @@ AMD_ARK_SHA256: tuple[tuple[str, str], ...] = (
     ("milan", "69d063b45344d26a2e94e1f4210de49ef555308287d4c174445c95639a540bcd"),
     ("turin", "1f084161a44bb6d93778a904877d4819cafa5d05ef4193b2ded9dd9c73dd3f6a"),
 )
+# SHA-256 of the DER of the Intel SGX Root CA, as Intel serves it
+# (https://certificates.trustedservices.intel.com/Intel_SGX_Provisioning_Certification_RootCA.cer).
+# Spec section 2.6.
+INTEL_ROOT_SHA256 = "44a0196b2b99f889b8e149e95b807a350e7424964399e885a7cbb8ccfab674d3"
 
 
 @dataclass(frozen=True)
@@ -41,6 +45,7 @@ class Roots:
     rebuilders: tuple[str, ...]
     dev_root: str | None = None  # `simulated` only; None in a production app
     amd_arks: tuple[tuple[str, str], ...] = AMD_ARK_SHA256  # product -> SHA-256 of the ARK DER
+    intel_root: str = INTEL_ROOT_SHA256  # SHA-256 of the Intel SGX Root CA DER
 
 
 def quorum_times(note_text: str, roots: Roots) -> tuple[bytes, int, int, int, bytes]:

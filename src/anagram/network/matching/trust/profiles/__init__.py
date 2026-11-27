@@ -8,8 +8,8 @@ registry is in `trust/platform.py`.
 - `simulated`: development and CI only; the development root signs the
   evidence (4.1, 4.2). It protects nothing.
 - `snp` (`raw-snp`): the AMD SEV-SNP report and its AMD chain (`amd`).
-- `tdx`: a pure parser of the Intel TDX quote. Its evidence verifier is a
-  stub that refuses: this build checks no Intel chain.
+- `tdx` (`raw-tdx`): the Intel TDX quote, its PCK chain and Intel's
+  collateral (`intel`).
 """
 
 from __future__ import annotations

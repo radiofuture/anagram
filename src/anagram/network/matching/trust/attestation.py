@@ -37,6 +37,9 @@ TAG_SIGN_ATTESTATION = "anagram/v1/enclave/sign/attestation"
 
 MAX_EVIDENCE_AGE = 86400
 MAX_SKEW = 300
+# TCB statuses that no floor can allow: a revoked platform, or no matching
+# TCB level in the collateral (spec section 4.8).
+NEVER_PASSES = ("Revoked", "Unsupported")
 
 # Rule number -> error codes (spec section 3.5).
 RULE_CODES = {
@@ -228,6 +231,9 @@ def _check_floor(floor: JsonObject, cpu: JsonObject, gpu: JsonObject | None) -> 
     if gpu is not None:
         claims["gpu_driver"] = gpu.get("driver_version")
         claims["gpu_vbios"] = gpu.get("vbios_version")
+    for name, value in claims.items():
+        if name.endswith("_status") and value in NEVER_PASSES:
+            raise Refused("tcb_below_floor", name)  # whatever the floor lists
     for name in required:
         if name not in floor:
             raise Refused("tcb_below_floor", f"the floor has no {name}")

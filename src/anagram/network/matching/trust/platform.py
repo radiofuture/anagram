@@ -7,7 +7,7 @@
   profile: the evidence step (rule 8) and the claims that the other rules
   read. `evidence_verifier` finds it by profile name.
 
-`simulated` and `raw-snp` are available in this build. Every other
+`simulated`, `raw-snp` and `raw-tdx` are available in this build. Every other
 profile of the spec has a stub that refuses with `unknown_profile`.
 """
 

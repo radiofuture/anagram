@@ -1781,8 +1781,8 @@ enclave-messages.md section 15.
   evidence. For each copy the verdicts are the same, except where Anagram
   is stricter by design: a byte after the end of a field, a letter in
   another case in the unsigned part of Intel's JSON (a field name or a
-  signature digit), or a changed AMD root in the evidence (the reference
-  uses its own roots; Anagram checks the pin). Anagram never accepts a
+  signature digit), or a changed AMD ARK (the reference does not check
+  each byte of it; Anagram pins its hash). Anagram never accepts a
   copy that the reference refuses. Any other difference fails CI.
 - `azure-cvm-gpu` (4.6) is parked and stays a refused stub. An Azure
   confidential VM cannot turn SMT off, signs with a VCEK (no VLEK), and

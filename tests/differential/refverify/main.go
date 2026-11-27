@@ -26,6 +26,7 @@ import (
 	tdxabi "github.com/google/go-tdx-guest/abi"
 	"github.com/google/go-tdx-guest/pcs"
 	tdxverify "github.com/google/go-tdx-guest/verify"
+	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -158,7 +159,15 @@ func checkTdx(r request) error {
 func main() {
 	in := bufio.NewScanner(os.Stdin)
 	in.Buffer(make([]byte, 1<<20), 64<<20)
-	out := json.NewEncoder(os.Stdout)
+	// Only verdicts go to stdout. go-tdx-guest points the shared logger at
+	// file 1 when it loads, so the verdicts get a copy of file 1, and file 1
+	// becomes stderr.
+	fd, err := unix.Dup(1)
+	if err != nil || unix.Dup2(2, 1) != nil {
+		fmt.Fprintln(os.Stderr, "cannot move stdout:", err)
+		os.Exit(1)
+	}
+	out := json.NewEncoder(os.NewFile(uintptr(fd), "verdicts"))
 	for in.Scan() {
 		var r request
 		v := verdict{}

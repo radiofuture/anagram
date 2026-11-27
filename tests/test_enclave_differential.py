@@ -3,8 +3,8 @@ verifiers and Google's reference verifiers (go-sev-guest, go-tdx-guest, run
 by `tests/differential/refverify`). The real evidence passes both; and over
 thousands of changed copies, the two give the same verdict, except where
 Anagram is stricter by design (`stricter_by_design`): a byte after the end,
-a letter in another case in the unsigned part of Intel's JSON, or a changed AMD root in the
-evidence (the reference uses its own roots; Anagram checks the pin). Anagram
+a letter in another case in the unsigned part of Intel's JSON, or a changed AMD ARK (the reference
+does not check each byte of it; Anagram pins its hash). Anagram
 never accepts what the reference refuses.
 
 The tests run when `ANAGRAM_REFVERIFY` names the built reference program
@@ -79,7 +79,9 @@ def _snp_ours(parts: dict[str, bytes]) -> bool:
     return True
 
 
-def _snp_request(rid: str, parts: dict[str, bytes], pins: dict[str, bytes]) -> dict:
+def _snp_request(rid: str, parts: dict[str, bytes]) -> dict:
+    """The reference trusts the roots it is given: give it the evidence's own
+    ASK and ARK, so that it checks them (the ARK pin is Anagram's own check)."""
     return {
         "id": rid,
         "kind": "snp",
@@ -87,8 +89,8 @@ def _snp_request(rid: str, parts: dict[str, bytes], pins: dict[str, bytes]) -> d
         "product": "Milan",
         "stepping": 0,  # the fixture chip (its VCEK says so)
         **{k: _b64(v) for k, v in parts.items()},
-        "pin_ask": _b64(pins["ask"]),
-        "pin_ark": _b64(pins["ark"]),
+        "pin_ask": _b64(parts["ask"]),
+        "pin_ark": _b64(parts["ark"]),
     }
 
 
@@ -109,14 +111,19 @@ def _mutate(rng: random.Random, files: dict[str, bytes]) -> tuple[str, dict[str,
 def stricter_by_design(name: str, before: bytes, after: bytes) -> bool:
     if len(after) == len(before) + 1 and after.startswith(before):
         return True  # one byte after the end: Anagram parses exactly
-    if name in ("ark", "ask"):
-        return True  # the reference trusts its pinned roots, not these
+    if name == "ark":
+        return True  # the reference does not check each ARK byte; Anagram pins its hash
     if name not in ("qe_identity", "tcb_info") or len(after) != len(before):
         return False
     diff = [i for i in range(len(before)) if before[i] != after[i]]
     # One letter in another case, outside the signed body: Go reads JSON names
     # and hex digits in any case; Anagram reads the exact bytes Intel sends.
-    return len(diff) == 1 and chr(after[diff[0]]).swapcase() == chr(before[diff[0]])
+    body = range(before.index(b":") + 1, before.rindex(b',"signature"'))
+    return (
+        len(diff) == 1
+        and diff[0] not in body
+        and chr(after[diff[0]]).swapcase() == chr(before[diff[0]])
+    )
 
 
 def check_same_verdicts(files: dict[str, bytes], cases: dict, ours, ref: dict) -> None:
@@ -132,7 +139,7 @@ def check_same_verdicts(files: dict[str, bytes], cases: dict, ours, ref: dict) -
 
 def test_real_snp_evidence_passes_both() -> None:
     files = _snp_files()
-    got = reference([_snp_request("real", files, files)])["real"]
+    got = reference([_snp_request("real", files)])["real"]
     assert got["ok"], got["err"]
     assert _snp_ours(files)
 
@@ -141,7 +148,7 @@ def test_snp_verdicts_match_the_reference() -> None:
     files = _snp_files()
     rng = random.Random(23)  # noqa: S311 - a fixed seed, not a secret
     cases = {f"m{i}": _mutate(rng, files) for i in range(MUTATIONS)}
-    ref = reference([_snp_request(rid, parts, files) for rid, (_, parts) in cases.items()])
+    ref = reference([_snp_request(rid, parts) for rid, (_, parts) in cases.items()])
     check_same_verdicts(files, cases, _snp_ours, ref)
 
 

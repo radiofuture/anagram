@@ -24,11 +24,16 @@ expect = sync_api.expect
 @pytest.fixture
 def enclave_demo(tmp_path):
     """The demo with each person on; the demo says yes for all but Chen.
-    The first day gives the proposals."""
+    The next day gives the proposals. The demo runs on the real clock: a
+    setup in the hours before the day's cut (23:00 UTC) joins the round of
+    the day after, so one more day may be needed."""
     d = Demo(tmp_path / "demo", large_bytes=4096).start()
     assert d.ready_all() == []
     d.autopilot(d.people[0])
-    d.next_day()
+    for _ in range(2):
+        d.next_day()
+        if any(c["kind"] == "proposal" for c in d.people[0].service.enclave.state()["cards"]):
+            break
     yield d
     d.stop()
 

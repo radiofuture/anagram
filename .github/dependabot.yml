@@ -21,3 +21,11 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+
+  # Google's reference verifiers for the differential tests.
+  - package-ecosystem: gomod
+    directory: /tests/differential/refverify
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 2

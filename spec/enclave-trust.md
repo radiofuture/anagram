@@ -901,6 +901,8 @@ Claims and the other rules:
 
 ### 4.6 `azure-cvm-gpu` (Azure confidential VM with an H100)
 
+**Parked (section 20):** this profile stays a refused stub.
+
 Sources: Microsoft, *Azure Attestation claim sets* (section "Outgoing
 claims", "SEV-SNP attestation"); Microsoft, Azure confidential VM guest
 attestation documentation **(to confirm: the exact page and the vTPM report
@@ -1614,6 +1616,7 @@ logic; sharding (v1 has one line per shard).
 - 2026-11-27: the `raw-snp` verifier (section 17).
 - 2026-11-27: the `raw-tdx` verifier (section 18).
 - 2026-11-27: the `gcp-cs` verifier (section 19).
+- 2026-11-27: differential tests; `azure-cvm-gpu` parked (section 20).
 
 ## 12. Changes after the spec review (2026-11-25)
 
@@ -1767,3 +1770,23 @@ enclave-messages.md section 15.
   later change checks them.
 - Google publishes no signed sample token: the tests use a fake root, and
   a real token comes from the platform spike.
+
+## 20. Differential tests and the parked Azure profile (2026-11-27)
+
+- The `raw-snp` and `raw-tdx` verifiers are checked against Google's
+  reference verifiers, go-sev-guest and go-tdx-guest, at pinned revisions
+  (`tests/differential/refverify`, a small Go program that runs them
+  offline). CI gives both the real fixture evidence and thousands of
+  copies with one byte changed, cut or added. Both accept the real
+  evidence. For each copy the verdicts are the same, except where Anagram
+  is stricter by design: a byte after the end of a field, a letter in
+  another case in the unsigned part of Intel's JSON (a field name or a
+  signature digit), or a changed AMD ARK (the reference does not check
+  each byte of it; Anagram pins its hash). Anagram never accepts a
+  copy that the reference refuses. Any other difference fails CI.
+- `azure-cvm-gpu` (4.6) is parked and stays a refused stub. An Azure
+  confidential VM cannot turn SMT off, signs with a VCEK (no VLEK), and
+  adds Microsoft's paravisor and vTPM to what must be trusted. GPU
+  enclaves use `gcp-cs`, whose token reports the H100 (4.5). If Azure is
+  taken up again, the path is the raw HCL report, the AMD VCEK chain, the
+  vTPM quote and the event log, with no Microsoft Azure Attestation.

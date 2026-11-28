@@ -1,5 +1,7 @@
 # Anagram
 
+[![Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/P4rza8v9rn)
+
 Anagram helps researchers find the few people whose work fits with their own,
 without exposing unpublished plans.
 
@@ -90,6 +92,7 @@ Details: [docs/enclave.md](docs/enclave.md) and [SECURITY.md](SECURITY.md).
 
 ## Contributing, Security & License
 
+- **Community:** Join the conversation on [Discord](https://discord.gg/P4rza8v9rn).
 - **Contributing:** See [CONTRIBUTING.md](CONTRIBUTING.md),
   [Code of Conduct](CODE_OF_CONDUCT.md), and [CHANGELOG.md](CHANGELOG.md).
 - **Security:** Report vulnerabilities privately via GitHub's **Security** tab

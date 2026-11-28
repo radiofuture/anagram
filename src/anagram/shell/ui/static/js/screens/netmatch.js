@@ -5,7 +5,7 @@
 import { html, useState } from '../core/html.js';
 import { t } from '../core/copy.js';
 import { useResource, mutate } from '../core/resource.js';
-import { fmtDate, fmtTime } from '../core/format.js';
+import { fmtTime } from '../core/format.js';
 import {
   ActionButton,
   Card,
@@ -183,7 +183,7 @@ function Item({ item }) {
             ? html`<p>${t('netmatch.sent')}</p>`
             : html`
             <p>${t('netmatch.choice', { choice: t(`netmatch.${item.choice}`) })}</p>
-            ${item.next_checkpoint && html`<p class="rf-ui-help">${t('netmatch.next_checkpoint', { date: fmtDate(String(item.next_checkpoint).slice(0, 10)) })}</p>`}
+            ${item.next_checkpoint && html`<p class="rf-ui-help">${t('netmatch.next_checkpoint', { date: fmtTime(item.next_checkpoint) })}</p>`}
             <${Answer} item=${item} />`
         }
       <//>`;

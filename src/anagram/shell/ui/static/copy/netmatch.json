@@ -31,7 +31,7 @@
   "no_cards": "No proposals yet. Anagram checks each day.",
   "proposal": "A proposal: {type}",
   "until": "Answer by {date}",
-  "next_checkpoint": "Your answer goes out on {date}.",
+  "next_checkpoint": "Your answer goes out after {date}.",
   "weekly_cap": "Proposals a week",
   "weekly_cap_help": "At most {max} on this network. Choose fewer if you want.",
   "unset": "not chosen yet. If you do not choose, the answer is \"not now\".",

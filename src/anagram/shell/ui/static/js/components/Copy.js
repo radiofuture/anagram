@@ -39,13 +39,14 @@ export function DownloadLink({ href, label, filename = '', kind = 'secondary', n
 }
 
 /**
- * A recovery code, in groups that never break across lines. The text is the
- * code as typed (groups joined by "-"), so a copy gives the same value.
+ * A recovery code, in groups that never break across lines. The groups are
+ * inline, with a break point after each "-", so a selection and a copy give
+ * the code on one line, exactly as typed.
  */
 export function KitCode({ code }) {
   const groups = String(code || '').split('-');
   return html`
     <p class="ag-kit-code">
-      ${groups.map((g, i) => html`<span key=${i}>${g}${i < groups.length - 1 ? '-' : ''}</span>`)}
+      ${groups.map((g, i) => html`<span key=${i}>${g}${i < groups.length - 1 ? '-' : ''}</span>${i < groups.length - 1 ? html`<wbr />` : null}`)}
     </p>`;
 }

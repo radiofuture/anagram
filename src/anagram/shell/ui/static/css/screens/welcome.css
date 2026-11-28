@@ -3,12 +3,9 @@
   font-size: 0.875rem;
   min-height: 0;
 }
-/* A recovery code: a monospace face (O and 0 differ), groups that never
-   split across lines, and a gap between groups where a line wraps. */
+/* A recovery code: a monospace face (O and 0 differ), and groups that
+   never split across lines (a line breaks only after a "-"). */
 .ag-kit-code {
-  display: flex;
-  flex-wrap: wrap;
-  column-gap: 0.1em;
   margin: 4px 0 20px;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: clamp(1.125rem, 4.2vw, 1.625rem);

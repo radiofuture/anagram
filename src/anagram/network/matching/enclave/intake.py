@@ -103,6 +103,7 @@ def _credential(doc: JsonObject, facts: cred.MemberFacts, gate: Gate) -> JsonObj
         "expires": facts.expires,
         "hash": cred.credential_hash(raw).hex(),
         "issued": facts.issued,
+        "kind": facts.kind,
         "node": facts.node,
         "pid": facts.pid,
         "email_tags": list(facts.email_tags),

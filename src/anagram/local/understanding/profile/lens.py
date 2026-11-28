@@ -27,10 +27,14 @@ Rules:
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Iterable, MutableMapping, Sequence
+import time
+from collections.abc import Callable, Iterable, Iterator, MutableMapping, Sequence
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import UTC, date, datetime
+from typing import TYPE_CHECKING
 
+from anagram.core.timefmt import format_time
+from anagram.local.understanding import understand_schema
 from anagram.local.understanding.profile.combine import combine, draft
 from anagram.local.understanding.profile.schema import (
     CLASSES,
@@ -43,6 +47,9 @@ from anagram.local.understanding.profile.schema import (
 from anagram.local.understanding.profile.signals import PROMPT_VERSION, ItemSignals, read_item
 from anagram.models import TextModel
 from anagram.models.embed import Embedder
+
+if TYPE_CHECKING:
+    from anagram.local.index.store import IndexStore
 
 POLICY_VERSION = "n5.c20.v1"
 _LINE = {
@@ -75,6 +82,47 @@ OUTPUT_SCHEMA = {
 
 class TierRefused(PermissionError):
     """The lens needs a tier that its caller may not read."""
+
+
+class SqliteLensCache(MutableMapping[str, str]):
+    """Persistent answer cache for `ProfileLens`, stored in `lens_cache` of the
+    encrypted `IndexStore` so answers survive requests and restarts."""
+
+    def __init__(self, store: IndexStore, clock: Callable[[], float] = time.time) -> None:
+        understand_schema.ensure(store)
+        self._store = store
+        self._clock = clock
+
+    def __getitem__(self, key: str) -> str:
+        row = self._store.one("SELECT value FROM lens_cache WHERE key = ?", (key,))
+        if row is None:
+            raise KeyError(key)
+        return str(row[0])
+
+    def __setitem__(self, key: str, value: str) -> None:
+        now = format_time(datetime.fromtimestamp(self._clock(), UTC))
+        self._store.x(
+            "INSERT OR REPLACE INTO lens_cache (key, value, updated_at) VALUES (?, ?, ?)",
+            (key, value, now),
+        )
+
+    def __delitem__(self, key: str) -> None:
+        cur = self._store.x("DELETE FROM lens_cache WHERE key = ?", (key,))
+        if cur.rowcount == 0:
+            raise KeyError(key)
+
+    def __iter__(self) -> Iterator[str]:
+        rows = self._store.q("SELECT key FROM lens_cache ORDER BY key")
+        return iter(str(r[0]) for r in rows)
+
+    def __len__(self) -> int:
+        row = self._store.one("SELECT count(*) FROM lens_cache")
+        return int(row[0]) if row is not None else 0
+
+    def __contains__(self, key: object) -> bool:
+        if not isinstance(key, str):
+            return False
+        return self._store.one("SELECT 1 FROM lens_cache WHERE key = ?", (key,)) is not None
 
 
 @dataclass

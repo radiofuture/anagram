@@ -159,3 +159,188 @@ def test_an_edit_after_the_approval_needs_a_new_approval(world) -> None:
     consent = ui.json("GET", "/api/enclave/consent")
     ui.json("POST", "/api/enclave/approve", {"statement_hash": consent["statement_hash"]})
     assert ui.json("GET", "/api/enclave")["draft_approved"] is True
+
+
+def test_private_tier_files_never_leak_into_beacon_draft(world, tmp_path) -> None:
+    """Regression: `EnclaveUI.draft()` must load `TrustPolicy` and exclude
+    `private`-tier items from `lens_items(idx, policy=policy)`."""
+    from datetime import UTC, datetime
+
+    from anagram.local.api import FolderConnector, TrustStore
+    from anagram.local.trust.policy import PRIVATE, make_policy
+    from anagram.models.embed import FakeEmbedder
+    from anagram.models.providers.fake import FakeTextModel
+
+    ui = UI(world, "mira")
+    ui.svc.embedder = FakeEmbedder()
+
+    folder = tmp_path / "mira-notes"
+    folder.mkdir()
+    private_canary = "UNPUBLISHED-PRIVATE-COMPOUND-991"
+    (folder / "secret.md").write_text(
+        f"# Private\n\nWe can share {private_canary} assays with external groups.\n"
+    )
+    (folder / "public.md").write_text(
+        "# Public\n\nWe can share cryo-EM grid screening protocols with collaborators.\n"
+    )
+
+    with ui.svc.session(index=True) as (c, idx):
+        sid = idx.add_source(FolderConnector(folder))
+        idx.scan([sid], process=True)
+        policy_doc = make_policy(
+            owner=c.device.subject,
+            rev=1,
+            key=c.device.device_key(),
+            updated_at=datetime.fromtimestamp(world.now(), UTC),
+            items={sid: {"secret.md": PRIVATE}},
+        )
+        TrustStore(idx.store, c.device.subject, [c.device.device_key().public_bytes()]).save(
+            policy_doc
+        )
+
+    def local_model(req):
+        if "research topics" in req.system:
+            return {"topics": []}
+        return {
+            "items": [
+                {"index": 1, "kind": "offer", "class": "method"},
+            ]
+        }
+
+    fake = FakeTextModel(local_model)
+    ui.svc.settings.draft_model = lambda _c, _idx: (fake, None)  # type: ignore[method-assign]
+
+    st = ui.json("POST", "/api/enclave/draft")
+    blob = repr(st["draft"])
+    assert "cryo-EM grid screening protocols" in blob
+    assert private_canary not in blob
+    assert all(private_canary not in seen for seen in fake.read)
+
+
+def test_ambient_suggestions_apply_dismiss_and_local_archive(world, tmp_path) -> None:
+    """Ambient `refresh_suggestions()` writes `suggested_draft` without changing
+    `draft` or `approved`; Apply copies to `draft`, Dismiss suppresses repeat,
+    and local decline archive removes a line without touching wire answers."""
+    from anagram.local.api import FolderConnector
+    from anagram.models.embed import FakeEmbedder
+    from anagram.models.providers.fake import FakeTextModel
+
+    ui = UI(world, "nina")
+    ui.svc.embedder = FakeEmbedder()
+    initial = lines("Old spectroscopy service", "Access to 300 kV microscope")
+    ui.join_matching(world, initial)
+
+    folder = tmp_path / "nina-notes"
+    folder.mkdir()
+    (folder / "new.md").write_text(
+        "# Recent\n\nWe can offer high-throughput cryo-EM single-particle reconstruction pipelines.\n"
+    )
+    with ui.svc.session(index=True) as (_c, idx):
+        sid = idx.add_source(FolderConnector(folder))
+        idx.scan([sid], process=True)
+
+    def local_model(req):
+        if "research topics" in req.system:
+            return {"topics": []}
+        return {"items": [{"index": 1, "kind": "offer", "class": "method"}]}
+
+    ui.svc.settings.draft_model = lambda _c, _idx: (FakeTextModel(local_model), None)  # type: ignore[method-assign]
+
+    suggested = ui.svc.enclave.refresh_suggestions()
+    assert suggested is not None
+    st = ui.json("GET", "/api/enclave")
+    assert st["suggested_draft"] is not None
+    # User's approved draft is completely untouched!
+    assert st["draft"] == initial
+    assert st["draft_approved"] is True
+
+    # Dismiss clears suggestion and suppresses re-surfacing until work changes.
+    st = ui.json("POST", "/api/enclave/suggestions/dismiss")
+    assert st["suggested_draft"] is None
+    assert ui.svc.enclave.refresh_suggestions() is None
+
+    # A new file changes the fingerprint -> new suggestion surfaces.
+    (folder / "newer.md").write_text(
+        "# Update\n\nWe can offer native mass spectrometry calibration standards.\n"
+    )
+    with ui.svc.session(index=True) as (_c, idx):
+        idx.scan(process=True)
+    assert ui.svc.enclave.refresh_suggestions() is not None
+
+    # Apply copies suggestion into draft and marks draft_approved False (explicit re-approval).
+    st = ui.json("POST", "/api/enclave/suggestions/apply")
+    assert st["suggested_draft"] is None
+    assert st["draft_approved"] is False
+    assert any("calibration standards" in ln["text"] for ln in st["draft"]["offers"])
+
+    # Local archive-line removes one line cleanly without sending anything.
+    target_text = st["draft"]["offers"][0]["text"]
+    st2 = ui.json("POST", "/api/enclave/draft/archive-line", {"text": target_text})
+    assert all(ln["text"] != target_text for ln in st2["draft"]["offers"])
+
+
+def test_pack_controls_max_lines_deny_block_rules_and_trust_policy(world) -> None:
+    """Part 2: MAX_LINES=10, deny, block, charter.rules, and TrustPolicy deny
+    entries reach uploaded packs."""
+    from datetime import UTC, datetime
+
+    from anagram.local.api import TrustStore
+    from anagram.local.trust.policy import make_policy
+    from anagram.network.matching.app.enclave_matching import MAX_LINES, charter, pack_lines
+
+    assert MAX_LINES == 10
+    ten = {
+        "offers": [
+            {"class": "method", "match_types": ["T1"], "scope": "both", "text": f"Offer {i}"}
+            for i in range(10)
+        ],
+        "wants": [
+            {"class": "skill", "match_types": ["T2"], "scope": "both", "text": f"Want {i}"}
+            for i in range(10)
+        ],
+    }
+    packed = pack_lines(ten)
+    assert len(packed["offers"]) == 10 and len(packed["wants"]) == 10
+    ch = charter(packed, 3, {"research_fit": "inside", "method_help": "outside"})
+    assert ch["rules"] == {"method_help": "outside", "research_fit": "inside"}
+
+    ui = UI(world, "omar")
+    ui.json("PUT", "/api/enclave/setup", {"log_url": LOG_URL, "pins": world.pins.to_json()})
+    ui.json("PUT", "/api/enclave/draft", ten)
+    blocked_pid = "pid:" + "ab" * 16
+    denied_node = "node-" + "cd" * 16
+    with ui.svc.session(index=True) as (c, idx):
+        policy_doc = make_policy(
+            owner=c.device.subject,
+            rev=1,
+            key=c.device.device_key(),
+            updated_at=datetime.fromtimestamp(world.now(), UTC),
+            deny={"orgs": ["domain:rival.example.org", "ror:012345678"], "people": [blocked_pid]},
+        )
+        TrustStore(idx.store, c.device.subject, [c.device.device_key().public_bytes()]).save(
+            policy_doc
+        )
+        c.enclave.set_deny(nodes=[denied_node])
+        c.enclave.set_block(hide=[{"from": blocked_pid, "line": "o01"}])
+        c.enclave.set_rules({"research_fit": "inside", "method_help": "outside"})
+
+    consent = ui.json("GET", "/api/enclave/consent")
+    ui.json("POST", "/api/enclave/approve", {"statement_hash": consent["statement_hash"]})
+    st = ui.json("POST", "/api/enclave/on", {"on": True})
+    assert st["on"] is True
+    world.at(world.now() + HOUR)
+    with ui.svc.session() as c:
+        subject = c.enclave.person_key().public_bytes().hex()
+    pack = world.hosts[0].instance.ledger.subjects[subject].pack
+    assert pack is not None
+    assert len(pack["lines"]["offers"]) == 10 and len(pack["lines"]["wants"]) == 10
+    assert pack["charter"]["rules"] == {"method_help": "outside", "research_fit": "inside"}
+    assert pack["deny"] == {
+        "domains": ["rival.example.org"],
+        "nodes": [denied_node],
+        "rors": ["012345678"],
+    }
+    assert pack["block"] == {
+        "hide": [{"from": blocked_pid, "line": "o01"}],
+        "people": [blocked_pid],
+    }

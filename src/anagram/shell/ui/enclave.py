@@ -14,10 +14,17 @@ person types the lines.
 
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from anagram.local.api import ProfileLens, lens_items
+from anagram.local.api import (
+    ProfileLens,
+    SqliteLensCache,
+    TrustPolicy,
+    TrustStore,
+    lens_items,
+)
 from anagram.shell.ui.errors import UIError
 
 if TYPE_CHECKING:
@@ -35,6 +42,20 @@ def _is_simulated(enclave) -> bool:
     if not isinstance(pins, dict):
         return False
     return bool(pins.get("dev_root")) or pins.get("profile") == "simulated"
+
+
+def _trust_policy(c, idx) -> TrustPolicy:
+    device = c.device
+    return TrustStore(idx.store, device.subject, [device.device_key().public_bytes()]).current()
+
+
+def _items_fingerprint(items) -> str:
+    parts = sorted(
+        f"{i.id}\x1f{i.role}\x1f{i.date}\x1f{i.tier}\x1f"
+        f"{hashlib.sha256(i.text.encode()).hexdigest()}"
+        for i in items
+    )
+    return hashlib.sha256("\n".join(parts).encode()).hexdigest()
 
 
 class EnclaveUI:
@@ -59,12 +80,56 @@ class EnclaveUI:
             model, _ = ui.settings.draft_model(c, idx)
             if model is None or getattr(model, "external", True):
                 raise UIError(409, NO_LENS)
-            items = lens_items(idx)  # own items; the default tier of own work
-            view = ProfileLens(model, ui.embedder).view(
+            policy = _trust_policy(c, idx)
+            c.enclave.sync_trust_policy(policy.subjects("deny"))
+            items = lens_items(idx, policy=policy)
+            cache = SqliteLensCache(idx.store, clock=ui.clock)
+            view = ProfileLens(model, ui.embedder, answers=cache).view(
                 items, today=datetime.fromtimestamp(ui.clock(), UTC).date()
             )
             c.enclave.set_draft(view.draft_json())
             return c.enclave.status()
+
+    def refresh_suggestions(self) -> dict | None:
+        """Ambient background refresh: compute candidate lines into
+        `suggested_draft` without modifying `draft` or contacting the enclave."""
+        ui = self.ui
+        if ui.embedder is None or not ui.joined():
+            return None
+        with ui.open_client(index=True) as (c, idx):
+            model, _ = ui.settings.draft_model(c, idx)
+            if model is None or getattr(model, "external", True):
+                return None
+            policy = _trust_policy(c, idx)
+            items = lens_items(idx, policy=policy)
+            if not items:
+                return None
+            fp = _items_fingerprint(items)
+            last_fp, dismissed_fp = c.enclave.suggestion_fingerprints()
+            if fp in (last_fp, dismissed_fp):
+                return None
+            cache = SqliteLensCache(idx.store, clock=ui.clock)
+            view = ProfileLens(model, ui.embedder, answers=cache).view(
+                items, today=datetime.fromtimestamp(ui.clock(), UTC).date()
+            )
+            suggested = view.draft_json()
+        with ui.session() as c:
+            kept = c.enclave.set_suggested_draft(suggested, fingerprint=fp)
+            if kept is not None:
+                ui.publish("enclave.changed", {})
+            return kept
+
+    def apply_suggestions(self) -> dict:
+        with self.ui.session() as c:
+            return {**c.enclave.apply_suggested_draft(), "simulated": _is_simulated(c.enclave)}
+
+    def dismiss_suggestions(self) -> dict:
+        with self.ui.session() as c:
+            return {**c.enclave.dismiss_suggested_draft(), "simulated": _is_simulated(c.enclave)}
+
+    def archive_line(self, text: str) -> dict:
+        with self.ui.session() as c:
+            return {**c.enclave.remove_draft_line(text), "simulated": _is_simulated(c.enclave)}
 
     def save_draft(self, body: dict) -> dict:
         with self.ui.session() as c:
@@ -81,7 +146,9 @@ class EnclaveUI:
             return c.enclave.status()
 
     def set_on(self, on: bool) -> dict:
-        with self.ui.session() as c:
+        with self.ui.session(index=True) as (c, idx):
+            if on:
+                c.enclave.sync_trust_policy(_trust_policy(c, idx).subjects("deny"))
             return c.enclave.turn_on() if on else c.enclave.turn_off()
 
     def set_weekly_cap(self, value: object) -> dict:
@@ -89,7 +156,8 @@ class EnclaveUI:
             return c.enclave.set_weekly_cap(value)
 
     def run(self) -> dict:
-        with self.ui.session() as c:
+        with self.ui.session(index=True) as (c, idx):
+            c.enclave.sync_trust_policy(_trust_policy(c, idx).subjects("deny"))
             return c.enclave.run()
 
     def answer(self, proposal: str, choice: str, card: dict | None) -> dict:
@@ -98,10 +166,16 @@ class EnclaveUI:
 
     def tick(self) -> None:
         """The daily work in the background, when matching is set up and the
-        person enrolled. An error waits for the next tick."""
+        person enrolled, plus ambient suggestion refresh. An error waits for
+        the next tick."""
         try:
-            with self.ui.session() as c:
+            self.refresh_suggestions()
+        except UIError:
+            pass
+        try:
+            with self.ui.session(index=True) as (c, idx):
                 if c.enclave.settings() and c.enclave.status()["enrolled"]:
+                    c.enclave.sync_trust_policy(_trust_policy(c, idx).subjects("deny"))
                     c.enclave.run()
                     self.ui.publish("enclave.changed", {})
         except UIError:

@@ -51,7 +51,7 @@ class Matching:
             network=self.net.network,
             node=facts["node"],
             subject=subject,
-            kind="person",
+            kind=str(facts.get("kind", "person")),
             issued=facts["issued"],
             expires=facts["expires"],
             control_head=facts["control_head"],

@@ -31,6 +31,12 @@ from anagram.network.groups.node.labdirectory import LabDirectory
 from anagram.network.groups.node.labs import LabService, lab_policy_from_env
 from anagram.network.groups.node.routes import lab_router
 from anagram.network.matching.app.enclave_matching import EnclaveMatching, typed_draft
+from anagram.network.matching.enclave.real_engines import (
+    LlmJointJudge,
+    OnnxEmbedder,
+    engines_from_env,
+    real_engines,
+)
 from anagram.network.matching.hosting.clients import HttpFeed, HttpLog
 from anagram.network.matching.hosting.enclave import EnclaveHost, enclave_app
 from anagram.network.matching.hosting.log import HttpCosigner, LogService, log_app
@@ -142,13 +148,17 @@ __all__ = [
     "vault_router",
     # Matching
     "EnclaveRelay",
+    "LlmJointJudge",
     "NodeEnclave",
     "EnclaveMatching",
+    "OnnxEmbedder",
     "control_router",
     "credential_router",
     "enclave_config",
+    "engines_from_env",
     "member_session",
     "node_record",
     "enclave_router",
+    "real_engines",
     "typed_draft",
 ]

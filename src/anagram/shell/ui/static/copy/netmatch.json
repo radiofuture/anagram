@@ -76,5 +76,16 @@
   "peer_lab": "Lab",
   "peer_email": "Email",
   "peer_orcid": "ORCID iD",
-  "sent_count": "Answers that went out ({n})"
+  "sent_count": "Answers that went out ({n})",
+  "suggestions_title": "Suggested updates from your recent work",
+  "suggestions_help": "Drafted on this computer from recent files. Nothing goes to the network until you approve it.",
+  "suggestions_apply": "Apply suggestions",
+  "suggestions_applying": "Applying…",
+  "suggestions_dismiss": "Dismiss",
+  "suggestions_dismissing": "Dismissing…",
+  "suggestions_applied": "Suggested lines copied into your draft.",
+  "decline_archive_help": "Not working on this anymore? Remove a matched line from your local draft:",
+  "decline_archive_action": "Remove from my draft",
+  "decline_archive_removing": "Removing…",
+  "decline_archived": "Removed from your local draft."
 }

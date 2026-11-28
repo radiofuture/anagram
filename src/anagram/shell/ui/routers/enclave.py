@@ -46,6 +46,18 @@ def register(app: FastAPI, ctx: UIContext) -> None:
     def save_draft(body: dict = Body(...)) -> dict:  # noqa: B008
         return part.save_draft(body_dict(body))
 
+    @app.post("/api/enclave/suggestions/apply")
+    def apply_suggestions() -> dict:
+        return part.apply_suggestions()
+
+    @app.post("/api/enclave/suggestions/dismiss")
+    def dismiss_suggestions() -> dict:
+        return part.dismiss_suggestions()
+
+    @app.post("/api/enclave/draft/archive-line")
+    def archive_line(body: dict = Body(...)) -> dict:  # noqa: B008
+        return part.archive_line(body_text(body_dict(body), "text"))
+
     @app.get("/api/enclave/consent")
     def consent() -> dict:
         return part.consent()

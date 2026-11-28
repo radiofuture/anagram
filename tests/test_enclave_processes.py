@@ -292,7 +292,7 @@ def test_the_roster_removes_a_flooding_node(tmp_path) -> None:
         {"offers": [], "wants": []},
         {"offers": [{"text": ""}]},
         {"offers": [{"text": "x", "class": "poem"}]},
-        {"offers": [{"text": "x"}] * 6},
+        {"offers": [{"text": "x"}] * 11},
     ],
 )
 def test_bad_lines_are_refused(draft) -> None:

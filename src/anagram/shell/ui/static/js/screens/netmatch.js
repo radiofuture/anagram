@@ -108,7 +108,7 @@ function LineFields({ lines, setLines }) {
           }
         </div>`,
       )}
-      ${lines[name].length < 5 && html`<button type="button" class="rf-ui-button rf-ui-button--quiet" onClick=${() => add(name)}>${t('netmatch.add')}</button>`}
+      ${lines[name].length < 10 && html`<button type="button" class="rf-ui-button rf-ui-button--quiet" onClick=${() => add(name)}>${t('netmatch.add')}</button>`}
     </div>`;
   };
   return html`<div class="ag-nm-lines">${side('offers')}${side('wants')}</div>`;
@@ -230,6 +230,27 @@ function Change({ s }) {
     </div>`;
 }
 
+function SuggestedUpdates({ suggested }) {
+  const [error, setError] = useState('');
+  const apply = async () => {
+    await call('POST', '/api/enclave/suggestions/apply');
+    announce(t('netmatch.suggestions_applied'));
+  };
+  const dismiss = async () => {
+    await call('POST', '/api/enclave/suggestions/dismiss');
+  };
+  return html`
+    <${Section} title=${t('netmatch.suggestions_title')}>
+      <p class="rf-ui-help">${t('netmatch.suggestions_help')}</p>
+      <${LineList} draft=${suggested} />
+      <${ErrorLine} text=${error} />
+      <div class="rf-ui-actions">
+        <${ActionButton} kind="secondary" label=${t('netmatch.suggestions_apply')} busyLabel=${t('netmatch.suggestions_applying')} run=${apply} errorTo=${setError} />
+        <${ActionButton} kind="quiet" label=${t('netmatch.suggestions_dismiss')} busyLabel=${t('netmatch.suggestions_dismissing')} run=${dismiss} errorTo=${setError} />
+      </div>
+    <//>`;
+}
+
 /** Stage 2: matching is on. The approved lines, and the quiet controls. */
 function On({ s }) {
   const [error, setError] = useState('');
@@ -312,6 +333,35 @@ function Answer({ item }) {
     </div>`;
 }
 
+function DeclineArchive({ reasons }) {
+  const [archived, setArchived] = useState(() => new Set());
+  const [error, setError] = useState('');
+  if (!reasons?.length) return null;
+  const archive = (text) => async () => {
+    await call('POST', '/api/enclave/draft/archive-line', { text });
+    setArchived((prev) => new Set([...prev, text]));
+    announce(t('netmatch.decline_archived'));
+  };
+  return html`
+    <div class="ag-nm-card">
+      <p class="rf-ui-help">${t('netmatch.decline_archive_help')}</p>
+      <ul class="ag-nm-list">
+        ${reasons.map(
+          (r) => html`
+            <li key=${r}>
+              <span>${r}</span>
+              ${
+                archived.has(r)
+                  ? html`<${StatusLine} state="done" text=${t('netmatch.decline_archived')} />`
+                  : html`<${ActionButton} kind="quiet" label=${t('netmatch.decline_archive_action')} busyLabel=${t('netmatch.decline_archive_removing')} run=${archive(r)} errorTo=${setError} />`
+              }
+            </li>`,
+        )}
+      </ul>
+      <${ErrorLine} text=${error} />
+    </div>`;
+}
+
 function Proposal({ item }) {
   const out = item.next_checkpoint && fmtTime(item.next_checkpoint);
   const chosen = item.choice !== 'unset' && item.choice !== 'sent';
@@ -328,7 +378,8 @@ function Proposal({ item }) {
               ? html`<${StatusLine} state="pending" text=${t(`netmatch.chose_${item.choice}`, { date: out || '' })} />`
               : html`<p class="rf-ui-help">${t('netmatch.unset')}</p>`
           }
-          <${Answer} item=${item} />`
+          <${Answer} item=${item} />
+          ${item.choice === 'no' && html`<${DeclineArchive} reasons=${item.reasons} />`}`
       }
     <//>`;
 }
@@ -476,6 +527,7 @@ function View() {
               }
             <//>`
           }
+          ${s.suggested_draft && html`<${SuggestedUpdates} suggested=${s.suggested_draft} />`}
           ${s.on ? html`<${On} s=${s} />` : html`<${Start} s=${s} />`}
           ${s.on && !cards.length && html`<p class="rf-ui-help">${t('netmatch.no_cards')}</p>`}`;
       }}

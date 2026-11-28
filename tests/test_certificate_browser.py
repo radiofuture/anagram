@@ -93,7 +93,9 @@ def test_save_from_the_finding_screen(browser, net, tmp_path):
         expect(sheet.get_by_text(copy("certify.help"))).to_be_visible()
         sheet.get_by_label(copy("certify.part_name")).uncheck()
         if SHOTS:
-            page.screenshot(path=f"{SHOTS}/certificate-sheet.png", full_page=True)
+            page.screenshot(
+                path=f"{SHOTS}/certificate-sheet.png", full_page=True, animations="disabled"
+            )
         with page.expect_download() as info:
             sheet.get_by_role("button", name=copy("certify.save")).click()
         expect(sheet).to_be_hidden()
@@ -122,7 +124,9 @@ def test_save_from_the_finding_screen(browser, net, tmp_path):
         assert "manuscript.tex" in names and f"proof/certificate-{root[:12]}.html" in names
         assert not [n for n in names if n.startswith("supplement/")]
         if SHOTS:
-            page.screenshot(path=f"{SHOTS}/finding-proof-sections.png", full_page=True)
+            page.screenshot(
+                path=f"{SHOTS}/finding-proof-sections.png", full_page=True, animations="disabled"
+            )
         assert not faults, faults
 
         # The file itself: no fault, one printed page, no side scroll on a phone.

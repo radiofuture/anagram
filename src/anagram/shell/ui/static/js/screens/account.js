@@ -12,6 +12,7 @@ import {
   ChipList,
   Disclosure,
   DownloadLink,
+  KitCode,
   ErrorLine,
   Facts,
   Field,
@@ -144,7 +145,7 @@ function NewKit() {
       html`
       <div class="ag-kit">
         <p class="rf-ui-help">${t('account.kit_new_text')}</p>
-        <p class="ag-kit-code">${code}</p>
+        <${KitCode} code=${code} />
         <div class="rf-ui-actions">
           <${DownloadLink} href="/api/recovery-kit/file" filename="anagram-recovery-kit.md" label=${t('account.kit_download')} />
           <${ActionButton} kind="secondary" label=${t('account.kit_saved_action')} busyLabel=${t('account.kit_saved_busy')}

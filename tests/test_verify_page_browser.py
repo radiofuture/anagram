@@ -113,9 +113,9 @@ def test_drop_a_certificate_and_its_files(browser, node_site, tmp_path):
     )
     expect(result).to_contain_text("A test anchor is in this proof.")
     if SHOTS:
-        page.screenshot(path=f"{SHOTS}/verify-1280.png", full_page=True)
+        page.screenshot(path=f"{SHOTS}/verify-1280.png", full_page=True, animations="disabled")
         page.set_viewport_size({"width": 390, "height": 800})
-        page.screenshot(path=f"{SHOTS}/verify-390.png", full_page=True)
+        page.screenshot(path=f"{SHOTS}/verify-390.png", full_page=True, animations="disabled")
     page.set_viewport_size({"width": 390, "height": 800})
     assert page.evaluate("document.documentElement.scrollWidth") <= 390
     assert not faults, faults

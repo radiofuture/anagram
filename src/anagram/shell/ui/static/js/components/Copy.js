@@ -37,3 +37,15 @@ export function DownloadLink({ href, label, filename = '', kind = 'secondary', n
   const cls = kind === 'link' ? 'ag-small-link' : `rf-ui-button${kind === 'primary' ? '' : ` rf-ui-button--${kind}`}`;
   return html`<a class=${cls} href=${href} download=${filename} aria-label=${name}>${label}</a>`;
 }
+
+/**
+ * A recovery code, in groups that never break across lines. The text is the
+ * code as typed (groups joined by "-"), so a copy gives the same value.
+ */
+export function KitCode({ code }) {
+  const groups = String(code || '').split('-');
+  return html`
+    <p class="ag-kit-code">
+      ${groups.map((g, i) => html`<span key=${i}>${g}${i < groups.length - 1 ? '-' : ''}</span>`)}
+    </p>`;
+}

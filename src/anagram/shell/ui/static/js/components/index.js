@@ -15,5 +15,5 @@ export { ChipList, RemoveButton } from './ChipList.js';
 export { Progress, RollingNumber, Count, Settled } from './Progress.js';
 export { DateText, PersonLine, KindLabel } from './Text.js';
 export { FolderPicker } from './FolderPicker.js';
-export { CopyField, DownloadLink } from './Copy.js';
+export { CopyField, DownloadLink, KitCode } from './Copy.js';
 export { Slot } from './Slot.js';

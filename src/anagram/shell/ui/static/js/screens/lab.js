@@ -11,7 +11,7 @@ import { html, useLayoutEffect, useRef, useState } from '../core/html.js';
 import { t } from '../core/copy.js';
 import { announce } from '../core/a11y.js';
 import { cleanText, fmtDate } from '../core/format.js';
-import { absent, mutate, optional, useDraft, useResource } from '../core/resource.js';
+import { absent, invalidate, mutate, optional, useDraft, useResource } from '../core/resource.js';
 import { href, navigate } from '../core/router.js';
 import { provided } from '../core/slots.js';
 import {
@@ -59,9 +59,13 @@ function StartLab({ first }) {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const start = async () => {
-    const view = await mutate('POST', '/api/labs', { name: name.trim() }, { invalidate: [MINE] });
-    announce(t('lab.started', { lab: view.name }));
+    // Go to the lab's own route before the list shows the new lab, so the
+    // page that the person acts on is the one that stays (a route change
+    // makes a new view, and its state, such as a new invite link).
+    const view = await mutate('POST', '/api/labs', { name: name.trim() });
     navigate(href('lab', { id: view.id }));
+    await invalidate([MINE]);
+    announce(t('lab.started', { lab: view.name }));
   };
   return html`
     <${Field} id="lab-name" label=${t('lab.start_name')}>
@@ -655,7 +659,10 @@ function LabView({ id, tab, query, labs }) {
 function View({ params, query }) {
   const mine = useResource(MINE, LIVE);
   const labs = mine.data.value;
-  if (!labs) return html`<${Screen} title=${t('lab.title')} resources=${[mine]}>${() => null}<//>`;
+  // A lab that the route names but the list does not show yet (just
+  // started; the list reloads): wait, so the start form does not come back.
+  const waiting = labs && params.id && !labs.some((l) => l.id === params.id) && mine.state.value !== 'ready';
+  if (!labs || waiting) return html`<${Screen} title=${t('lab.title')} resources=${[mine]}>${() => null}<//>`;
   if (!labs.length) {
     return html`<${Screen} title=${t('lab.title')} resources=${[mine]}>${() => html`<${NoLab} />`}<//>`;
   }

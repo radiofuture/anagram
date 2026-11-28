@@ -8,11 +8,13 @@ sign-in).
 Render:
 
 - Keyed components from vendored ES modules (Preact, htm, signals), with no
-  build step. One module (`js/core/html.js`) imports the vendored files. The
-  import map is the one inline script; the CSP has its hash.
+  build step. One module (`src/anagram/shell/ui/static/js/core/html.js`)
+  imports the vendored files. The import map is the one inline script; the
+  CSP has its hash.
 - No style attributes (the CSP has no `unsafe-inline` for styles): a
   component sets a value with `style.setProperty` in a ref.
-- All visible text comes from copy files (`copy/<screen>.json`) through
+- All visible text comes from copy files
+  (`src/anagram/shell/ui/static/copy/<screen>.json`) through
   `t('screen.key', params)`. A lint test finds literal text, unused keys and
   missing keys.
 

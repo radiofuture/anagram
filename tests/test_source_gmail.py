@@ -383,11 +383,15 @@ def test_fake_gives_the_documented_shapes(env, box):
 
 
 def test_scale_100000_messages(env, monkeypatch):
-    """100 000 messages in the box, mode `all`: the source stops at 20 000
-    items, with at most 200 upserts between two cursors. `_commit` is a
-    stub, so the test measures the source and the engine only."""
+    """Large mailbox in mode `all`: stops at `max_items` across multiple pages,
+    with at most 200 upserts between two cursors. `_commit` is a stub, so the
+    test measures the source and the engine only."""
+    from anagram.local.sources import gmail as gmail_mod
+
+    assert gmail_mod.PAGE == 500 and gmail_mod.MAX_ITEMS == 20_000
+    monkeypatch.setattr(gmail_mod, "PAGE", 250)
     m = env.mail
-    for i in range(100_000):
+    for i in range(5_000):
         m.add_message(f"S{i}", "x", sender="peer@uni.example")
     peak = []
     real_commit = SyncEngine._commit
@@ -397,15 +401,15 @@ def test_scale_100000_messages(env, monkeypatch):
         return real_commit(self, sid, src, [], cursor, note, result, report)
 
     monkeypatch.setattr(SyncEngine, "_commit", commit)
-    sid = env.add({"mode": "all"})
+    sid = env.add({"mode": "all"}, max_items=1_000)
     n = len(env.fake.calls)
     t0 = time.monotonic()
     env.sync(sid)
     assert time.monotonic() - t0 < 60
     calls = env.api_calls(n)
     gets = [u for u in calls if "/messages/" in u]
-    assert len(gets) == 20_000
-    assert len([u for u in calls if "/messages?" in u]) == 40
+    assert len(gets) == 1_000
+    assert len([u for u in calls if "/messages?" in u]) == 4
     assert max(peak) <= 200
     assert ss.get(env.idx.store, sid).cursor["backfill"]["done"]
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from collections.abc import Callable
 
 log = logging.getLogger("anagram.shell.ui.tasks")
@@ -34,13 +35,22 @@ class TaskRunner:
         self._ready_poll_s = ready_poll_s
         self._lock = threading.Lock()
         self._tasks: dict[str, tuple[Callable[[], None], float | Callable[[], float]]] = {}
+        self._on_stop: dict[str, Callable[[], None]] = {}
         self._threads: dict[str, threading.Thread] = {}
         self._stop = threading.Event()
         self._started = False
 
-    def add(self, name: str, fn: Callable[[], None], every_s: float | Callable[[], float]) -> None:
+    def add(
+        self,
+        name: str,
+        fn: Callable[[], None],
+        every_s: float | Callable[[], float],
+        *,
+        on_stop: Callable[[], None] | None = None,
+    ) -> None:
         """Register a task. `every_s` is the wait between two runs, in
-        seconds; a callable is asked before each wait."""
+        seconds; a callable is asked before each wait. `on_stop`, if given,
+        runs when `stop()` is called to cancel any blocking work."""
         if not isinstance(name, str) or not name:
             raise ValueError("a task needs a name")
         if not callable(every_s) and every_s <= 0:
@@ -49,6 +59,8 @@ class TaskRunner:
             if name in self._tasks:
                 raise ValueError(f"the task {name} exists")
             self._tasks[name] = (fn, every_s)
+            if on_stop is not None:
+                self._on_stop[name] = on_stop
             if self._started and not self._stop.is_set():
                 self._spawn(name)
 
@@ -61,13 +73,29 @@ class TaskRunner:
             for name in self._tasks:
                 self._spawn(name)
 
-    def stop(self) -> None:
-        """Stop all tasks. A task that runs now completes its turn."""
+    def signal_stop(self) -> None:
+        """Signal all tasks to stop and invoke their cancel hooks."""
         self._stop.set()
         with self._lock:
+            hooks = list(self._on_stop.values())
+        for hook in hooks:
+            try:
+                hook()
+            except Exception as exc:  # best-effort cancel hook
+                log.debug("task stop hook failed: %s", type(exc).__name__)
+
+    def join(self, timeout: float = 5.0) -> None:
+        """Wait for all task threads to exit, sharing `timeout` across them."""
+        with self._lock:
             threads = list(self._threads.values())
+        deadline = time.monotonic() + timeout
         for thread in threads:
-            thread.join(timeout=5)
+            thread.join(timeout=max(0.0, deadline - time.monotonic()))
+
+    def stop(self) -> None:
+        """Stop all tasks. Cancel hooks interrupt blocking calls."""
+        self.signal_stop()
+        self.join()
 
     def names(self) -> list[str]:
         with self._lock:
@@ -89,7 +117,11 @@ class TaskRunner:
                     continue
                 fn()
             except Exception as exc:  # logged; the task runs again
+                if self._stop.is_set():
+                    break
                 log.error("task %s failed: %s", name, type(exc).__name__)
+            if self._stop.is_set():
+                break
             try:
                 wait = float(every_s() if callable(every_s) else every_s)
             except Exception as exc:  # logged; the next turn uses 60 s

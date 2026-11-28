@@ -208,6 +208,7 @@ class DemoNode:
     server: Any
     enclave: Any  # NodeEnclave
     ticker: Any = None  # the relay timer
+    labs: Any = None  # LabService
 
     @property
     def name(self) -> str:
@@ -312,7 +313,7 @@ class Demo:
         nh.set_enclave(self.network.node_settings(n))
         app, identity = nh.app_parts()
         server = start_server(app, sock, "node" if n == 1 else f"node-{n}")
-        return DemoNode(n, nh, url, identity, server, app.state.enclave)
+        return DemoNode(n, nh, url, identity, server, app.state.enclave, labs=app.state.labs)
 
     def start_days(self) -> None:
         """Start the day driver (a thread; `stop` ends it)."""
@@ -338,16 +339,21 @@ class Demo:
         if getattr(self, "_days", None):
             self._done.set()
             self._days.join(60)
-        for p in self.people:
-            if p.server:
-                p.server.stop()
+        servers = [p.server for p in self.people if p.server]
+        for s in servers:
+            s.begin_stop()
+        for s in servers:
+            s.finish_stop()
         for x in self.nodes:
             if x.ticker:
                 x.ticker.stop()
+            if x.labs is not None:
+                x.labs.stop()
         if getattr(self, "network", None):  # the enclave reads the nodes: it stops first
             self.network.stop()
         for x in self.nodes:
             x.server.should_exit = True
+        for x in self.nodes:
             x.server.thread.join(15)
             x.enclave.close()
         f = self.root / DEMO_FILE

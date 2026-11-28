@@ -25,6 +25,7 @@ the formats are locked. A change makes a new version (`v2`). It never changes
 | [enclave-messages.md](enclave-messages.md) | App, node and enclave messages (draft): sealed request envelope, receipt, slot, answer, withdrawal, cover, fetch API, node request signature, error codes. Schema `schemas/enclave-messages.schema.json` |
 | [network.md](network.md) | Network roster, control events, node and member credentials (Biscuit, JSON fallback), person signing key and moves (draft). Schema `schemas/network.schema.json` |
 | [enclave-trust.md](enclave-trust.md) | Matching enclave trust (draft): release transparency log and entry kinds, attestation document `anagram.operator_attestation.v3`, verifier profiles, key custody, anti-rollback, tombstones, deletion |
+| [sim.md](sim.md) | Synthetic community generator (`anagram.sim`): fake labs, ground truth, canaries, determinism |
 | [threat-model.md](threat-model.md) | Parties, what each party can see and do, and how we enforce it |
 | [vectors/](vectors/) | Test vectors (JSON) for each format |
 
@@ -39,7 +40,7 @@ section Project layout). Where each document is implemented:
 | log.md | `proofs/log/`, `proofs/node/service.py`, `proofs/node/routes.py` |
 | proof-bundle.md | `proofs/bundle.py`, `proofs/proof.py`, `proofs/anchors/` |
 | identity.md | `identity/formats/`, `identity/app/`, `identity/node/` |
-| admission.md | `admission/` (`formats.py`, `model.py`, `service.py`, `reader.py`, `join.py`) |
+| admission.md | `admission/` (`formats.py`, `model.py`, `node/service.py`, `node/reader.py`, `app/join.py`) |
 | vault.md | `network/formats/vault.py`, `network/formats/sharing.py`, `network/sharing/`, `identity/formats/recovery.py`, `identity/formats/personal_store.py` |
 | lab.md | `network/formats/` (`lab.py`, `labkey.py`, `labitem.py`, `labsettings.py`), `network/groups/` |
 | matching.md | `network/matching/enclave/` (`funnel.py`, `decisions.py`, `slot_release.py`, `ledger.py`, `pairs.py`) |
@@ -47,6 +48,8 @@ section Project layout). Where each document is implemented:
 | understanding.md | `local/understanding/`, `models/`, `gateway/` |
 | trust.md | `local/trust/` |
 | pack.md, enclave-messages.md, network.md | `network/formats/` (formats), `network/matching/enclave/` (service), `network/matching/node/enclave_relay.py`, `network/matching/app/enclave_client.py`; `vectors/net/` generates the vectors with them |
+| enclave-trust.md | `network/matching/trust/` (release log, attestation, key custody, profiles under `trust/profiles/`) |
+| sim.md | `sim/` (`labs.py`, `demonet.py`, synthetic community generator) |
 | vectors/ | `vectors/` (`python -m anagram.vectors.build`) |
 
 ## Versions

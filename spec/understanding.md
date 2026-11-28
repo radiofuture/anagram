@@ -5,9 +5,9 @@ store (`spec/index.md` section 10). It can change without a new proof format.
 
 Code: `src/anagram/models/` (model providers), `src/anagram/local/understanding/` (kinds,
 `understand`, links, proposals, retrieval, ask, timeline),
-`src/anagram/gateway/` (assistant access), `src/anagram/shell/ui/models_ui.py`,
-`src/anagram/shell/ui/understanding.py`, `src/anagram/shell/ui/ask_ui.py`, and
-`src/anagram/shell/ui/routers/understanding.py` (routes).
+`src/anagram/gateway/` (assistant access), `src/anagram/shell/ui/models.py`,
+`src/anagram/shell/ui/understanding.py`, `src/anagram/shell/ui/ask.py`, and
+`src/anagram/shell/ui/routers/` (`understanding.py`, `agents.py`).
 
 Threats and responses: [threat-model.md](threat-model.md) section 17.
 

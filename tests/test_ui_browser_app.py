@@ -82,7 +82,9 @@ def open_account(browser, server, width=1440, scheme="light"):
 def shot(page, name: str) -> None:
     if SHOTS:
         Path(SHOTS).mkdir(parents=True, exist_ok=True)
-        page.screenshot(path=str(Path(SHOTS) / f"{name}.png"), full_page=True)
+        page.screenshot(
+            path=str(Path(SHOTS) / f"{name}.png"), full_page=True, animations="disabled"
+        )
 
 
 def settled(check, timeout: float = 10.0) -> None:

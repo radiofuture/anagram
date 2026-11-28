@@ -14,6 +14,7 @@ ANAGRAM_UI_SHOTS=DIR to save a screenshot of each step.
 from __future__ import annotations
 
 import os
+import re
 import threading
 import time
 from pathlib import Path
@@ -45,7 +46,9 @@ expect = sync_api.expect
 def shot(page, name: str) -> None:
     if SHOTS:
         Path(SHOTS).mkdir(parents=True, exist_ok=True)
-        page.screenshot(path=str(Path(SHOTS) / f"join-{name}.png"), full_page=True)
+        page.screenshot(
+            path=str(Path(SHOTS) / f"join-{name}.png"), full_page=True, animations="disabled"
+        )
 
 
 class Site:
@@ -198,6 +201,12 @@ def test_new_person_joins_a_lab_from_the_link(browser, site, app_of, tmp_path):
     page.get_by_role("button", name=copy("welcome.join_action")).click()
     expect(page.get_by_role("heading", name=copy("welcome.kit_title"))).to_be_visible(timeout=60000)
     expect(page.locator(".ag-kit-code")).to_be_visible()  # the new kit, not "gone"
+    # A selection of the code copies it on one line, exactly (parse_kit reads one line).
+    selected = page.locator(".ag-kit-code").evaluate(
+        "el => { const r = document.createRange(); r.selectNodeContents(el);"
+        " const s = getSelection(); s.removeAllRanges(); s.addRange(r); return s.toString(); }"
+    )
+    assert re.fullmatch(r"[A-Z2-7]{4}(-[A-Z2-7]{4})+", selected.strip()), selected
     shot(page, "4-kit")
     page.get_by_label(copy("welcome.kit_check")).check()
     page.get_by_role("button", name=copy("welcome.kit_continue")).click()

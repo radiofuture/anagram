@@ -5,6 +5,7 @@
 import { html, useState } from '../core/html.js';
 import { t } from '../core/copy.js';
 import { useResource, mutate } from '../core/resource.js';
+import { fmtTime } from '../core/format.js';
 import {
   ActionButton,
   Card,
@@ -174,7 +175,7 @@ function Item({ item }) {
   }
   if (item.kind === 'proposal') {
     return html`
-      <${Card} title=${t('netmatch.proposal', { type })} meta=${t('netmatch.until', { date: item.answer_by })}>
+      <${Card} title=${t('netmatch.proposal', { type })} meta=${t('netmatch.until', { date: fmtTime(item.answer_by) })}>
         <p class="rf-ui-help">${t('netmatch.reasons')}</p>
         <ul>${item.reasons.map((r) => html`<li>${r}</li>`)}</ul>
         ${
@@ -182,7 +183,7 @@ function Item({ item }) {
             ? html`<p>${t('netmatch.sent')}</p>`
             : html`
             <p>${t('netmatch.choice', { choice: t(`netmatch.${item.choice}`) })}</p>
-            ${item.next_checkpoint && html`<p class="rf-ui-help">${t('netmatch.next_checkpoint', { date: item.next_checkpoint })}</p>`}
+            ${item.next_checkpoint && html`<p class="rf-ui-help">${t('netmatch.next_checkpoint', { date: fmtTime(item.next_checkpoint) })}</p>`}
             <${Answer} item=${item} />`
         }
       <//>`;

@@ -16,6 +16,7 @@ import {
   CopyField,
   Disclosure,
   DownloadLink,
+  KitCode,
   ErrorLine,
   Field,
   Screen,
@@ -270,7 +271,7 @@ function Kit() {
             ? html`
             <${TaskPanel} label=${t('welcome.kit_code')}>
               <p class="ag-proof-label">${t('welcome.kit_code')}</p>
-              <p class="ag-kit-code">${kit.data.value.code}</p>
+              <${KitCode} code=${kit.data.value.code} />
               <div class="rf-ui-actions">
                 <${DownloadLink} href="/api/recovery-kit/file" filename="anagram-recovery-kit.md"
                   label=${t('welcome.kit_download')} />

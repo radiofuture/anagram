@@ -37,7 +37,9 @@ expect = sync_api.expect
 def shot(page, name: str) -> None:
     if SHOTS:
         Path(SHOTS).mkdir(parents=True, exist_ok=True)
-        page.screenshot(path=str(Path(SHOTS) / f"lab-{name}.png"), full_page=True)
+        page.screenshot(
+            path=str(Path(SHOTS) / f"lab-{name}.png"), full_page=True, animations="disabled"
+        )
 
 
 @pytest.fixture(scope="module")

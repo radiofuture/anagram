@@ -40,13 +40,17 @@ def enclave_demo(tmp_path):
 
 def say_yes_to_open_proposals(page) -> None:
     """Chen fills in the card and says yes on each proposal with no answer
-    yet (the card says "not chosen yet")."""
+    yet (the card says that no answer counts as "not now")."""
     yes = copy("netmatch.yes")
     open_cards = page.locator("article.ag-card", has_text=copy("netmatch.reasons")).filter(
         has_text=copy("netmatch.unset")
     )
     for _ in range(open_cards.count()):
         card = open_cards.first
+        # The card comes from the account; Chen opens it to set these values.
+        change = card.get_by_role("button", name=copy("netmatch.card_edit"))
+        if change.count():
+            change.click()
         for key, value in (("name", "Mei-Lin Chen"), ("institution", "Northbridge University"),
                            ("email", "mchen@northbridge.example")):  # fmt: skip
             card.get_by_label(copy(f"netmatch.card_{key}")).fill(value)
@@ -75,7 +79,7 @@ def test_a_proposal_and_a_live_reveal(browser, enclave_demo):  # noqa: F811
 
     loads: list[str] = []
     page.on("framenavigated", lambda f: loads.append(f.url))
-    reveal = page.get_by_text(copy("netmatch.reveal", name="Chidi Okafor"))
+    reveal = page.get_by_role("article", name=copy("netmatch.reveal", name="Chidi Okafor"))
     for _ in range(8):  # the answers go out; both said yes; the reveal
         d.next_day()
         if reveal.count():

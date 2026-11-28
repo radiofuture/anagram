@@ -94,6 +94,7 @@ def test_on_proposal_answer_and_off(world) -> None:
     on = a.join_matching(world, lines(*pair))
     b.join_matching(world, lines(*reversed(pair)))
     assert on["on"] is True and on["approved"] is True and on["uploaded_day"] is not None
+    assert on["draft_approved"] is True
     # Two more people, so the pool is large enough (min_people = 2).
     UI(world, "jon").join_matching(world, lines("Ice core dating", "Isotope ratio analysis"))
     UI(world, "kim").join_matching(world, lines("Isotope ratio analysis", "Ice core dating"))
@@ -142,3 +143,19 @@ def test_the_person_chooses_a_weekly_cap(world) -> None:
     assert ui.json("PUT", "/api/enclave/weekly-cap", {"weekly_cap": 1})["weekly_cap"] == 1
     for bad in (0, 11, "3", True):
         ui.json("PUT", "/api/enclave/weekly-cap", {"weekly_cap": bad}, status=400)
+
+
+def test_an_edit_after_the_approval_needs_a_new_approval(world) -> None:
+    ui = UI(world, "lena")
+    st = ui.join_matching(
+        world, lines("Light-sheet imaging of organoids", "Spatial transcriptomics")
+    )
+    assert st["draft_approved"] is True
+    st = ui.json(
+        "PUT", "/api/enclave/draft", lines("Light-sheet imaging", "Spatial transcriptomics")
+    )
+    st = ui.json("GET", "/api/enclave")
+    assert st["approved"] is True and st["draft_approved"] is False  # the network has the old lines
+    consent = ui.json("GET", "/api/enclave/consent")
+    ui.json("POST", "/api/enclave/approve", {"statement_hash": consent["statement_hash"]})
+    assert ui.json("GET", "/api/enclave")["draft_approved"] is True

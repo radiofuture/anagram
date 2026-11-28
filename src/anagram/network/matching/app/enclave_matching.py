@@ -496,8 +496,12 @@ class EnclaveMatching:
 
     def status(self) -> JsonObject:
         st = self._load()
+        approved, draft = st.get("approved"), st.get("draft")
         return {
-            "approved": bool(st.get("approved")),
+            "approved": bool(approved),
+            # The draft is the approved text: an edit after the approval
+            # needs a new approval before it can go out.
+            "draft_approved": bool(approved and draft and _same_lines(draft, approved)),
             "cards": self.cards(st),
             "draft": st.get("draft"),
             "enrolled": st["enrolled"],
@@ -510,6 +514,13 @@ class EnclaveMatching:
             "uploaded_day": st.get("uploaded_day"),
             "weekly_cap": st["weekly_cap"],
         }
+
+
+def _same_lines(draft: JsonObject, approved: JsonObject) -> bool:
+    try:
+        return bool(pack_lines(draft) == approved["lines"])
+    except (ClientError, KeyError, TypeError, ValueError):
+        return False
 
 
 def _choice(pending: JsonObject | None) -> str:

@@ -7,6 +7,16 @@ Third-party JavaScript modules are in src/anagram/shell/ui/static/vendor and
 src/anagram/web/reader/vendor. They keep their own licenses; the
 manifest.json file in each folder names the package, version and license.
 
+The bundled DM Sans font (src/anagram/shell/ui/static/brand/assets/dm-sans.ttf)
+is Copyright 2014 The DM Sans Project Authors (https://github.com/googlefonts/dm-fonts)
+and is licensed under the SIL Open Font License 1.1; the full license text is in
+src/anagram/shell/ui/static/brand/assets/dm-sans-LICENSE.txt.
+
+The bundled OpenAlex Topics vocabulary snapshot
+(src/anagram/local/understanding/vocab/openalex-topics-2026-10-15.json.gz)
+is sourced from OpenAlex (https://openalex.org) under the CC0 1.0 Universal
+Public Domain Dedication (CC0-1.0).
+
 Some test fixtures in tests/fixtures/snp and tests/fixtures/tdx come from
 google/go-sev-guest and google/go-tdx-guest (Apache License 2.0, Copyright
 Google LLC). They keep that license; the README.md in each folder names

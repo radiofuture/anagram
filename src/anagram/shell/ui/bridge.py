@@ -147,8 +147,15 @@ class Live:
             bridge.start()
         self.ctx.tasks.start()
 
-    def stop(self) -> None:
+    def begin_stop(self) -> None:
         self.ctx.bus.close()
-        self.ctx.tasks.stop()
+        self.ctx.tasks.signal_stop()
         for bridge in self.bridges:
             bridge.stop()
+
+    def finish_stop(self) -> None:
+        self.ctx.tasks.join()
+
+    def stop(self) -> None:
+        self.begin_stop()
+        self.finish_stop()

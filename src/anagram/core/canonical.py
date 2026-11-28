@@ -12,6 +12,7 @@ output, string escapes as in RFC 8785 section 3.2.2.2.
 from __future__ import annotations
 
 import json
+from json.encoder import encode_basestring
 from typing import Any
 
 MAX_SAFE_INT = 2**53 - 1
@@ -20,36 +21,13 @@ MAX_SAFE_INT = 2**53 - 1
 # uses (see `anagram.core.validate`), so a nested type here adds no safety.
 type JsonObject = dict[str, Any]
 
-_SHORT_ESCAPES = {
-    '"': '\\"',
-    "\\": "\\\\",
-    "\b": "\\b",
-    "\f": "\\f",
-    "\n": "\\n",
-    "\r": "\\r",
-    "\t": "\\t",
-}
-
 
 class CanonicalError(ValueError):
     pass
 
 
 def _string(s: str, out: list[str]) -> None:
-    try:
-        s.encode("utf-8")
-    except UnicodeEncodeError as exc:
-        raise CanonicalError("string has a lone surrogate") from exc
-    out.append('"')
-    for ch in s:
-        esc = _SHORT_ESCAPES.get(ch)
-        if esc is not None:
-            out.append(esc)
-        elif ord(ch) < 0x20:
-            out.append(f"\\u{ord(ch):04x}")
-        else:
-            out.append(ch)
-    out.append('"')
+    out.append(encode_basestring(s))
 
 
 def _utf16_key(k: str) -> bytes:
@@ -105,7 +83,10 @@ def _object(value: dict[Any, Any], out: list[str]) -> None:
 def canonical_json(value: Any) -> bytes:
     out: list[str] = []
     _encode(value, out)
-    return "".join(out).encode("utf-8")
+    try:
+        return "".join(out).encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise CanonicalError("string has a lone surrogate") from exc
 
 
 def _no_float(s: str) -> Any:
@@ -125,23 +106,27 @@ def _no_dupes(pairs: list[tuple[str, Any]]) -> JsonObject:
     return out
 
 
-def loads(data: bytes | str) -> Any:
-    """Parse JSON with the same value rules. Duplicate keys and floats fail."""
+def _parse(data: bytes | str) -> Any:
     if isinstance(data, bytes):
         data = data.decode("utf-8")
-    value = json.loads(
+    return json.loads(
         data,
         parse_float=_no_float,
         parse_constant=_no_constant,
         object_pairs_hook=_no_dupes,
     )
+
+
+def loads(data: bytes | str) -> Any:
+    """Parse JSON with the same value rules. Duplicate keys and floats fail."""
+    value = _parse(data)
     canonical_json(value)  # check value rules (int range, surrogates)
     return value
 
 
 def loads_canonical(data: bytes) -> Any:
     """Parse bytes and require that they are already in canonical form."""
-    value = loads(data)
+    value = _parse(data)
     if canonical_json(value) != data:
         raise CanonicalError("input is not in canonical form")
     return value

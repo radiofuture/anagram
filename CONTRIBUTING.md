@@ -22,19 +22,24 @@ it, those tests skip.
 ## Checks
 
 Run these before you open a pull request. CI
-(`.github/workflows/anagram-checks.yml`) runs the same checks.
+(`.github/workflows/checks.yml`) runs the same checks.
 
 ```sh
 set -o pipefail
 uv run ruff check src tests && uv run ruff format --check src tests
 uv run mypy                                        # strict set, see pyproject.toml
 HF_HUB_OFFLINE=1 uv run pytest -q -p no:randomly --cov
+biome ci .                                         # or: uv run pre-commit run --all-files
 ```
 
 - **Coverage.** CI fails when the total is below `fail_under` in
   `pyproject.toml`. Do not lower the floor to make a change pass.
 - **Types.** `uv run mypy` checks the strict set. The plan to make more
   packages strict is in the `[tool.mypy]` comments in `pyproject.toml`.
+- **Differential tests (Go).** CI runs a Go differential job
+  (`tests/test_enclave_differential.py` with `tests/differential/refverify`)
+  that checks Anagram's AMD SEV-SNP and Intel TDX verifiers against Google's
+  `go-sev-guest` and `go-tdx-guest`.
 - **JS and CSS.** We use [Biome](https://biomejs.dev/) in check mode
   (`biome ci .` at the repository root). The config is `biome.json`. Vendored
   files and the brand copies are not checked.
@@ -86,7 +91,7 @@ layer only through its facade. `tests/test_layers.py` checks this.
 - Say in the body why the change is necessary.
 - **AI agents only:** end the commit message with the trailer that names the
   model, for example
-  `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Human
+  `Co-Authored-By: <Model Name> <noreply@...>`. Human
   contributors do not add this trailer.
 - Fill in the pull request template. Link the issue.
 

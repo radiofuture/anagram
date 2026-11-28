@@ -20,10 +20,18 @@ folders, checks all sources each 15 minutes, and does a full check each night.
   stop this.
 - Only one helper runs for each data directory.
 
-The helper does not start at login yet. A later step adds a launchd (macOS)
-and systemd (Linux) install.
+To start the app and its background index helper automatically at login (via
+`AppRuntime`), install the login service:
 
-## Write a plug-in
+```sh
+uv run anagram app install     # registers launchd (macOS), systemd/XDG (Linux), or Task Scheduler (Windows)
+uv run anagram app status      # check running state and login service
+uv run anagram app uninstall   # remove the login service and stop the app
+```
+
+---
+
+## Write a plug-in (Python SDK)
 
 A plug-in is a Python package with an entry point. There are three groups:
 

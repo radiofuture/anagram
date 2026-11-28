@@ -235,6 +235,23 @@ def test_discover_suggests_sources(tmp_path):
         (b"\x00\x01\x02\x03binary", "data.pptx", PPTX),  # broken, but no better guess
         (b"{\\rtf1 hi}", "x.doc", "application/rtf"),
     ],
+    ids=[
+        "pdf",
+        "png",
+        "jpeg",
+        "gif",
+        "docx",
+        "pptx",
+        "xlsx",
+        "epub",
+        "plain_zip",
+        "html",
+        "text",
+        "markdown",
+        "binary",
+        "broken_pptx",
+        "rtf",
+    ],
 )
 def test_sniff_media_type(data, name, want):
     assert sniff_bytes(data, name) == want

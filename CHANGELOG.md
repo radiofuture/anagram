@@ -91,6 +91,9 @@ The first release for labs, and private matching through a network enclave.
 
 - The vector makers took `--help` as an output folder and wrote vector
   files into `./--help/`. They now print help.
+- Stopping the local app or demo no longer waits 5 seconds for an in-flight
+  `lab.watch` `/labs/changes` long-poll to time out; shutdown cancels the
+  poll immediately.
 - Hardened core validators (`\Z` regex anchors, strict 64-char lowercase hex in
   `ContentDigest.from_json()`, `FormatError` on invalid calendar dates in
   `parse_time()`, and Windows guard in `fsync_dir()`).

@@ -85,7 +85,7 @@ Details: [docs/enclave.md](docs/enclave.md) and [SECURITY.md](SECURITY.md).
 | Audience | Guides |
 | --- | --- |
 | **Researchers** | [Install & setup](docs/install.md) · [Demo guide](docs/demo.md) · [Matching rules](docs/matching.md) · [CLI priority proofs](docs/priority-proofs.md) · [Google Drive & Gmail](docs/google-client.md) |
-| **Server operators** | [Run a node](docs/deploy.md) · [Local Docker test](docs/local-test.md) · [Enclave guide](docs/enclave.md) |
+| **Server operators** | [System architecture](docs/architecture.md) · [Run a node](docs/deploy.md) · [Local Docker test](docs/local-test.md) · [Enclave guide](docs/enclave.md) |
 | **Contributors** | [Contributing & layout](CONTRIBUTING.md) · [Indexer & plug-ins](docs/indexing.md) · [Design notes](docs/design/README.md) · [Protocol specs](spec/README.md) |
 
 ## Contributing, Security & License

@@ -19,6 +19,31 @@ uv run anagram                # start the local UI
 Browser tests need Chromium: `uv run playwright install chromium`. Without
 it, those tests skip.
 
+## Project layout
+
+```
+src/anagram/
+  identity/    person IDs, device keys, sign-in, recovery
+  local/       sources, the encrypted index, understanding, your vault
+  network/     labs, sharing, matching (the enclave is in network/matching/enclave/)
+  admission/   invites and who can join a node
+  core/        crypto, canonical JSON, signed documents
+  proofs/      the log, proof bundles, time anchors, certificates
+  models/      model providers and the spend gate
+  gateway/     the MCP server for your own AI assistant
+  shell/       the CLI, the local UI, the node app
+  web/         static pages (reader, verify page)
+  sim/         the synthetic community for the demo and tests
+spec/          wire formats and test vectors (the protocol)
+docs/          guides for members and operators
+deploy/        Dockerfile, Compose files, Caddy, end-to-end tests
+packaging/     the macOS app build
+tests/         the test suite
+```
+
+A layer imports only the layers below it, and only through their `api.py`.
+`tests/test_layers.py` checks this (see [Layers](#layers)).
+
 ## Checks
 
 Run these before you open a pull request. CI

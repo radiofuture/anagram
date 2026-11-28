@@ -143,7 +143,10 @@ stops and tells you to use a new folder (`--dir`) or to delete the folder.
 
 - The demo process writes its log to `<dir>/demo.log`.
 - The demo network is SIMULATED: development only, no privacy. The
-  "Network matching" screen says so.
+  "Network matching" screen says so. See [enclave.md](enclave.md) for privacy
+  status and [matching.md](matching.md) for the default matching rules.
 - The browser tests (`tests/test_ui_browser.py`,
   `tests/test_ui_browser_matching.py`) use the same `Demo` class in the test
   process.
+- Ready to run Anagram on your own files or create CLI priority proofs? See
+  [install.md](install.md) and [priority-proofs.md](priority-proofs.md).

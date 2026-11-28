@@ -118,30 +118,19 @@ Matching runs only in the matching enclave of the network. The node only
 relays sealed messages. The test network uses the `simulated` profile and
 simulated engines (word overlap, no model, no cost). No paid model is called.
 
-**Fastest: the in-process demo.** No Docker.
+**Fastest: the in-process demo (no Docker).**
 
 ```sh
-uv run anagram demo up --ready --day-seconds 60
+uv run anagram demo up --dir /tmp/anagram-demo --ready --day-seconds 60
 ```
 
-The demo runs the services of the matching network in its own process
-(`docs/demo.md`). `--ready` joins the other three PIs and turns matching on
-for them. Open the first URL (Mei-Lin Chen), finish the join, then open
-**Network matching**:
+The demo runs the matching network services in process, joins the other three
+PIs, and leaves only Mei-Lin Chen for you. Open the printed link for Chen and
+follow [demo.md](demo.md) ("Walk through" and "Faster: `--ready`"). With a
+local model and the search index, **Draft from my work** on the **Network
+matching** screen drafts new lines from your own files.
 
-1. The log URL and the pins of the demo network are set. Read the draft of
-   your lines ("I can offer", "I need"). It comes from the lab profile. Edit
-   the lines and save them. With a local model and the search index, "Draft"
-   makes new lines with the profile lens.
-2. Read the consent statement of the release and approve it.
-3. Turn matching on. The app uploads a sealed pack each demo day.
-4. The next demo day, a proposal comes. It shows the match type and your
-   own lines only. Fill in your card and click "Yes, introduce us".
-5. When the other person also said yes, the reveal comes on the same day
-   for both, with the card of the other person.
-6. Turn matching off to withdraw.
-
-Stop: `uv run anagram demo down`.
+Stop with `uv run anagram demo down --dir /tmp/anagram-demo`.
 
 **Docker (part B) with network matching.** Part A (`deploy/local-e2e.sh`)
 runs the full enclave story. To connect a node by hand, see

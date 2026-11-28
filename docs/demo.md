@@ -7,8 +7,18 @@ computer. All people, labs, institutions, and IDs are invented (`fake-`).
 
 Run the commands from the root of this repository.
 
+**Fastest (1 tab, ~2 minutes):**
+
 ```sh
 uv sync
+uv run anagram demo up --dir /tmp/anagram-demo --ready --day-seconds 60
+```
+
+With `--ready`, Okafor, Varga, and Helix are already joined with matching on,
+leaving only Mei-Lin Chen for you (see [Faster: `--ready`](#faster---ready)).
+To walk through all 4 researchers yourself across 4 tabs, run:
+
+```sh
 uv run anagram demo up --dir /tmp/anagram-demo
 ```
 
@@ -53,8 +63,9 @@ browser window with one tab for each person.
 2. Save the recovery kit, tick "I saved my recovery kit", and continue.
 3. Search your institution (for example "Northbridge"), choose "Make a new
    lab", and save. The sim folder is added as a source and timestamped.
-4. Findings: open a draft, check the claim and files, click "Timestamp this
-   finding". The proof page shows "Proven to exist by <date>".
+4. Library: under **Proposed findings**, open a draft, check the claim and
+   files, and click **Make the proof**. The proof page shows "Proven to exist
+   by <date>".
 5. Share: choose a ring. "Community" shares with all members who joined.
 6. Network matching: the log URL and the pins of the demo network are
    set, and your lines ("I can offer", "I need") have a draft from your
@@ -62,8 +73,8 @@ browser window with one tab for each person.
    "What we can offer") and the need headings ("Need", "Gaps", "Asks",
    "What blocks us") of your notes and slides. A person whose files have
    no such bullets gets the lines of the lab profile. Edit the lines if you
-   want and save them. Read the consent statement, approve it, and turn
-   matching on.
+   want and save them. Read the consent statement ("The promise") and click
+   **Approve and start matching**.
 7. The next demo day (at most 2 minutes), a proposal comes. It shows only
    your own lines. Fill in your card (name, institution, email) and click
    "Yes, introduce us".
@@ -90,8 +101,9 @@ uv run anagram demo up --dir /tmp/anagram-demo --ready --day-seconds 60
 
 Okafor, Varga, and Helix join, set their details, approve their drafted
 lines, and turn matching on automatically. The demo says yes to each of
-their proposals. Only Chen is left for you. Approve Chen's lines, turn
-matching on, say yes to the proposals, and see the reveal with Okafor.
+their proposals. Only Chen is left for you. Open **Network matching**, click
+**Approve and start matching**, say yes to the proposals, and see the reveal
+with Okafor.
 
 ## Several nodes
 

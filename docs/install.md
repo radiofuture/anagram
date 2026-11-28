@@ -41,15 +41,18 @@ link**, and paste the link.
 
 ## 3. A new computer
 
-Install Anagram on the new computer. Then restore your keys from the
-recovery kit and the encrypted copy on your node:
+Install and open Anagram on the new computer:
+
+1. On the welcome screen, click **I have a recovery kit**.
+2. Choose your recovery kit file (or paste the text of the kit) and click
+   **Restore my keys**. Anagram unlocks the encrypted backup on your community
+   node and restores your keys and findings.
+
+If you prefer the command line, the CLI fallback is also available:
 
 ```sh
 /Applications/Anagram.app/Contents/MacOS/Anagram recover --help
 ```
-
-(The welcome screen gets a choice "I have a recovery kit" in a later step of
-the release; the route `POST /api/recover` is ready for it.)
 
 ## 4. What Anagram keeps on this computer
 

@@ -54,7 +54,20 @@
 .ag-nm-name {
   display: inline-block;
 }
-.ag-nm-name > span {
+.ag-nm-word {
+  white-space: nowrap;
+}
+.ag-nm-word > span {
   display: inline-block;
   will-change: transform;
+}
+/* The plain name for screen readers while the letters move. */
+.ag-nm-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

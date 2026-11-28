@@ -7,7 +7,7 @@
 import { html, useLayoutEffect, useRef, useState } from '../core/html.js';
 import { t } from '../core/copy.js';
 import { announce } from '../core/a11y.js';
-import { useResource, mutate } from '../core/resource.js';
+import { invalidate, useResource, mutate } from '../core/resource.js';
 import { fmtTime } from '../core/format.js';
 import { store } from '../core/store.js';
 import {
@@ -140,9 +140,15 @@ function Start({ s }) {
   const c = consent.data.value;
   const ready = filled(lines).offers.length + filled(lines).wants.length > 0;
   const start = async () => {
-    await mutate('PUT', '/api/enclave/draft', filled(lines));
-    await mutate('POST', '/api/enclave/approve', { statement_hash: c.statement_hash });
-    await call('POST', '/api/enclave/on', { on: true });
+    try {
+      await mutate('PUT', '/api/enclave/draft', filled(lines));
+      await mutate('POST', '/api/enclave/approve', { statement_hash: c.statement_hash });
+      await call('POST', '/api/enclave/on', { on: true });
+    } catch (err) {
+      // The statement may have changed: show the current one and the current state.
+      await invalidate([STATE, CONSENT]);
+      throw err;
+    }
     announce(t('netmatch.started'));
   };
   const draft = async () => {
@@ -318,8 +324,8 @@ function seen(id) {
 }
 
 /** A fixed shuffle of 0..n-1 from the text, so the same name always starts the same way. */
-function shuffle(text) {
-  const order = [...text].map((_, i) => i);
+function shuffle(text, n) {
+  const order = Array.from({ length: n }, (_, i) => i);
   let h = 2166136261;
   for (const ch of text) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
   for (let i = order.length - 1; i > 0; i -= 1) {
@@ -330,35 +336,67 @@ function shuffle(text) {
   return order;
 }
 
+// Letters that stay whole when each one moves on its own. A name in a
+// script that joins or stacks its letters (Arabic, Devanagari, ...) or with
+// a separate accent mark shows as plain text, with no motion.
+const SIMPLE = /^[\p{Script=Latin}\p{Script=Greek}\p{Script=Cyrillic}\s.'’-]+$/u;
+const MARK = /\p{M}/u;
+
+function letters(name) {
+  if (typeof Intl.Segmenter !== 'function') return null;
+  const text = name.normalize('NFC');
+  if (!SIMPLE.test(text) || MARK.test(text)) return null;
+  return [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)].map((g) => g.segment);
+}
+
 /**
  * The name of the other person, as an anagram that sorts itself: the
- * letters start in a shuffled order and move to their places. Once for each
- * reveal, on the real event (the first time this computer shows it). Only
- * transform and opacity move; with reduced motion the name is still.
+ * letters start in a shuffled order and move to their places, once for each
+ * reveal (the first time this computer shows it). Only transform and opacity
+ * move. After the motion, and with reduced motion, the name is plain text.
+ * Screen readers read the plain name; the moving letters are hidden from them.
  */
 function MetName({ id, name }) {
   const ref = useRef(null);
+  const [moving, setMoving] = useState(() => {
+    const parts = letters(name);
+    if (!parts || !id || seen(id)) return null;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return null;
+    return parts;
+  });
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el || seen(id)) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const letters = [...el.querySelectorAll('[data-l]')];
-    const x = letters.map((l) => l.getBoundingClientRect().left);
-    const order = shuffle(name);
-    letters.forEach((l, i) => {
-      const from = x[order[i]] - x[i];
+    if (!el || !moving) return;
+    const spans = [...el.querySelectorAll('[data-l]')];
+    const x = spans.map((l) => l.getBoundingClientRect().left);
+    const order = shuffle(name, spans.length);
+    const runs = spans.map((l, i) =>
       l.animate(
         [
-          { transform: `translate(${from}px, ${i % 2 ? -0.35 : 0.35}em)`, opacity: 0.25 },
+          { transform: `translate(${x[order[i]] - x[i]}px, ${i % 2 ? -0.35 : 0.35}em)`, opacity: 0.25 },
           { transform: 'none', opacity: 1 },
         ],
         { duration: 900, delay: 120 + i * 28, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' },
-      );
-    });
-  }, [id]);
-  return html`<span class="ag-nm-name" ref=${ref} aria-label=${name}>${[...name].map(
-    (ch, i) => html`<span key=${i} data-l aria-hidden="true">${ch === ' ' ? ' ' : ch}</span>`,
-  )}</span>`;
+      ),
+    );
+    Promise.all(runs.map((r) => r.finished))
+      .then(() => setMoving(null))
+      .catch(() => setMoving(null));
+  }, [moving]);
+  if (!moving) return html`${name}`;
+  // Words stay whole: a line breaks only between words.
+  const words = [[]];
+  moving.forEach((g, k) => {
+    if (/\s/.test(g)) words.push(' ', []);
+    else words[words.length - 1].push({ g, k });
+  });
+  return html`
+    <span class="ag-nm-sr">${name}</span>
+    <span class="ag-nm-name" ref=${ref} aria-hidden="true">${words.map((w) =>
+      typeof w === 'string'
+        ? w
+        : html`<span class="ag-nm-word">${w.map(({ g, k }) => html`<span key=${k} data-l>${g}</span>`)}</span>`,
+    )}</span>`;
 }
 
 function Reveal({ item }) {

@@ -489,7 +489,12 @@ class EnclaveMatching:
                     next_checkpoint=_next_checkpoint(pending),
                 )
             elif item["kind"] == "reveal":
-                card.update(card_of_peer=item["card"], node=item["node"], type=item["type"])
+                card.update(
+                    card_of_peer=item["card"],
+                    id=item.get("proposal"),  # the proposal that led here: one ID per reveal
+                    node=item["node"],
+                    type=item["type"],
+                )
             if item["kind"] != "empty":
                 out.append(card)
         return out

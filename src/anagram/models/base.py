@@ -134,8 +134,8 @@ class TextModel(ABC):
 
 
 def int_or_zero(value: object) -> int:
-    """An int count from a provider answer; any other value is 0."""
-    return value if isinstance(value, int) and not isinstance(value, bool) else 0
+    """A non-negative int count from a provider answer; any other value is 0."""
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else 0
 
 
 def check_model(model: TextModel, allowed: bool) -> None:
@@ -151,11 +151,20 @@ def parse_prices(prices: object) -> tuple[Decimal, Decimal] | None:
     """Prices from a profile (two numbers or number strings). None stays None."""
     if prices is None:
         return None
+    if not isinstance(prices, list | tuple) or len(prices) != 2:
+        raise ModelError("invalid_prices")
+    if any(isinstance(p, bool) for p in prices):
+        raise ModelError("invalid_prices")
     try:
-        price_in, price_out = (Decimal(str(p)) for p in prices)  # type: ignore[union-attr]
+        price_in, price_out = (Decimal(str(p)) for p in prices)
     except (ArithmeticError, TypeError, ValueError) as exc:
         raise ModelError("invalid_prices") from exc
-    if not (price_in.is_finite() and price_out.is_finite()) or price_in < 0 or price_out < 0:
+    if (
+        not (price_in.is_finite() and price_out.is_finite())
+        or price_in < 0
+        or price_out < 0
+        or (price_in == 0 and price_out == 0)
+    ):
         raise ModelError("invalid_prices")
     return price_in, price_out
 

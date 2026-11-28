@@ -300,3 +300,17 @@ def test_a_lab_source_is_not_removed_here(member, places, monkeypatch):  # noqa:
         assert row["own"] is False
     finally:
         SOURCES.unregister(LabFolder.kind)
+
+
+def test_remove_source_handles_kind_override_foreign_key(index, two_sources):
+    from anagram.local.understanding import kinds
+
+    a, b = two_sources
+    item_id = index.store.one("SELECT id FROM item WHERE source_id = ? LIMIT 1", (a,))[0]
+    kinds.set_override(index, item_id, "finding")
+    out = retention.remove_source(index, a)
+    assert out["removed_items"] == 2
+    assert (
+        index.store.one("SELECT count(*) FROM kind_override WHERE item_id = ?", (item_id,))[0] == 0
+    )
+    assert b in index.sources()

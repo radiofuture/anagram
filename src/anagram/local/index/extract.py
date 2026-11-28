@@ -30,7 +30,9 @@ import email.policy
 import email.utils
 import io
 import json
+import os
 import re
+import stat
 import struct
 import subprocess  # git is called with fixed arguments only
 import zipfile
@@ -49,12 +51,27 @@ from anagram.local.index.media import (  # noqa: F401
 
 MAX_TEXT_BYTES = 4 * 1024 * 1024
 MAX_ZIP_PART = 16 * 1024 * 1024
+MAX_ZIP_TOTAL = 32 * 1024 * 1024
+MAX_PDF_STREAM = 4 * 1024 * 1024
+MAX_PDF_TOTAL = 16 * 1024 * 1024
 CSV_SAMPLE_ROWS = 5
 MAX_IPYNB_CELLS = 2000
 MAX_IPYNB_CELL_CHARS = 65_536
 MAX_IPYNB_OUTPUT_CHARS = 2048
 MAX_IPYNB_OUTPUTS_PER_CELL = 8
 MAX_IPYNB_UNBROKEN_LINE = 512
+
+
+def _zlib_decompress(data: bytes, max_bytes: int) -> bytes:
+    """Bounded zlib decompression: reject streams expanding past `max_bytes`."""
+    obj = zlib.decompressobj()
+    out = obj.decompress(data, max_bytes)
+    if obj.unconsumed_tail:
+        raise zlib.error("decompressed data exceeds limit")
+    tail = obj.flush()
+    if len(out) + len(tail) > max_bytes:
+        raise zlib.error("decompressed data exceeds limit")
+    return out + tail
 
 
 @dataclass
@@ -151,14 +168,23 @@ _NS_P = "{http://schemas.openxmlformats.org/presentationml/2006/main}"
 _NS_DC = "{http://purl.org/dc/elements/1.1/}"
 
 
-def _zip_part(zf: zipfile.ZipFile, name: str) -> bytes | None:
+def _zip_part(zf: zipfile.ZipFile, name: str, limit: int = MAX_ZIP_PART) -> bytes | None:
+    if limit <= 0:
+        return None
     try:
         info = zf.getinfo(name)
     except KeyError:
         return None
-    if info.file_size > MAX_ZIP_PART:
+    if info.file_size > limit:
         return None
-    return zf.read(info)
+    try:
+        with zf.open(info) as fh:
+            raw = fh.read(limit + 1)
+    except (zipfile.BadZipFile, zlib.error, OSError):
+        return None
+    if len(raw) > limit:
+        return None
+    return raw
 
 
 def _xml(data: bytes) -> ET.Element:
@@ -167,8 +193,8 @@ def _xml(data: bytes) -> ET.Element:
     return ET.fromstring(data)  # noqa: S314
 
 
-def _core_title(zf: zipfile.ZipFile) -> str | None:
-    raw = _zip_part(zf, "docProps/core.xml")
+def _core_title(zf: zipfile.ZipFile, limit: int = MAX_ZIP_PART) -> str | None:
+    raw = _zip_part(zf, "docProps/core.xml", min(MAX_TEXT_BYTES, limit))
     if raw is None:
         return None
     try:
@@ -183,37 +209,42 @@ def extract_pptx(data: bytes, name: str, media_type: str) -> Extracted:
         zf = zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile:
         return Extracted(kind="slides", note="pptx: not a zip file")
-    slides = []
-    for n in zf.namelist():
-        m = re.fullmatch(r"ppt/slides/slide(\d+)\.xml", n)
-        if m:
-            slides.append((int(m.group(1)), n))
-    out = []
-    for _num, part in sorted(slides):
-        raw = _zip_part(zf, part)
-        if raw is None:
-            continue
-        try:
-            root = _xml(raw)
-        except ET.ParseError:
-            continue
-        shapes = []
-        for sp in root.iter(f"{_NS_P}sp"):
-            paras = []
-            for p in sp.iter(f"{_NS_A}p"):
-                t = "".join(r.text or "" for r in p.iter(f"{_NS_A}t")).strip()
-                if t:
-                    paras.append(t)
-            if paras:
-                shapes.append(paras)
-        if not shapes:
-            continue
-        # First shape is the slide title.
-        out.append(f"# {' '.join(shapes[0])}")
-        for paras in shapes[1:]:
-            out.extend(f"- {p}" for p in paras)
-        out.append("")
-    title = _core_title(zf)
+    with zf:
+        slides = []
+        for n in zf.namelist():
+            m = re.fullmatch(r"ppt/slides/slide(\d+)\.xml", n)
+            if m:
+                slides.append((int(m.group(1)), n))
+        out = []
+        remaining = MAX_ZIP_TOTAL
+        for _num, part in sorted(slides):
+            if remaining <= 0:
+                break
+            raw = _zip_part(zf, part, min(MAX_ZIP_PART, remaining))
+            if raw is None:
+                continue
+            remaining -= len(raw)
+            try:
+                root = _xml(raw)
+            except ET.ParseError:
+                continue
+            shapes = []
+            for sp in root.iter(f"{_NS_P}sp"):
+                paras = []
+                for p in sp.iter(f"{_NS_A}p"):
+                    t = "".join(r.text or "" for r in p.iter(f"{_NS_A}t")).strip()
+                    if t:
+                        paras.append(t)
+                if paras:
+                    shapes.append(paras)
+            if not shapes:
+                continue
+            # First shape is the slide title.
+            out.append(f"# {' '.join(shapes[0])}")
+            for paras in shapes[1:]:
+                out.extend(f"- {p}" for p in paras)
+            out.append("")
+        title = _core_title(zf, remaining)
     return Extracted(
         kind="slides",
         title=title,
@@ -227,27 +258,29 @@ def extract_docx(data: bytes, name: str, media_type: str) -> Extracted:
         zf = zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile:
         return Extracted(kind="document", note="docx: not a zip file")
-    raw = _zip_part(zf, "word/document.xml")
-    if raw is None:
-        return Extracted(kind="document", note="docx: no word/document.xml")
-    try:
-        root = _xml(raw)
-    except ET.ParseError as exc:
-        return Extracted(kind="document", note=f"docx: {exc}")
-    lines = []
-    for p in root.iter(f"{_NS_W}p"):
-        t = "".join(r.text or "" for r in p.iter(f"{_NS_W}t")).strip()
-        if not t:
-            lines.append("")
-            continue
-        style = p.find(f"{_NS_W}pPr/{_NS_W}pStyle")
-        sval = style.get(f"{_NS_W}val", "") if style is not None else ""
-        if sval.lower().startswith(("heading", "title")):
-            lines.append(f"# {t}")
-        else:
-            lines.append(t)
-            lines.append("")
-    return Extracted(kind="document", title=_core_title(zf), text="\n".join(lines))
+    with zf:
+        raw = _zip_part(zf, "word/document.xml", MAX_ZIP_PART)
+        if raw is None:
+            return Extracted(kind="document", note="docx: no word/document.xml")
+        try:
+            root = _xml(raw)
+        except ET.ParseError as exc:
+            return Extracted(kind="document", note=f"docx: {exc}")
+        lines = []
+        for p in root.iter(f"{_NS_W}p"):
+            t = "".join(r.text or "" for r in p.iter(f"{_NS_W}t")).strip()
+            if not t:
+                lines.append("")
+                continue
+            style = p.find(f"{_NS_W}pPr/{_NS_W}pStyle")
+            sval = style.get(f"{_NS_W}val", "") if style is not None else ""
+            if sval.lower().startswith(("heading", "title")):
+                lines.append(f"# {t}")
+            else:
+                lines.append(t)
+                lines.append("")
+        title = _core_title(zf, MAX_ZIP_TOTAL - len(raw))
+    return Extracted(kind="document", title=title, text="\n".join(lines))
 
 
 # ------------------------------------------------------------------ email
@@ -378,7 +411,7 @@ def extract_eml(
 def extract_png(data: bytes, name: str, media_type: str) -> Extracted:
     if not data.startswith(b"\x89PNG\r\n\x1a\n"):
         return Extracted(kind="image", note="png: bad signature", prose=False)
-    pos, meta, texts = 8, {}, {}
+    pos, meta, texts, text_bytes = 8, {}, {}, 0
     while pos + 8 <= len(data):
         (length,) = struct.unpack(">I", data[pos : pos + 4])
         kind = data[pos + 4 : pos + 8]
@@ -388,22 +421,31 @@ def extract_png(data: bytes, name: str, media_type: str) -> Extracted:
             meta["width"], meta["height"] = struct.unpack(">II", body[:8])
         elif kind == b"tEXt" and b"\x00" in body:
             k, v = body.split(b"\x00", 1)
-            texts[k.decode("latin-1")] = v.decode("latin-1")
+            if text_bytes + len(v) <= MAX_TEXT_BYTES:
+                texts[k.decode("latin-1")] = v.decode("latin-1")
+                text_bytes += len(v)
         elif kind == b"zTXt" and b"\x00" in body:
             k, rest = body.split(b"\x00", 1)
-            try:
-                texts[k.decode("latin-1")] = zlib.decompress(rest[1:]).decode("latin-1")
-            except zlib.error:
-                pass
+            remaining = MAX_TEXT_BYTES - text_bytes
+            if remaining > 0 and len(rest) > 1:
+                try:
+                    raw = _zlib_decompress(rest[1:], remaining)
+                    texts[k.decode("latin-1")] = raw.decode("latin-1")
+                    text_bytes += len(raw)
+                except zlib.error:
+                    pass
         elif kind == b"iTXt" and b"\x00" in body:
             k, rest = body.split(b"\x00", 1)
             flag = rest[0] if rest else 0
             parts = rest[2:].split(b"\x00", 2)
-            if len(parts) == 3:
+            remaining = MAX_TEXT_BYTES - text_bytes
+            if len(parts) == 3 and remaining > 0:
                 raw = parts[2]
                 try:
-                    raw = zlib.decompress(raw) if flag else raw
-                    texts[k.decode("latin-1")] = raw.decode("utf-8")
+                    raw = _zlib_decompress(raw, remaining) if flag else raw
+                    if len(raw) <= remaining:
+                        texts[k.decode("latin-1")] = raw.decode("utf-8")
+                        text_bytes += len(raw)
                 except (zlib.error, UnicodeDecodeError):
                     pass
         elif kind == b"IEND":
@@ -464,10 +506,14 @@ def _pdf_unescape(s: bytes) -> bytes:
             if n in _ESC:
                 out += _ESC[n]
                 i += 2
-            elif n.isdigit():
+            elif b"0" <= n <= b"7":
                 m = re.match(rb"[0-7]{1,3}", s[i + 1 : i + 4])
-                out.append(int(m.group(0), 8) & 0xFF)
-                i += 1 + len(m.group(0))
+                if m is not None:
+                    out.append(int(m.group(0), 8) & 0xFF)
+                    i += 1 + len(m.group(0))
+                else:  # pragma: no cover - n is already in 0..7
+                    out += n
+                    i += 2
             else:
                 out += n
                 i += 2
@@ -481,13 +527,17 @@ def extract_pdf(data: bytes, name: str, media_type: str) -> Extracted:
     if not data.startswith(b"%PDF-"):
         return Extracted(kind="pdf", note="pdf: bad signature")
     lines: list[str] = []
+    remaining = MAX_PDF_TOTAL
     for m in _STREAM.finditer(data):
         head, body = m.group(1), m.group(2)
         if b"/FlateDecode" in head:
+            if remaining <= 0:
+                break
             try:
-                body = zlib.decompress(body)
+                body = _zlib_decompress(body, min(MAX_PDF_STREAM, remaining))
             except zlib.error:
                 continue
+            remaining -= len(body)
         elif b"/Filter" in head:
             continue  # other filters are not read
         if b"BT" not in body:
@@ -1137,14 +1187,31 @@ def repo_summary(repo: Path, git: str | None, env: dict[str, str]) -> Extracted:
         files = sorted(
             p.relative_to(repo).as_posix()
             for p in repo.rglob("*")
-            if p.is_file() and ".git" not in p.relative_to(repo).parts
+            if not p.is_symlink() and p.is_file() and ".git" not in p.relative_to(repo).parts
         )
     readme = ""
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
     for n in README_NAMES:
         p = repo / n
-        if p.is_file() and p.stat().st_size <= MAX_TEXT_BYTES:
-            readme = decode_text(p.read_bytes())
-            break
+        if p.is_symlink():
+            continue
+        try:
+            fd = os.open(p, flags)
+        except OSError:
+            continue
+        try:
+            st = os.fstat(fd)
+            if not stat.S_ISREG(st.st_mode) or st.st_size > MAX_TEXT_BYTES:
+                continue
+            with os.fdopen(fd, "rb") as fh:
+                fd = -1
+                raw = fh.read(MAX_TEXT_BYTES + 1)
+            if len(raw) <= MAX_TEXT_BYTES:
+                readme = decode_text(raw)
+                break
+        finally:
+            if fd >= 0:
+                os.close(fd)
     text = readme + "\n\n# Files\n" + "\n".join(f"- {f}" for f in files[:500])
     title = None
     for line in readme.splitlines():

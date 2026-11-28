@@ -173,7 +173,8 @@ def urllib_http(timeout: int = 60, max_bytes: int = MAX_BYTES) -> HttpTransport:
             with _opener().open(req, timeout=timeout) as resp:
                 return HttpResponse(resp.status, _lower(resp.headers), _read(resp, max_bytes))
         except urllib.error.HTTPError as exc:
-            return HttpResponse(exc.code, _lower(exc.headers), _read(exc, max_bytes))
+            with exc:
+                return HttpResponse(exc.code, _lower(exc.headers), _read(exc, max_bytes))
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             # The class name only: the text of the error can hold the URL.
             raise SourceFault("offline", type(exc).__name__) from None

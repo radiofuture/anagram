@@ -183,7 +183,7 @@ class SyncEngine:
             fault = (exc.code, exc.detail, exc.retry_at)
         except Exception as exc:  # one bad source must not stop the rest
             # The class name only: an exception text can hold a URL or item text.
-            log.warning("sync of a source failed: %s", type(exc).__name__, exc_info=True)
+            log.warning("sync of a source failed: %s", type(exc).__name__)
             fault = ("unknown", type(exc).__name__, None)
         finally:
             close = getattr(changes, "close", None)

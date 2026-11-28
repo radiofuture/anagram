@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import re
+import urllib.parse
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -112,6 +113,13 @@ class ZoteroFileConnector(Connector):
 
 KEY_URL = f"{API}/keys/current"
 _KEY = re.compile(r"^[A-Za-z0-9]{8,64}$")
+_USER_ID = re.compile(r"^[0-9]{1,20}$")
+
+
+def _check_user_id(user_id: object) -> str:
+    if not isinstance(user_id, str) or not _USER_ID.match(user_id):
+        raise ConnectorError("invalid Zotero user ID")
+    return user_id
 
 
 def check_key(key: str, transport: Transport) -> dict:
@@ -162,7 +170,7 @@ class ZoteroWebConnector(Connector):
         *,
         account: str | None = None,
     ) -> None:
-        self.user_id = user_id
+        self.user_id = _check_user_id(user_id)
         self._key = api_key
         self.transport = transport or urllib_transport()
         self.limit = limit
@@ -182,9 +190,10 @@ class ZoteroWebConnector(Connector):
         start = 0
         key = self._key() if callable(self._key) else self._key
         headers = {"Zotero-API-Key": key, "Zotero-API-Version": "3"}
+        uid = urllib.parse.quote(_check_user_id(self.user_id), safe="")
         while True:
             url = with_query(
-                f"{API}/users/{self.user_id}/items",
+                f"{API}/users/{uid}/items",
                 {"format": "csljson", "limit": self.limit, "start": start},
             )
             status, body = self.transport("GET", url, headers, None)

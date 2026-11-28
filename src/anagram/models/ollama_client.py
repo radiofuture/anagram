@@ -18,7 +18,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from anagram.models.http import LOOPBACK_HOSTS, is_loopback
+from anagram.models.base import ModelError
+from anagram.models.http import LOOPBACK_HOSTS, _NoRedirect, check_url, is_loopback
 
 __all__ = ["LOOPBACK_HOSTS", "OllamaClient", "OllamaError", "is_loopback"]
 
@@ -29,6 +30,7 @@ CHAT_TIMEOUT = 180.0
 
 # transport(method, url, body or None, timeout) -> parsed JSON
 Transport = Callable[[str, str, dict | None, float], Any]
+_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect)
 
 
 class OllamaError(Exception):
@@ -36,12 +38,18 @@ class OllamaError(Exception):
 
 
 def _urllib_transport(method: str, url: str, body: dict | None, timeout: float) -> Any:
+    try:
+        checked = check_url(url)
+    except ModelError as exc:
+        raise OllamaError(f"Ollama URL is not valid: {exc.code}") from None
+    if not is_loopback(checked):
+        raise OllamaError("Ollama must run on this computer (a loopback URL)")
     data = None if body is None else json.dumps(body).encode()
-    req = urllib.request.Request(  # noqa: S310 - loopback URL, checked in OllamaClient
-        url, data=data, method=method, headers={"Content-Type": "application/json"}
+    req = urllib.request.Request(  # noqa: S310 - loopback URL, checked above
+        checked, data=data, method=method, headers={"Content-Type": "application/json"}
     )
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+        with _OPENER.open(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode())
     except (urllib.error.URLError, OSError, ValueError) as exc:
         raise OllamaError(f"{type(exc).__name__}: {exc}") from exc
@@ -55,9 +63,12 @@ class OllamaClient:
     _transport: Transport = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
+        try:
+            self.url = check_url(self.url)
+        except ModelError as exc:
+            raise OllamaError(f"Ollama URL is not valid: {exc.code}") from None
         if not is_loopback(self.url):
             raise OllamaError("Ollama must run on this computer (a loopback URL)")
-        self.url = self.url.rstrip("/")
         self._transport = self.transport or _urllib_transport
 
     def models(self, timeout: float = PROBE_TIMEOUT) -> list[str]:

@@ -83,7 +83,9 @@ class Scanner:
         except source_state.SourceStateError:
             pass  # the source is being removed, or it is gone
 
-    def scan_source(self, sid: str, report: ScanReport, full: bool = False) -> None:
+    def scan_source(
+        self, sid: str, report: ScanReport, full: bool = False, *, run_after: bool = True
+    ) -> None:
         """Scan one source into `report`. With `full`, hash each file again."""
         index = self.index
         src = index.source(sid)
@@ -98,7 +100,6 @@ class Scanner:
                 report.more.append(sid)
             return
         t = self._scan_all(sid, src, conn, report, full)
-        self.after_scan(sid)
         if state is not None and (
             state.error_code is not None or state.stored_status == source_state.FIRST_SYNC
         ):
@@ -109,6 +110,8 @@ class Scanner:
                 now=t,
                 publish=source_state.publisher(self.store, index.clock),
             )
+        if run_after:
+            self.after_scan(sid)
 
     def _scan_all(self, sid: str, src: dict, conn, report: ScanReport, full: bool) -> float:
         """A contract v1 scan: all items of the source in one transaction.

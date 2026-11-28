@@ -382,3 +382,59 @@ def test_tex_fragment_and_unclosed_braces_are_bounded():
     assert "12% with nested {braces} and italics." in ex.text
     assert "Fragment comment" not in ex.text
     assert "tail" in ex.text
+
+
+def test_decompression_bombs_and_pdf_octal_and_readme_symlink(tmp_path):
+    from anagram.local.index import extract as ex_mod
+    from anagram.local.index.media import sniff_bytes
+
+    # PNG zTXt bomb exceeding MAX_TEXT_BYTES is skipped without unbounded expansion.
+    bomb = zlib.compress(b"A" * (ex_mod.MAX_TEXT_BYTES + 10_000))
+    ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
+
+    def chunk(kind: bytes, body: bytes) -> bytes:
+        return (
+            struct.pack(">I", len(body))
+            + kind
+            + body
+            + struct.pack(">I", zlib.crc32(kind + body) & 0xFFFFFFFF)
+        )
+
+    png = (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", ihdr)
+        + chunk(b"zTXt", b"Comment\x00\x00" + bomb)
+        + chunk(b"IEND", b"")
+    )
+    got_png = extract_bytes(png, "bomb.png", "image/png")
+    assert got_png.meta.get("text") == {}
+
+    # PDF FlateDecode bomb exceeding MAX_PDF_STREAM is skipped cleanly.
+    pdf_bomb = _pdf(b"(" + b"B" * (ex_mod.MAX_PDF_STREAM + 10_000) + b") Tj", flate=True)
+    got_pdf = extract_bytes(pdf_bomb, "bomb.pdf", "application/pdf")
+    assert got_pdf.text == ""
+
+    # _pdf_unescape does not crash on \8 or \9 (non-octal digits).
+    assert ex_mod._pdf_unescape(b"\\8\\9\\101") == b"89A"
+
+    # Oversized ZIP entry payload is capped and rejected.
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("word/document.xml", "<w:t>" + "C" * (ex_mod.MAX_ZIP_PART + 2048) + "</w:t>")
+    got_docx = extract_bytes(buf.getvalue(), "bomb.docx", media_type_for("bomb.docx"))
+    assert got_docx.text == ""
+
+    # Media sniff on EPUB-like zip with huge mimetype entry stays bounded.
+    ebuf = io.BytesIO()
+    with zipfile.ZipFile(ebuf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("mimetype", b"x" * 100_000)
+    assert sniff_bytes(ebuf.getvalue(), "huge.zip") == "application/zip"
+
+    # Symlinked README.md in repo_summary is skipped.
+    secret = tmp_path / "secret.txt"
+    secret.write_text("TOP SECRET README")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "README.md").symlink_to(secret)
+    summary = repo_summary(repo, None, {})
+    assert "TOP SECRET README" not in summary.text

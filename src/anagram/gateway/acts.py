@@ -160,22 +160,22 @@ def decide(index: Any, act_id: str, approve: bool, now: str, apply: Apply) -> Ac
     """The person's decision in the local UI. For an approval, `apply` runs
     first; the entry is approved only if it did not fail. Raises KeyError
     for an entry that is not pending."""
-    rows = _rows(index)
-    row = next((r for r in rows if r["id"] == act_id and r.get("state") == PENDING), None)
-    if row is None:
-        raise KeyError(act_id)
-    act = _act(row)
-    if approve:
-        grant = find(index, act.grant_id)
-        if grant is None or grant.state(date.fromisoformat(now[:10])) != ACTIVE:
-            raise ActError("This assistant has no access now. Decline the proposal.")
-        apply(act)
-    done = replace(act, state=APPROVED if approve else DECLINED, decided_at=now)
     with index.store.transaction():
         rows = _rows(index)
-        for n, r in enumerate(rows):
-            if r["id"] == act_id:
-                rows[n] = done.json()
+        pos = next(
+            (n for n, r in enumerate(rows) if r["id"] == act_id and r.get("state") == PENDING),
+            None,
+        )
+        if pos is None:
+            raise KeyError(act_id)
+        act = _act(rows[pos])
+        if approve:
+            grant = find(index, act.grant_id)
+            if grant is None or grant.state(date.fromisoformat(now[:10])) != ACTIVE:
+                raise ActError("This assistant has no access now. Decline the proposal.")
+            apply(act)
+        done = replace(act, state=APPROVED if approve else DECLINED, decided_at=now)
+        rows[pos] = done.json()
         _save(index, rows)
     return done
 

@@ -34,7 +34,7 @@ import threading
 import time
 import urllib.parse
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -203,6 +203,10 @@ class CredentialStore:
             else:
                 account_id = row["id"]
                 scopes = sorted(set(loads(row["scopes"]) or ()) | set(tokens.scopes))
+                if not tokens.refresh_token:
+                    old = self.tokens(account_id)
+                    if old is not None and old.refresh_token:
+                        tokens = replace(tokens, refresh_token=old.refresh_token)
                 self.store.x(
                     "UPDATE account SET label = ?, scopes = ?, status = 'ok' WHERE id = ?",
                     (label, dumps(scopes), account_id),

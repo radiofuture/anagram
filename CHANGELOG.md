@@ -98,6 +98,27 @@ The first release for labs, and private matching through a network enclave.
   `IdentityService.key_state()` read-only, wrapped invite claims in atomic
   transactions, enforced key backup size/count limits, and verified signatures
   in `NodePersonalStore.put_person_keys()`.
+- **Models and spend gate.** Rejected zero-price or non-sequence price tuples,
+  non-positive ledger reservations, and lab profiles undercutting built-in
+  model price tables; included canonical sorted OpenRouter `route` in
+  `profile_id` and `same_party`; halted the spend ledger on invalid, negative,
+  or non-finite provider-reported costs and clamped negative token counts;
+  disabled external proxies and HTTP redirects for `OllamaClient` and loopback
+  model transports.
+- **Local sources, extractors, and understanding.** Blocked Git `rev` argument
+  injection (`--end-of-options`), Google Drive query injection via strict folder
+  ID validation and escaping, cross-host redirects and URL path injection in v1
+  source connectors, decompression bombs in PNG/PDF/Office/ZIP extraction, and
+  symlink reads in local file ingestion and repo summaries; enforced scope,
+  source/lab opt-in, third-party exclusion, stripped quoted text, and
+  disclosure logging across drafters, external enrichers, and failed external
+  ask/digest calls; fixed `TrustPolicy.item_tier` folder prefix boundaries,
+  Obsidian fail-closed private frontmatter and >4 MiB privacy checks, and
+  `0o600` permissions / leftover journal cleanup for `index.sqlite`.
+- **MCP gateway.** Rejected expired grant bearer keys at HTTP auth, duplicate
+  `Host` headers, and reads from sources being removed; made grant updates,
+  daily character quota enforcement, `acts.decide`, and `propose_lines`
+  rollback transactional.
 
 ### Fixed
 
@@ -137,3 +158,15 @@ The first release for labs, and private matching through a network enclave.
   computer" flow status, deep-linking to `#/account#models-title`, optional
   institution entry, copy polish across screens, and confirmation dialogs for
   destructive actions.
+- Summed token counts and costs across both billed attempts on `OpenAICompatModel`
+  `text`-mode retries.
+- Prevented `remove_source` foreign-key failures when items have `kind_override`
+  rows, preserved existing OAuth `refresh_token` on re-grant, prevented
+  concurrent `Streams.checkpoint` overwrites, and fixed `ProfileLens` cache
+  keying on `published` sets and error handling.
+- Fixed `Gateway` multi-client HTTP/1.1 concurrency via `ThreadingHTTPServer`
+  with request timeouts, `IndexStore` nested `SAVEPOINT` transactions,
+  `vec_store` search loop termination, RFC 2822 email date parsing, Git `\x1e`
+  commit parsing, Gmail label add/remove history sync, Notion empty timestamp
+  and stop handling, `LoopbackReceiver` IPv6/timeout cleanup, stranded
+  understanding job recovery, redacted error logging, and `after_scan` ordering.

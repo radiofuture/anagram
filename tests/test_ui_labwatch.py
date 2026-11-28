@@ -128,3 +128,65 @@ def test_failed_turn_backs_off():
         with pytest.raises(OSError):
             w.run()
     assert w.wait() == MAX_WAIT
+
+
+def test_stop_cancels_in_flight_http_long_poll():
+    """Stopping `TaskRunner` aborts an in-flight `/labs/changes` HTTP long-poll
+    immediately rather than waiting for the 25 s poll or 5 s join timeout."""
+    import http.server
+    import threading
+    import time
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    from anagram.core.nodeapi import HttpNode
+    from anagram.shell.ui.tasks import TaskRunner
+
+    entered = threading.Event()
+    release = threading.Event()
+
+    class SlowHandler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            entered.set()
+            release.wait(10.0)
+            try:
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b'{"changes":[],"next":0}')
+            except OSError:
+                pass
+
+        def log_message(self, *_args):
+            pass
+
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), SlowHandler)
+    port = srv.server_address[1]
+    srv_thread = threading.Thread(target=srv.serve_forever, daemon=True)
+    srv_thread.start()
+    try:
+        http_node = HttpNode(f"http://127.0.0.1:{port}", token="tok")  # noqa: S106
+
+        class FakeSvc:
+            transport = None
+
+            @contextmanager
+            def open_client(self, index=False):
+                yield SimpleNamespace(
+                    config={"labs": {"poll_wait": 25}},
+                    device=SimpleNamespace(http=http_node),
+                )
+
+        watch = LabWatch(FakeSvc())
+        watch.cursor = 1  # skip _head so the first turn enters the 25 s long-poll
+        watch._full_at = time.monotonic()
+        tasks = TaskRunner()
+        tasks.add("lab.watch", watch.run, every_s=watch.wait, on_stop=watch.stop)
+        tasks.start()
+        assert entered.wait(5.0)
+        t0 = time.monotonic()
+        tasks.stop()
+        assert time.monotonic() - t0 < 1.0
+    finally:
+        release.set()
+        srv.shutdown()
+        srv.server_close()

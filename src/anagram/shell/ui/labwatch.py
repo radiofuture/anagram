@@ -19,10 +19,17 @@ in a row, at most 5 minutes. Client config (`config.json`, key `labs`):
 
 from __future__ import annotations
 
+import contextlib
+import http.client
+import json
+import socket
+import threading
 import time
+import urllib.parse
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+from anagram.core.nodeapi import NodeHTTPError
 from anagram.network.api import (
     sync_lab_index,
 )
@@ -34,6 +41,7 @@ POLL_WAIT = 25.0
 POLL_MIN = 5.0
 MAX_WAIT = 300.0
 FULL_EVERY_S = 300.0
+_STOPPED = object()
 CHANGE_OF_OP = {
     "create": "joined",
     "join": "joined",
@@ -139,6 +147,22 @@ class LabWatch:
         self.failures = 0
         self.poll_min = POLL_MIN
         self._full_at = 0.0
+        self._lock = threading.Lock()
+        self._stopped = False
+        self._conn: http.client.HTTPConnection | None = None
+
+    def stop(self) -> None:
+        """Abort any in-flight `/labs/changes` long-poll immediately."""
+        with self._lock:
+            self._stopped = True
+            conn = self._conn
+        if conn is not None:
+            sock = conn.sock
+            if sock is not None:
+                with contextlib.suppress(OSError):
+                    sock.shutdown(socket.SHUT_RDWR)
+            with contextlib.suppress(OSError):
+                conn.close()
 
     def wait(self) -> float:
         """The wait before the next turn: none after a good turn (the long
@@ -151,6 +175,8 @@ class LabWatch:
         try:
             self.turn()
         except Exception:  # count the fault, then raise it again
+            if self._stopped:
+                return
             self.failures += 1
             raise
         self.failures = 0
@@ -163,35 +189,99 @@ class LabWatch:
         low = float(low) if isinstance(low, int | float) and low > 0 else POLL_MIN
         return max(0.0, min(wait, 25.0)), low
 
-    def _poll(self, c: Any, wait: float) -> set[str] | None:
-        """The labs with a change, or None for "sync all"."""
+    def _get(self, c: Any, path: str, timeout: float) -> dict | None:
+        """`GET path` with auth. For real HTTP, uses a closeable connection so
+        `stop()` aborts the long-poll immediately instead of waiting for the
+        server or a join timeout."""
+        if getattr(self.service, "transport", None) is not None:
+            return c.device.http.call("GET", path, auth=True)
+        http_node = c.device.http
+        if not http_node.token:
+            raise NodeHTTPError(401, "no session; run `anagram login` to sign in again")
+        parsed = urllib.parse.urlsplit(http_node.base_url)
+        if parsed.scheme not in ("http", "https") or not parsed.hostname:
+            raise ValueError("node URL must be http(s)")
+        cls = (
+            http.client.HTTPSConnection if parsed.scheme == "https" else http.client.HTTPConnection
+        )
+        conn = cls(parsed.hostname, parsed.port, timeout=timeout)
+        with self._lock:
+            if self._stopped:
+                return None
+            self._conn = conn
+        try:
+            conn.connect()
+            with self._lock:
+                if self._stopped:
+                    return None
+            full_path = parsed.path.rstrip("/") + path
+            conn.request(
+                "GET",
+                full_path,
+                headers={"Authorization": f"Bearer {http_node.token}"},
+            )
+            resp = conn.getresponse()
+            raw = resp.read()
+        except (OSError, http.client.HTTPException):
+            if self._stopped:
+                return None
+            raise
+        finally:
+            with self._lock:
+                if self._conn is conn:
+                    self._conn = None
+            with contextlib.suppress(OSError):
+                conn.close()
+        if resp.status >= 400:
+            try:
+                detail = json.loads(raw).get("detail", "")
+            except (ValueError, AttributeError):
+                detail = resp.reason
+            raise NodeHTTPError(resp.status, str(detail))
+        return json.loads(raw)
+
+    def _poll(self, c: Any, wait: float) -> set[str] | None | object:
+        """The labs with a change, None for "sync all", or `_STOPPED`."""
         full = self.cursor is None or self.clock() - self._full_at >= FULL_EVERY_S
         if self.cursor is None:
-            self.cursor = self._head(c)
+            head = self._head(c)
+            if head is None:
+                return _STOPPED
+            self.cursor = head
             return None
-        data = c.device.http.call(
-            "GET", f"/labs/changes?after={self.cursor}&wait={0 if full else wait:g}", auth=True
+        poll_wait = 0.0 if full else wait
+        data = self._get(
+            c,
+            f"/labs/changes?after={self.cursor}&wait={poll_wait:g}",
+            timeout=max(poll_wait + 30.0, 30.0),
         )
+        if data is None:
+            return _STOPPED
         self.cursor = max(self.cursor, int(data.get("next") or 0))
         if full:
             return None
         return {r["lab_id"] for r in data.get("changes") or [] if isinstance(r, dict)}
 
-    @staticmethod
-    def _head(c: Any) -> int:
+    def _head(self, c: Any) -> int | None:
         """The newest change now (the feed gives at most 500 rows a call)."""
         after = 0
         while True:
-            data = c.device.http.call("GET", f"/labs/changes?after={after}&wait=0", auth=True)
+            data = self._get(c, f"/labs/changes?after={after}&wait=0", timeout=30.0)
+            if data is None:
+                return None
             nxt = int(data.get("next") or after)
             if len(data.get("changes") or []) < 500 or nxt <= after:
                 return nxt
             after = nxt
 
     def turn(self) -> None:
+        if self._stopped:
+            return
         with self.service.open_client() as c:
             wait, self.poll_min = self._config(c)
             changed = self._poll(c, wait)
+        if changed is _STOPPED or self._stopped:
+            return
         with self.service.open_client(index=True) as (c, idx):
             before = snapshot(c)
             if changed is None:

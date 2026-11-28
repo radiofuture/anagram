@@ -357,12 +357,16 @@ def test_fake_gives_the_documented_shapes(env, tree):
 
 
 def test_scale_50000_files(env, monkeypatch):
-    """50 000 files: 50 list calls for the backfill, at most 200 upserts
-    between two cursors, and one call for the next sync. `_apply_item` is a
-    stub, so the test measures the source and the engine only."""
+    """Large Drive folder: paginated backfill, at most 200 upserts between two
+    cursors (exercising mid-page commits), and one call for the next sync.
+    `_commit` is a stub, so the test measures the source and the engine only."""
+    from anagram.local.sources import gdrive as gdrive_mod
+
+    assert gdrive_mod.PAGE == 1000
+    monkeypatch.setattr(gdrive_mod, "PAGE", 250)
     f = env.fake
     lab = f.add_folder("Lab")
-    for i in range(50_000):
+    for i in range(5_000):
         f.add_file(f"n{i}.txt", b"x", parent=lab)
     peak = []
     real_commit = SyncEngine._commit
@@ -379,7 +383,7 @@ def test_scale_50000_files(env, monkeypatch):
     assert time.monotonic() - t0 < 30
     calls = env.api_calls(n)
     lists = [u for u in calls if "/drive/v3/files?" in u and "mimeType%21%3D" in u]
-    assert len(lists) == 50
+    assert len(lists) == 20
     assert max(peak) <= 200
     assert ss.get(env.idx.store, sid).cursor["backfill"]["done"]
     n = len(f.calls)

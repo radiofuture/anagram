@@ -8,7 +8,8 @@ import sqlite3
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
-from anagram.models.ledger import BudgetLedger
+from anagram.models import ledger as ledger_mod
+from anagram.models.ledger import LEDGER_WAIT_SECONDS, BudgetLedger
 
 THREADS = 48
 CALLS = 25  # for each thread
@@ -70,15 +71,35 @@ def test_many_ledger_objects_one_file(tmp_path):
     _check(path)
 
 
-def test_waits_for_a_slow_writer(tmp_path):
-    """Another process holds the write lock for longer than the old 5 s
-    timeout of `sqlite3` (a slow disk, a backup, a second node process).
-    Each reserve and finish of the parallel threads waits; none fails."""
+def test_waits_for_a_slow_writer(tmp_path, monkeypatch):
+    """Another process holds the write lock longer than sqlite's busy timeout.
+    The default timeout is well past the old 5 s sqlite default, and each
+    reserve and finish of parallel threads retries cleanly until the writer
+    commits; none fails."""
     path = tmp_path / "spend.sqlite"
     ledger = BudgetLedger(path, "100")
+    assert LEDGER_WAIT_SECONDS >= 30.0
+    db = ledger._connect()
+    try:
+        assert db.execute("PRAGMA busy_timeout").fetchone()[0] == int(LEDGER_WAIT_SECONDS * 1000)
+    finally:
+        db.close()
+
+    # Use a short SQLite busy_timeout while keeping the retry deadline generous
+    # so the lock contention + Python retry backoff path is exercised fast.
+    real_connect = ledger._connect
+
+    def short_busy() -> sqlite3.Connection:
+        con = real_connect()
+        con.execute("PRAGMA busy_timeout = 50")
+        return con
+
+    monkeypatch.setattr(ledger, "_connect", short_busy)
+    monkeypatch.setattr(ledger_mod, "LEDGER_WAIT_SECONDS", 10.0)
+
     holder = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
     holder.execute("BEGIN IMMEDIATE")
-    release = threading.Timer(5.5, lambda: holder.execute("COMMIT"))
+    release = threading.Timer(0.25, lambda: holder.execute("COMMIT"))
     release.start()
     try:
         errors: list[BaseException] = []

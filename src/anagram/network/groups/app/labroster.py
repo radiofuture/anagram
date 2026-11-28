@@ -194,15 +194,12 @@ class LabRoster:
         )
 
     def was_keeper(self, lab_id: str, sender: str, from_seq: int) -> bool:
-        """True if `sender` had the role PI or admin at a roster seq from
-        `from_seq` to now (the verified chain in the cache)."""
-        state = self.new_state(lab_id)
-        auths = self.labcache.auths(lab_id)
-        for e in self.labcache.entries(lab_id):
-            state.apply(e, lambda *_: True, auths)
-            if state.seq >= from_seq and state.members.get(sender) in (labfmt.PI, labfmt.ADMIN):
-                return True
-        return False
+        """True if `sender` had the role PI or admin specifically at roster seq
+        `from_seq` (the verified chain in the cache)."""
+        if from_seq < 0:
+            return False
+        st = self.state_at(lab_id, from_seq)
+        return st.seq == from_seq and st.members.get(sender) in (labfmt.PI, labfmt.ADMIN)
 
 
 def _rule_text(op: str, detail: str) -> str:

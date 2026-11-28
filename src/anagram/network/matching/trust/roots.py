@@ -52,6 +52,7 @@ class Roots:
     amd_arks: tuple[tuple[str, str], ...] = AMD_ARK_SHA256  # product -> SHA-256 of the ARK DER
     intel_root: str = INTEL_ROOT_SHA256  # SHA-256 of the Intel SGX Root CA DER
     gcp_cs_root: str = GCP_CS_ROOT_SHA256  # SHA-256 of the Confidential Space Root CA DER
+    roster_key: str | None = None  # hex Ed25519 roster key, when pinned by the network
 
 
 def quorum_times(note_text: str, roots: Roots) -> tuple[bytes, int, int, int, bytes]:

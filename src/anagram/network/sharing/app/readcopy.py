@@ -42,12 +42,15 @@ _TEXT_SUFFIXES = {
     ".txt", ".md", ".markdown", ".json", ".py", ".r", ".sh", ".tex", ".yaml", ".yml",
     ".toml", ".c", ".h", ".cpp", ".js", ".ts", ".rs", ".go", ".java", ".jl", ".m",
 }  # fmt: skip
-_IMAGE_SUFFIXES = {
+_FIGURE_SUFFIXES = {
     ".png": "image/png",
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
     ".gif": "image/gif",
     ".webp": "image/webp",
+}
+_IMAGE_SUFFIXES = {
+    **_FIGURE_SUFFIXES,
     ".svg": "image/svg+xml",
 }
 _DOC_SUFFIXES = {".docx", ".html", ".htm", ".odt"}
@@ -124,13 +127,26 @@ def _table_xlsx(data: bytes) -> dict:
 
 
 def _zip_figures(data: bytes, folder: str) -> list[tuple[str, str, bytes]]:
-    out = []
+    out: list[tuple[str, str, bytes]] = []
+    remaining = READING_FIGURES_MAX
+    total_read = 0
+    read_cap = READING_FIGURES_MAX * 2
     with zipfile.ZipFile(io.BytesIO(data)) as zf:
         for info in sorted(zf.infolist(), key=lambda i: i.filename):
+            if info.is_dir() or remaining <= 0 or total_read >= read_cap:
+                continue
             p = PurePosixPath(info.filename)
-            mt = _IMAGE_SUFFIXES.get(p.suffix.lower())
-            if str(p.parent) == folder and mt and info.file_size <= READING_FIGURES_MAX:
-                out.append((p.stem, mt, zf.read(info)))
+            mt = _FIGURE_SUFFIXES.get(p.suffix.lower())
+            if str(p.parent) != folder or not mt:
+                continue
+            limit = min(remaining + 1, read_cap - total_read)
+            with zf.open(info) as fp:
+                raw = fp.read(limit)
+            total_read += len(raw)
+            if len(raw) > remaining:
+                continue
+            out.append((p.stem, mt, raw))
+            remaining -= len(raw)
     return out
 
 

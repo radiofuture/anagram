@@ -123,7 +123,11 @@ def accept_release(
     read after `find` has the form that `check_entry` checked."""
     digest = _digest(release)
     index = view.find(digest)
-    if index is None or release["signer"] != roots.release_key:
+    if (
+        index is None
+        or release.get("kind") != "enclave_release"
+        or release["signer"] != roots.release_key
+    ):
         raise Refused("release_not_logged")
     if view.revoked({"release": digest.hex()}, roots):
         raise Refused("release_revoked")

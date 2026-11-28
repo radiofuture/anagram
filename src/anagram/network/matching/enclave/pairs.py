@@ -153,7 +153,11 @@ class Matching:
                 except ReleaseDenied:
                     self.count("release_denied")
             reply = bytes.fromhex(s.reply_key)
-            sealed = m.seal_slot(reply, day, m.slot_doc(day, item, output))
+            try:
+                sealed = m.seal_slot(reply, day, m.slot_doc(day, item, output))
+            except ValueError:
+                self.count("bad_reply_key")
+                continue
             address = m.slot_address(day, reply).hex()
             nodes.setdefault(s.node, {})[address] = base64.b64encode(sealed).decode("ascii")
         entries = {n: [[a, v[a]] for a in sorted(v)] for n, v in nodes.items()}

@@ -124,9 +124,16 @@ class FakeGoogle:
         if self._chain is None:
 
             def cert(
-                subject: str, issuer: str, pub: object, signer: rsa.RSAPrivateKey, days: int
+                subject: str,
+                issuer: str,
+                pub: object,
+                signer: rsa.RSAPrivateKey,
+                days: int,
+                *,
+                ca: bool = False,
+                crl_sign: bool = False,
             ) -> bytes:
-                c = (
+                b = (
                     x509.CertificateBuilder()
                     .subject_name(_name(subject))
                     .issuer_name(_name(issuer))
@@ -134,17 +141,42 @@ class FakeGoogle:
                     .serial_number(x509.random_serial_number())
                     .not_valid_before(NOW - dt.timedelta(days=1))
                     .not_valid_after(NOW + dt.timedelta(days=days))
-                    .sign(signer, hashes.SHA256())
+                    .add_extension(x509.BasicConstraints(ca=ca, path_length=None), critical=True)
                 )
+                if ca:
+                    b = b.add_extension(
+                        x509.KeyUsage(
+                            digital_signature=False,
+                            content_commitment=False,
+                            key_encipherment=False,
+                            data_encipherment=False,
+                            key_agreement=False,
+                            key_cert_sign=True,
+                            crl_sign=crl_sign,
+                            encipher_only=False,
+                            decipher_only=False,
+                        ),
+                        critical=True,
+                    )
+                c = b.sign(signer, hashes.SHA256())
                 return c.public_bytes(serialization.Encoding.DER)
 
-            root = cert(self.root_cn, self.root_cn, self.root_key.public_key(), self.root_key, 3650)
+            root = cert(
+                self.root_cn,
+                self.root_cn,
+                self.root_key.public_key(),
+                self.root_key,
+                3650,
+                ca=True,
+                crl_sign=True,
+            )
             mid = cert(
                 "Confidential Space Intermediate",
                 self.root_cn,
                 self.mid_key.public_key(),
                 self.root_key,
                 365,
+                ca=True,
             )
             leaf = cert(
                 "Confidential Space Signer",
@@ -152,6 +184,7 @@ class FakeGoogle:
                 self.leaf_key.public_key(),
                 self.mid_key,
                 self.leaf_days,
+                ca=False,
             )
             self._chain = [leaf, mid, root]
         return self._chain

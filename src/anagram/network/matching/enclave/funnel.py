@@ -422,6 +422,9 @@ class PackMatch:
                 out.disagreements += 1
                 continue
             kind = verdict["type"]
+            if kind not in kinds or (a, b, kind) not in candidates:
+                out.disagreements += 1
+                continue
             mutual = verdict["fit_a"] == verdict["fit_b"] == "fit"
             rows.append(Row.make(a, b, mutual, kind, kind, _evidence(parties[a], parties[b])))
             if mutual and self._may(ledger, parties, a, b, kind, now):
@@ -512,12 +515,19 @@ def _unique(lines: tuple[JsonObject, ...]) -> tuple[JsonObject, ...]:
 
 def _reasons(hits: list[Hit], subject: str) -> list[str]:
     """Up to 4 of my own line IDs that stage 1 matched for the pair and
-    type, at half the pair's best score or more: best first, then sorted."""
+    type, at half the pair's best score or more (or 2 * best when best <= 0,
+    with fallback to the subject's best hit): best first, then sorted."""
     best = hits[0][0] if hits else 0.0
+    threshold = best / 2 if best > 0 else best * 2
     mine: list[str] = []
     for score, owner, line_id in hits:
-        if owner == subject and line_id not in mine and score >= best / 2:
+        if owner == subject and line_id not in mine and score >= threshold:
             mine.append(line_id)
+    if not mine:
+        for _, owner, line_id in hits:
+            if owner == subject:
+                mine.append(line_id)
+                break
     return sorted(mine[:MAX_REASONS])
 
 

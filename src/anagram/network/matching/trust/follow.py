@@ -15,7 +15,7 @@ from typing import Protocol
 
 from anagram.core.canonical import JsonObject
 from anagram.network.matching.trust.logview import LogView
-from anagram.network.matching.trust.roots import Roots
+from anagram.network.matching.trust.roots import Roots, quorum_times
 
 # Entries whose log time (`logged_by`) a rule uses: the notice and rebuild
 # rules (2.5), the lease bound (rule 7 (a)) and the total-loss rule (5.6).
@@ -46,22 +46,27 @@ class LogFollower:
 
     def follow(self, note: str) -> LogView:
         """Grow the checked view to the checkpoint `note` (2.4)."""
-        size = checkpoint_size(note)
+        _, size, _, _, _ = quorum_times(note, self.roots)
         if self.view is None:
             entries = self.reader.read(0, size) if size else []
             notes = [*self._covering(entries, size), note]
             self.view = LogView.from_checkpoints(entries, notes, self.roots)
         elif size > len(self.view.entries):
-            more = self.reader.read(len(self.view.entries), size)
-            self.view.extend(more, note, self.roots)
+            start = len(self.view.entries)
+            more = self.reader.read(start, size)
+            covering = self._covering(more, size, start=start)
+            self.view.extend(more, note, self.roots, covering=covering)
+        else:
+            self.view.verify_checkpoint(note, self.roots)
         return self.view
 
-    def _covering(self, entries: list[JsonObject], size: int) -> list[str]:
+    def _covering(self, entries: list[JsonObject], size: int, start: int = 0) -> list[str]:
         """One covering checkpoint serves every entry below its size, so
         the reader asks once for each run of timed entries."""
         notes: list[str] = []
-        covered = 0
-        for i, e in enumerate(entries):
+        covered = start
+        for offset, e in enumerate(entries):
+            i = start + offset
             if i < covered or e["kind"] not in TIMED_KINDS:
                 continue
             cp = self.reader.covering(i)

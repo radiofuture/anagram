@@ -60,6 +60,7 @@ from anagram.network.matching.app.enclave_client import (
 )
 from anagram.network.matching.hosting.clients import HttpLog
 from anagram.network.matching.trust import descriptor as dsc
+from anagram.network.matching.trust.binding import descriptor_set_hash
 from anagram.network.matching.trust.bundle import StaleView
 from anagram.network.matching.trust.pins import Pins
 
@@ -97,7 +98,7 @@ def pack_lines(draft: JsonObject) -> dict[str, list[JsonObject]]:
     for side, prefix in (("offers", "o"), ("wants", "w")):
         lines = draft.get(side) or []
         if not isinstance(lines, list) or len(lines) > MAX_LINES:
-            raise ClientError(f"{side}: at most {MAX_LINES} lines")
+            raise ClientError(f"Keep at most {MAX_LINES} lines in {side}.")
         for n, line in enumerate(lines, start=1):
             text = " ".join(str(line.get("text", "")).split())
             types = sorted(
@@ -112,12 +113,12 @@ def pack_lines(draft: JsonObject) -> dict[str, list[JsonObject]]:
                 "types": types or ["research_fit"],
             }
             if item["class"] not in packs.CLASSES or item["scope"] not in packs.SCOPES:
-                raise ClientError(f"{side} line {n}: unknown class or scope")
+                raise ClientError(f"Line {n} in {side} has an unknown class or scope.")
             if not 1 <= len(text) <= 140:
-                raise ClientError(f"{side} line {n}: 1 to 140 characters")
+                raise ClientError(f"Line {n} in {side} must be 1 to 140 characters.")
             out[side].append(item)
     if not out["offers"] and not out["wants"]:
-        raise ClientError("approve at least one line")
+        raise ClientError("Approve at least one line before turning matching on.")
     return out
 
 
@@ -174,7 +175,7 @@ def remote_fault(exc: Exception) -> ClientError:
     if isinstance(exc, StaleView):
         return ClientError(STALE_VIEW_TEXT)
     return ClientError(
-        f"the matching enclave cannot be reached or checked now ({type(exc).__name__})"
+        "The matching enclave cannot be reached or verified right now. Try again shortly."
     )
 
 
@@ -241,11 +242,11 @@ class EnclaveMatching:
     def set_settings(self, log_url: str, pins: JsonObject) -> JsonObject:
         """The enclave log URL and the pins of the network (devnet.json)."""
         if not str(log_url).startswith(("https://", "http://")):
-            raise ClientError("the log URL must be http(s)")
+            raise ClientError("The enclave log URL must start with https:// or http://.")
         try:
             Pins.from_json(pins)
         except (KeyError, TypeError, ValueError) as exc:
-            raise ClientError(f"these are not the pins of a network: {exc}") from exc
+            raise ClientError("These are not valid network pins.") from exc
         doc = {"log_url": str(log_url).rstrip("/"), "pins": pins}
         self._keys.dump("settings", doc)
         return doc
@@ -334,6 +335,9 @@ class EnclaveMatching:
         return {
             "answer_day": step,
             "answer_days": [step * k for k in range(1, m.CHECKPOINTS + 1)],
+            "descriptor_set": descriptor_set_hash(
+                [bytes.fromhex(h) for h in target.release["descriptor_hashes"]]
+            ).hex(),
             "statement": target.matching["consent_statement"],
             "statement_hash": dsc.statement_hash(target.descriptors["matching"][0]),
             "weekly_cap_max": target.matching["weekly_cap_max"],
@@ -357,11 +361,17 @@ class EnclaveMatching:
         st = self._load()
         if not st.get("draft"):
             raise ClientError("make or type a draft first")
-        if statement_hash != self.consent()["statement_hash"]:
-            raise ClientError("the consent statement changed; read it again")
+        consent = self.consent()
+        if statement_hash != consent["statement_hash"]:
+            raise ClientError("The consent statement changed. Read it again before approving.")
         lines = pack_lines(st["draft"])
         st = self._load()
-        approved: JsonObject = {"at": self.now(), "lines": lines, "statement_hash": statement_hash}
+        approved: JsonObject = {
+            "at": self.now(),
+            "descriptor_set": consent["descriptor_set"],
+            "lines": lines,
+            "statement_hash": statement_hash,
+        }
         st["approved"] = approved
         self._save(st)
         return approved
@@ -418,6 +428,18 @@ class EnclaveMatching:
             c.cover(cred)
             return
         approved = st["approved"]
+        target_statement = dsc.statement_hash(target.descriptors["matching"][0])
+        target_descriptors = descriptor_set_hash(
+            [bytes.fromhex(h) for h in target.release["descriptor_hashes"]]
+        ).hex()
+        if (
+            not isinstance(approved, dict)
+            or approved.get("statement_hash") != target_statement
+            or approved.get("descriptor_set") != target_descriptors
+        ):
+            st["on"], st["approved"] = False, None
+            c.cover(cred)
+            return
         st["version"] = self._version(st)
         cap = min(st["weekly_cap"], target.matching["weekly_cap_max"])
         doc = pack_doc(
@@ -476,7 +498,9 @@ class EnclaveMatching:
             try:
                 m.check_card(card)
             except Refused as exc:
-                raise ClientError(f"the reveal card: {exc}") from exc
+                raise ClientError(
+                    "The reveal card is missing a required field or has an invalid value."
+                ) from exc
         p = st["pending"][proposal]
         if p["answered"]:
             raise ClientError("your answer to this proposal went out already")

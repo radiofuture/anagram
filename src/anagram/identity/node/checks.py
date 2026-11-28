@@ -4,6 +4,7 @@ new person made."""
 
 from __future__ import annotations
 
+import re
 import secrets
 
 from anagram.core.crypto.hashing import SALT_LEN
@@ -15,6 +16,26 @@ from anagram.identity.formats.documents import is_subject, new_pid
 # "link": a member links an ORCID iD to the account (no assertion).
 PURPOSES = ("join", "login", "link")
 NOT_A_MEMBER = "you are not a member of this community; join with an invite link"
+_EMAIL_LOCAL = re.compile(r"\A[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*\Z")
+_EMAIL_LABEL = re.compile(r"\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\Z")
+
+
+def validate_email(value: object, *, message: str = "bad email address") -> str:
+    """Validate and normalize a single RFC 5322 addr-spec email address."""
+    if not isinstance(value, str):
+        raise NodeError(message)
+    if any(ord(c) < 0x20 or ord(c) == 0x7F for c in value):
+        raise NodeError(message)
+    email = value.strip().lower()
+    if not email or len(email) > 254 or email.count("@") != 1:
+        raise NodeError(message)
+    local, domain = email.split("@")
+    if not 1 <= len(local) <= 64 or not _EMAIL_LOCAL.match(local):
+        raise NodeError(message)
+    labels = domain.split(".")
+    if len(labels) < 2 or not all(_EMAIL_LABEL.match(lbl) for lbl in labels):
+        raise NodeError(message)
+    return email
 
 
 def sign_in_purpose(purpose: str | None) -> str:

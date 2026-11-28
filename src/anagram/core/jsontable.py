@@ -15,7 +15,7 @@ from typing import Any
 
 from anagram.core.shared_db import SharedDB
 
-_NAME = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
+_NAME = re.compile(r"\A[a-z_][a-z0-9_]{0,62}\Z")
 
 
 class JsonTable(MutableMapping[str, Any]):

@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import smtplib
+import ssl
 from abc import ABC, abstractmethod
 from email.message import EmailMessage
+
+from anagram.identity.node.checks import validate_email
 
 
 class Mailer(ABC):
@@ -53,11 +56,14 @@ class SMTPMailer(Mailer):  # pragma: no cover - needs a mail server
         self.user, self.password = user, password
 
     def send(self, to: str, subject: str, text: str) -> None:
+        to = validate_email(to)
+        if "\r" in subject or "\n" in subject:
+            raise ValueError("email subject must not contain newlines")
         msg = EmailMessage()
         msg["From"], msg["To"], msg["Subject"] = self.sender, to, subject
         msg.set_content(text)
         with smtplib.SMTP(self.host, self.port, timeout=30) as s:
-            s.starttls()
+            s.starttls(context=ssl.create_default_context())
             if self.user:
                 s.login(self.user, self.password)
-            s.send_message(msg)
+            s.send_message(msg, from_addr=self.sender, to_addrs=[to])

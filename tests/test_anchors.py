@@ -110,7 +110,7 @@ def test_ots_offline_verify():
     trust = AnchorTrust(bitcoin_headers={900_000: (block_root.msg, T)})
     check = verify_anchor(rec, DIGEST, trust)
     assert check.ok and check.time == datetime.fromtimestamp(T, UTC)
-    assert check.source == "opentimestamps:bitcoin:900000"
+    assert check.source == "opentimestamps:bitcoin"
 
     wrong = AnchorTrust(bitcoin_headers={900_000: (bytes(32), T)})
     assert not verify_anchor(rec, DIGEST, wrong).ok
@@ -129,3 +129,213 @@ def test_unknown_and_malformed():
     assert not verify_anchor({"type": "fake"}, DIGEST, AnchorTrust()).ok
     bad = {"type": "rfc3161", "token": base64.b64encode(b"junk").decode()}
     assert not verify_anchor(bad, DIGEST, AnchorTrust()).ok
+
+
+def _build_tsa_chain_token(
+    *,
+    root_path_len: int | None = 1,
+    inter_ca: bool | None = True,
+    inter_path_len: int | None = 0,
+    inter_key_cert_sign: bool | None = True,
+    inter_eku: list | None = None,
+    leaf_ca: bool = False,
+):
+    from datetime import timedelta
+
+    from asn1crypto import cms
+    from asn1crypto import x509 as asn1_x509
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography.hazmat.primitives.serialization import Encoding
+    from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
+
+    start = datetime(2000, 1, 1, tzinfo=UTC)
+    end = start + timedelta(days=365 * 50)
+    gen_time = datetime.fromtimestamp(T, UTC)
+
+    def nm(cn: str) -> x509.Name:
+        return x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, cn)])
+
+    root_key = ec.generate_private_key(ec.SECP256R1())
+    root = (
+        x509.CertificateBuilder()
+        .subject_name(nm("Test Root"))
+        .issuer_name(nm("Test Root"))
+        .public_key(root_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(start)
+        .not_valid_after(end)
+        .add_extension(x509.BasicConstraints(ca=True, path_length=root_path_len), critical=True)
+        .sign(root_key, hashes.SHA256())
+    )
+    inter_key = ec.generate_private_key(ec.SECP256R1())
+    ib = (
+        x509.CertificateBuilder()
+        .subject_name(nm("Test Inter"))
+        .issuer_name(root.subject)
+        .public_key(inter_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(start)
+        .not_valid_after(end)
+    )
+    if inter_ca is not None:
+        ib = ib.add_extension(
+            x509.BasicConstraints(ca=inter_ca, path_length=inter_path_len if inter_ca else None),
+            critical=True,
+        )
+    if inter_key_cert_sign is not None:
+        ib = ib.add_extension(
+            x509.KeyUsage(
+                digital_signature=False,
+                content_commitment=False,
+                key_encipherment=False,
+                data_encipherment=False,
+                key_agreement=False,
+                key_cert_sign=inter_key_cert_sign,
+                crl_sign=False,
+                encipher_only=False,
+                decipher_only=False,
+            ),
+            critical=True,
+        )
+    if inter_eku is not None:
+        ib = ib.add_extension(x509.ExtendedKeyUsage(inter_eku), critical=False)
+    inter = ib.sign(root_key, hashes.SHA256())
+
+    leaf_key = ec.generate_private_key(ec.SECP256R1())
+    leaf = (
+        x509.CertificateBuilder()
+        .subject_name(nm("Test Leaf"))
+        .issuer_name(inter.subject)
+        .public_key(leaf_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(start)
+        .not_valid_after(end)
+        .add_extension(x509.BasicConstraints(ca=leaf_ca, path_length=None), critical=True)
+        .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.TIME_STAMPING]), critical=True)
+        .sign(inter_key, hashes.SHA256())
+    )
+    tst = tsp.TSTInfo(
+        {
+            "version": "v1",
+            "policy": "1.3.6.1.4.1.99999.1",
+            "message_imprint": {
+                "hash_algorithm": {"algorithm": "sha256"},
+                "hashed_message": DIGEST,
+            },
+            "serial_number": 1,
+            "gen_time": gen_time,
+        }
+    )
+    tst_der = tst.dump()
+    leaf_der = leaf.public_bytes(Encoding.DER)
+    asn1_leaf = asn1_x509.Certificate.load(leaf_der)
+    asn1_inter = asn1_x509.Certificate.load(inter.public_bytes(Encoding.DER))
+    attrs = cms.CMSAttributes(
+        [
+            {"type": "content_type", "values": ["tst_info"]},
+            {"type": "message_digest", "values": [hashlib.sha256(tst_der).digest()]},
+        ]
+    )
+    sig = leaf_key.sign(attrs.dump(), ec.ECDSA(hashes.SHA256()))
+    si = cms.SignerInfo(
+        {
+            "version": "v1",
+            "sid": cms.SignerIdentifier(
+                {
+                    "issuer_and_serial_number": {
+                        "issuer": asn1_leaf.issuer,
+                        "serial_number": asn1_leaf.serial_number,
+                    }
+                }
+            ),
+            "digest_algorithm": {"algorithm": "sha256"},
+            "signed_attrs": attrs,
+            "signature_algorithm": {"algorithm": "sha256_ecdsa"},
+            "signature": sig,
+        }
+    )
+    sd = cms.SignedData(
+        {
+            "version": "v3",
+            "digest_algorithms": [{"algorithm": "sha256"}],
+            "encap_content_info": {
+                "content_type": "tst_info",
+                "content": cms.ParsableOctetString(tst_der),
+            },
+            "certificates": [asn1_leaf, asn1_inter],
+            "signer_infos": [si],
+        }
+    )
+    ci = cms.ContentInfo({"content_type": "signed_data", "content": sd})
+    return ci.dump(), root
+
+
+def test_rfc3161_rfc5280_chain_validation_and_root_source():
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.x509.oid import ExtendedKeyUsageOID
+
+    # Valid intermediate chain: source is keyed on the pinned ROOT fingerprint.
+    tok, root = _build_tsa_chain_token(inter_eku=[ExtendedKeyUsageOID.TIME_STAMPING])
+    check = verify_token(tok, DIGEST, [root])
+    assert check.ok, check.detail
+    assert check.source == f"rfc3161:{root.fingerprint(hashes.SHA256()).hex()}"
+
+    # Intermediate with anyExtendedKeyUsage is accepted.
+    tok_any, root_any = _build_tsa_chain_token(
+        inter_eku=[ExtendedKeyUsageOID.ANY_EXTENDED_KEY_USAGE]
+    )
+    assert verify_token(tok_any, DIGEST, [root_any]).ok
+
+    # Non-CA intermediate, missing BasicConstraints, pathLen violation, missing
+    # keyCertSign, wrong EKU, and CA leaf must all fail.
+    for kwargs in (
+        {"inter_ca": False},
+        {"inter_ca": None},
+        {"root_path_len": 0},
+        {"inter_key_cert_sign": False},
+        {"inter_eku": [ExtendedKeyUsageOID.SERVER_AUTH]},
+        {"leaf_ca": True},
+    ):
+        bad_tok, bad_root = _build_tsa_chain_token(**kwargs)
+        assert not verify_token(bad_tok, DIGEST, [bad_root]).ok, kwargs
+
+
+def test_ots_source_deduplicates_heights_and_upgrade_allowlists(monkeypatch):
+    from anagram.proofs.anchors.ots import OpenTimestampsAnchor
+
+    def _make_ots(height: int):
+        det, leaf = new_detached(DIGEST)
+        mr = leaf.ops.add(OpSHA256())
+        mr.attestations.add(BitcoinBlockHeaderAttestation(height))
+        return record_from_detached(det), mr.msg
+
+    rec1, m1 = _make_ots(900_000)
+    rec2, m2 = _make_ots(900_001)
+    trust = AnchorTrust(bitcoin_headers={900_000: (m1, T), 900_001: (m2, T + 600)})
+    c1 = verify_anchor(rec1, DIGEST, trust)
+    c2 = verify_anchor(rec2, DIGEST, trust)
+    assert c1.ok and c2.ok and c1.source == c2.source == "opentimestamps:bitcoin"
+
+    # Overflowing block_time must not raise OverflowError.
+    bad_trust = AnchorTrust(bitcoin_headers={900_000: (m1, 10**20)})
+    assert not verify_anchor(rec1, DIGEST, bad_trust).ok
+
+    # Upgrade must ignore untrusted or non-https calendar URIs (SSRF defense).
+    det, leaf = new_detached(DIGEST)
+    leaf.attestations.add(PendingAttestation("http://127.0.0.1:8080/evil"))
+    leaf.attestations.add(PendingAttestation("https://evil.example/cal"))
+    called = []
+
+    class FakeCal:
+        def __init__(self, uri):
+            called.append(uri)
+
+        def get_timestamp(self, msg, timeout=10):
+            raise AssertionError("should not contact untrusted calendar")
+
+    import opentimestamps.calendar as ots_cal
+
+    monkeypatch.setattr(ots_cal, "RemoteCalendar", FakeCal)
+    OpenTimestampsAnchor(calendars=("https://trusted.example",)).upgrade(record_from_detached(det))
+    assert called == []

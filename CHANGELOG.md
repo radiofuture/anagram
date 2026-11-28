@@ -60,6 +60,32 @@ The first release for labs, and private matching through a network enclave.
   confidentiality from the host operator. The hardware (TEE) profile is not
   in this build. See [SECURITY.md](SECURITY.md) and
   [docs/enclave.md](docs/enclave.md).
+- **Invite sign-in hardening.** Removed the unauthenticated `rejoin_ok`
+  shortcut for already-bound devices on `POST /auth/invite` (active devices now
+  authenticate via device sign-in); pre-binding retries require proof of
+  possession of the initial device key and an open invite. Added per-address
+  rate limiting on `POST /auth/invite`, required an `invite_pub` signature
+  proving the lab invite seed, and deferred stated-email uniqueness claims
+  until admission.
+- **RFC 3161 and OpenTimestamps anchor verification.** Enforced full RFC 5280
+  CA `BasicConstraints`, `pathLenConstraint`, `KeyUsage.keyCertSign`,
+  intermediate `ExtendedKeyUsage`, non-CA leaf, and cycle checks in RFC 3161
+  chain verification, and keyed RFC 3161 anchor sources on the pinned root CA
+  fingerprint. Normalized OpenTimestamps anchor sources to
+  `opentimestamps:bitcoin` regardless of block height and allowlisted calendar
+  URIs to configured `https://` calendars during upgrades.
+- **Merkle proof length validation.** Required 32-byte hashes for all leaf,
+  root, and path elements in Merkle inclusion and consistency proofs (and the
+  empty tree root when `old_size == 0`), closing 64-byte split attacks across
+  proof bundles, witnesses, and client log checks.
+- **SMTP, email, ORCID, and node identity hardening.** Passed an explicit
+  default TLS context to `SMTP.starttls()`, enforced strict single `addr-spec`
+  email validation with explicit `to_addrs=[to]`, serialized email code rate
+  limiting with challenge creation, released `identity.lock` across ORCID OAuth
+  token exchanges with atomic callback completion and attempt caps, made
+  `IdentityService.key_state()` read-only, wrapped invite claims in atomic
+  transactions, enforced key backup size/count limits, and verified signatures
+  in `NodePersonalStore.put_person_keys()`.
 
 ### Fixed
 
@@ -68,3 +94,17 @@ The first release for labs, and private matching through a network enclave.
 - Stopping the local app or demo no longer waits 5 seconds for an in-flight
   `lab.watch` `/labs/changes` long-poll to time out; shutdown cancels the
   poll immediately.
+- Hardened core validators (`\Z` regex anchors, strict 64-char lowercase hex in
+  `ContentDigest.from_json()`, `FormatError` on invalid calendar dates in
+  `parse_time()`, and Windows guard in `fsync_dir()`).
+- Checked subject match before writing session tokens in `join()`, guarded
+  `.old` key erasure to single-link inodes (`st_nlink == 1`), wrote configs,
+  recovery kits, and restored snapshots atomically with `0600` permissions,
+  stopped skipping 1–4 MiB vault records in `PersonalStore._pull()`, and
+  hardened guardian recovery against duplicate share indices and missing
+  temporary keys.
+- Used `SharedDB` with `BEGIN IMMEDIATE` in `Witness`, enforced canonical
+  base64 checkpoint roots, enforced streaming body size caps on `/verify`,
+  `/proofs`, and `/log/entries`, excluded non-open reader invites from
+  `open_invites()`, and fixed `verify.js` crashes on empty `other_node`,
+  overwritten `no_crypto` notices, and malformed content digests.

@@ -9,9 +9,19 @@ last seen checkpoint in the vault. A bad answer raises `LogMisbehaved`.
 from __future__ import annotations
 
 from anagram.core.crypto import merkle
-from anagram.core.errors import LogMisbehaved
+from anagram.core.errors import FormatError, LogMisbehaved
+from anagram.core.validate import HEX32, hex_field, int_at_least
 from anagram.identity.app.device import Device
 from anagram.proofs.log.checkpoint import Checkpoint, open_checkpoint
+
+
+def _proof_hashes(raw: object, what: str) -> list[bytes]:
+    if not isinstance(raw, list):
+        raise LogMisbehaved(f"{what} must be a list")
+    try:
+        return [bytes.fromhex(hex_field(h, HEX32, what)) for h in raw]
+    except FormatError as exc:
+        raise LogMisbehaved(str(exc)) from exc
 
 
 class LogCheck:
@@ -22,9 +32,14 @@ class LogCheck:
         """Check the node answer to a submitted entry: the checkpoint, and the
         inclusion of `leaf_data` in it."""
         cp = self.checkpoint(result["checkpoint"])
-        path = [bytes.fromhex(h) for h in result["inclusion"]]
-        if result["tree_size"] != cp.size or not merkle.verify_inclusion(
-            merkle.leaf_hash(leaf_data), result["leaf_index"], cp.size, path, cp.root
+        try:
+            tree_size = int_at_least(result["tree_size"], "tree_size", 0)
+            leaf_index = int_at_least(result["leaf_index"], "leaf_index", 0)
+        except (KeyError, FormatError) as exc:
+            raise LogMisbehaved(f"bad log entry answer: {exc}") from exc
+        path = _proof_hashes(result.get("inclusion"), "inclusion")
+        if tree_size != cp.size or not merkle.verify_inclusion(
+            merkle.leaf_hash(leaf_data), leaf_index, cp.size, path, cp.root
         ):
             raise LogMisbehaved("entry is not included in the checkpoint")
         return cp
@@ -50,9 +65,10 @@ class LogCheck:
             if cp.size < old_size:
                 raise LogMisbehaved("log went backwards")
             try:
-                proof = [bytes.fromhex(h) for h in node.consistency(old_size, cp.size)]
+                raw_proof = node.consistency(old_size, cp.size)
             except Exception as exc:  # a bad answer of the node in any form
                 raise LogMisbehaved(f"node gave no consistency proof: {exc}") from exc
+            proof = _proof_hashes(raw_proof, "consistency")
             if not merkle.verify_consistency(
                 old_size, cp.size, proof, bytes.fromhex(old_root), cp.root
             ):
@@ -70,7 +86,11 @@ class LogCheck:
         if last is None or cp.size >= last[0]:
             return self.checkpoint(note)
         old_size, old_root, _ = last
-        proof = [bytes.fromhex(h) for h in self.device.node.consistency(cp.size, old_size)]
+        try:
+            raw_proof = self.device.node.consistency(cp.size, old_size)
+        except Exception as exc:  # a bad answer of the node in any form
+            raise LogMisbehaved(f"node gave no consistency proof: {exc}") from exc
+        proof = _proof_hashes(raw_proof, "consistency")
         if not merkle.verify_consistency(
             cp.size, old_size, proof, cp.root, bytes.fromhex(old_root)
         ):

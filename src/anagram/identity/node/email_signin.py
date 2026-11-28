@@ -9,7 +9,12 @@ from typing import TYPE_CHECKING
 from anagram.core.errors import Forbidden, NodeError, RateLimited
 from anagram.identity.formats.documents import is_subject
 from anagram.identity.node.challenges import Challenges
-from anagram.identity.node.checks import NOT_A_MEMBER, check_device_nonce, sign_in_purpose
+from anagram.identity.node.checks import (
+    NOT_A_MEMBER,
+    check_device_nonce,
+    sign_in_purpose,
+    validate_email,
+)
 from anagram.identity.node.mailer import Mailer
 from anagram.identity.node.schema import one
 
@@ -48,14 +53,13 @@ class EmailSignIn:
         check_device_nonce(device_key, nonce)
         if pid is not None and not is_subject(pid):
             raise NodeError("pid must be pid:<32 hex>")
-        email = str(email).strip().lower()
-        if "@" not in email or len(email) > 254 or any(c.isspace() for c in email):
-            raise NodeError("bad email address")
-        if self.challenges.recent(PURPOSE, email, 3600) >= EMAIL_STARTS_PER_HOUR:
-            raise RateLimited("too many codes for this address; wait one hour")
-        code = f"{secrets.randbelow(10**8):08d}"
-        data = {"device_key": device_key, "nonce": nonce, "pid": pid, "purpose": purpose}
-        cid = self.challenges.new(PURPOSE, email, data, EMAIL_CODE_TTL, secret=code)
+        email = validate_email(email)
+        with self.identity.lock:
+            if self.challenges.recent(PURPOSE, email, 3600) >= EMAIL_STARTS_PER_HOUR:
+                raise RateLimited("too many codes for this address; wait one hour")
+            code = f"{secrets.randbelow(10**8):08d}"
+            data = {"device_key": device_key, "nonce": nonce, "pid": pid, "purpose": purpose}
+            cid = self.challenges.new(PURPOSE, email, data, EMAIL_CODE_TTL, secret=code)
         self.mailer.send(
             email,
             f"Your {self.identity.cfg.community} sign-in code",

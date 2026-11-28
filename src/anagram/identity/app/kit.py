@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from anagram.core.errors import ClientError, FormatError
+from anagram.core.files import atomic_write
 from anagram.core.nodeapi import HttpNode, NodeHTTPError, Transport
 from anagram.identity.app.device import write_config
 from anagram.identity.app.identity import (
@@ -46,10 +47,8 @@ def kit_file_path(home: str | Path, path: str | Path) -> Path:
 
 
 def write_private(path: Path, text: str) -> None:
-    """Write a new file that only the owner can read (mode 0600)."""
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
-        f.write(text)
+    """Write a file atomically that only the owner can read (mode 0600)."""
+    atomic_write(path, text.encode("utf-8"), mode=0o600)
 
 
 def write_kit_file(home: str | Path, path: str | Path, text: str) -> Path:
@@ -117,7 +116,8 @@ def restore_keys(
 ) -> Home:
     """Write restored keys and the config, then check that the restored device
     key is still active in the key directory."""
-    home.mkdir(parents=True, exist_ok=True)
+    home.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(home, 0o700)
     ks = open_keystore(home)
     for name, value in keys.items():
         ks.put(name, value)

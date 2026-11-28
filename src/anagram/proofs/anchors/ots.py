@@ -89,11 +89,15 @@ class OpenTimestampsAnchor(Anchor):
     def upgrade(self, record: dict) -> dict:  # pragma: no cover - network
         from opentimestamps.calendar import RemoteCalendar
 
+        allowed = {u.rstrip("/") for u in self.calendars if u.startswith("https://")}
         detached = deserialize(base64.b64decode(record["ots"]))
         for msg, att in list(detached.timestamp.all_attestations()):
             if isinstance(att, PendingAttestation):
+                uri = str(att.uri).rstrip("/")
+                if not uri.startswith("https://") or uri not in allowed:
+                    continue
                 try:
-                    found = RemoteCalendar(att.uri).get_timestamp(msg, timeout=self.timeout)
+                    found = RemoteCalendar(uri).get_timestamp(msg, timeout=self.timeout)
                 except Exception:  # noqa: S112
                     continue
                 for sub in _find(detached.timestamp, msg):
@@ -145,7 +149,10 @@ def verify_record(record: dict, digest: bytes, trust: AnchorTrust) -> AnchorChec
                 continue
             merkle_root, block_time = header
             if msg == merkle_root:
-                when = datetime.fromtimestamp(block_time, UTC)
+                try:
+                    when = datetime.fromtimestamp(block_time, UTC)
+                except (OverflowError, OSError, ValueError):
+                    continue
                 if best is None or when < best:
                     best, best_height = when, att.height
     if best is not None:
@@ -154,7 +161,7 @@ def verify_record(record: dict, digest: bytes, trust: AnchorTrust) -> AnchorChec
             True,
             time=best,
             detail=f"Bitcoin attestation at height {best_height}",
-            source=f"opentimestamps:bitcoin:{best_height}",
+            source="opentimestamps:bitcoin",
         )
     if unknown_heights:
         return AnchorCheck(

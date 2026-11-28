@@ -188,3 +188,35 @@ def test_a_node_can_turn_the_page_off(tmp_path):
     raw["verify"] = {"public_page": False}
     nh.config_path.write_text(json.dumps(raw))
     assert nh.verify(identity) is None
+
+
+def test_oversized_bodies_rejected_on_verify_proofs_and_log_entries(vnet):
+    from anagram.proofs.node.routes import MAX_ENTRY_BODY
+    from anagram.proofs.node.verify_page import MAX_BODY
+
+    net, client, _, _ = vnet
+    auth = {"Authorization": f"Bearer {client.device.http.token}"}
+    big_proof = b'{"text":"' + b"a" * (MAX_BODY + 16) + b'"}'
+    assert (
+        net.tc.post(
+            "/verify", content=big_proof, headers={"content-type": "application/json"}
+        ).status_code
+        == 413
+    )
+    assert (
+        net.tc.post(
+            "/proofs",
+            content=big_proof,
+            headers={**auth, "content-type": "application/json"},
+        ).status_code
+        == 413
+    )
+    big_entry = b'{"entry":{"pad":"' + b"a" * (MAX_ENTRY_BODY + 16) + b'"}}'
+    assert (
+        net.tc.post(
+            "/log/entries",
+            content=big_entry,
+            headers={**auth, "content-type": "application/json"},
+        ).status_code
+        == 413
+    )

@@ -182,3 +182,45 @@ def test_witness_refuses_fork(tmp_path):
     with pytest.raises(NoteError):
         w.cosign(sign_checkpoint(Checkpoint(ORIGIN, 6, honest.root()), other), 5, [])
     assert w.known(ORIGIN) == (5, honest.root())
+
+
+def test_checkpoint_rejects_non_canonical_base64():
+    import base64
+
+    root = b"\x00" * 32
+    good = base64.b64encode(root).decode("ascii")
+    assert good.endswith("A=")
+    # Flip the unused trailing padding bit (A -> B decodes to the same 32 zero bytes).
+    malleated = good[:-2] + "B="
+    assert base64.b64decode(malleated, validate=True) == root
+    with pytest.raises(NoteError):
+        Checkpoint.parse_text(f"{ORIGIN}\n1\n{malleated}\n")
+
+
+def test_log_proof_from_json_rejects_bad_inclusion_hashes():
+    from anagram.core.errors import FormatError
+    from anagram.proofs.bundle import LogProof
+
+    base = {
+        "checkpoint": "example/log\n1\n" + "A" * 43 + "=\n",
+        "entry": {"commitment": "00" * 32, "kind": "finding", "schema": "anagram.log_entry.v1"},
+        "inclusion": ["00" * 64],  # 64 bytes instead of 32
+        "leaf_index": 0,
+        "tree_size": 1,
+    }
+    with pytest.raises(FormatError):
+        LogProof.from_json(base)
+    with pytest.raises(FormatError):
+        LogProof.from_json({**base, "inclusion": ["AA" * 32]})
+    with pytest.raises(FormatError):
+        LogProof.from_json({**base, "inclusion": [], "leaf_index": True})
+
+
+def test_witness_rejects_non_empty_proof_from_zero(tmp_path):
+    signer = NoteSigner(ORIGIN, SigningKey.generate())
+    w = make_witness(tmp_path, signer)
+    log = SQLiteLog(tmp_path / "log.sqlite")
+    log.append(b"first")
+    note = sign_checkpoint(Checkpoint(ORIGIN, 1, log.root()), signer)
+    with pytest.raises(ForkDetected):
+        w.cosign(note, 0, [b"\x01" * 32])

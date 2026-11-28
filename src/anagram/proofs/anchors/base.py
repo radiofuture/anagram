@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from cryptography import x509
+from cryptography.exceptions import UnsupportedAlgorithm
 
 
 @dataclass(frozen=True)
@@ -22,8 +23,8 @@ class AnchorCheck:
     time: datetime | None = None
     detail: str = ""
     pending: bool = False
-    # Identity of the trust root that gave the time (for example a TSA signer
-    # certificate fingerprint). Anchors with the same source count once.
+    # Identity of the trust root that gave the time (for example a pinned TSA
+    # root certificate fingerprint). Anchors with the same source count once.
     source: str = ""
 
 
@@ -61,6 +62,13 @@ def verify_anchor(record: dict, digest: bytes, trust: AnchorTrust) -> AnchorChec
             from anagram.proofs.anchors.ots import verify_record as verify_ots
 
             return verify_ots(record, digest, trust)
-    except (KeyError, TypeError, ValueError) as exc:
+    except (
+        KeyError,
+        TypeError,
+        ValueError,
+        IndexError,
+        OverflowError,
+        UnsupportedAlgorithm,
+    ) as exc:
         return AnchorCheck(str(kind), False, detail=f"malformed record: {exc}")
     return AnchorCheck(str(kind), False, detail="unknown anchor type")

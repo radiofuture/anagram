@@ -37,6 +37,7 @@ from anagram.identity.app.identity import (
     SignInWith,
     bind_this_device,
     config_from_trust,
+    device_sign_in,
     fetch_trust,
     finish_join,
     login,
@@ -102,7 +103,7 @@ from anagram.identity.formats.recovery import (
     validate_guardian_set,
     validate_recovery_request,
 )
-from anagram.identity.node.checks import check_device_nonce
+from anagram.identity.node.checks import check_device_nonce, validate_email
 from anagram.identity.node.email_signin import mask_email
 from anagram.identity.node.mailer import FakeMailer, mailer_from_env
 from anagram.identity.node.orcid import REGISTER_URL, FakeOrcid, OrcidOAuth
@@ -174,6 +175,7 @@ __all__ = [
     "clear_session",
     "config_from_trust",
     "describe",
+    "device_sign_in",
     "erase_file",
     "fetch_trust",
     "finish_guardian_recovery",
@@ -218,4 +220,5 @@ __all__ = [
     "member_check",
     "stated_email",
     "store_router",
+    "validate_email",
 ]

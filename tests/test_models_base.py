@@ -112,9 +112,20 @@ def test_fake_model_stream_gives_the_same_text_in_pieces():
 def test_parse_prices():
     assert parse_prices(None) is None
     assert parse_prices(("8.00", "40.00"))[1] == 40
-    for bad in (("1",), ("a", "b"), ("-1", "2"), 5):
-        with pytest.raises(ModelError):
+    for bad in (("1",), ("a", "b"), ("-1", "2"), 5, ("0", "0"), ["0", "0"], "12", (True, 1)):
+        with pytest.raises(ModelError) as err:
             parse_prices(bad)
+        assert err.value.code == "invalid_prices"
+
+
+def test_int_or_zero_rejects_negative_and_bool():
+    from anagram.models.base import int_or_zero
+
+    assert int_or_zero(12) == 12
+    assert int_or_zero(0) == 0
+    assert int_or_zero(-5) == 0
+    assert int_or_zero(True) == 0
+    assert int_or_zero("12") == 0
 
 
 def test_model_error_message_has_only_the_code_and_status():

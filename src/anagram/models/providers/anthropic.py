@@ -40,6 +40,7 @@ from anagram.models.base import (
     TextReply,
     TextRequest,
     checked_reply,
+    int_or_zero,
     parse_prices,
 )
 
@@ -158,8 +159,8 @@ class AnthropicModel(TextModel):
         reply = TextReply(
             text="".join(texts),
             data=None,
-            input_tokens=int(getattr(usage, "input_tokens", 0) or 0),
-            output_tokens=int(getattr(usage, "output_tokens", 0) or 0),
+            input_tokens=int_or_zero(getattr(usage, "input_tokens", 0)),
+            output_tokens=int_or_zero(getattr(usage, "output_tokens", 0)),
             model=str(getattr(resp, "model", None) or self.model_id),
             stop=stop,
             refusal=stop == "refusal",

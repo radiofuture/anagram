@@ -124,8 +124,13 @@ def _zip_type(names: list[str], mimetype: bytes | None) -> str:
 def _zip_info(zf: zipfile.ZipFile) -> str:
     names = zf.namelist()
     mimetype = None
-    if "mimetype" in names and zf.getinfo("mimetype").file_size <= 200:
-        mimetype = zf.read("mimetype")
+    if "mimetype" in names:
+        info = zf.getinfo("mimetype")
+        if info.file_size <= 200:
+            with zf.open(info) as fh:
+                raw = fh.read(201)
+            if len(raw) <= 200:
+                mimetype = raw
     return _zip_type(names, mimetype)
 
 

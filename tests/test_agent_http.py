@@ -146,3 +146,43 @@ def test_the_command_has_a_loopback_form(tmp_path):
     cmd = cli.http_command(tmp_path, 47830)
     assert cmd[-3:] == ["--http", "--port", "47830"] and "--assistant" not in cmd
     assert main(["--home", str(tmp_path), "mcp"]) == 2  # neither an id nor --http
+
+
+def test_gateway_handles_concurrent_clients_and_rejects_expired_key_and_dup_host(gw):
+    import socket
+
+    server, idx = gw
+    who = consent(idx)
+    key = access.new_http_key(idx, who.id)
+    auth = f"Bearer {key}"
+
+    # An idle open socket must not block another client request (ThreadingHTTPServer).
+    idle = socket.create_connection((LOOPBACK, server.port), timeout=5)
+    try:
+        status, _, got = _call(server, body=_search(), Authorization=auth)
+        assert status == 200 and got["result"]["content"][0]["text"].startswith(HEADER)
+    finally:
+        idle.close()
+
+    # Duplicate Host header must be rejected with 421.
+    raw = (
+        f"POST /mcp HTTP/1.1\r\n"
+        f"Host: {LOOPBACK}:{server.port}\r\n"
+        f"Host: evil.example\r\n"
+        f"Authorization: {auth}\r\n"
+        f"Content-Type: application/json\r\n"
+        f"Content-Length: 2\r\n"
+        f"Connection: close\r\n\r\n{{}}"
+    ).encode()
+    with socket.create_connection((LOOPBACK, server.port), timeout=5) as sock:
+        sock.sendall(raw)
+        resp = sock.recv(4096).decode("latin-1")
+    assert resp.startswith("HTTP/1.1 421")
+
+    # An expired grant key must be refused at HTTP auth (401).
+    doc = idx.store.get_meta(access.META)
+    for row in doc["grants"]:
+        if row["id"] == who.id:
+            row["expires"] = "2000-01-01"
+    idx.store.set_meta(access.META, doc)
+    assert _call(server, body=_search(), Authorization=auth)[0] == 401

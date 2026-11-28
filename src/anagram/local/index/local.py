@@ -209,10 +209,15 @@ class LocalIndex:
             return value.decode()
 
         kwargs.setdefault("secret", secret)
+        explicit_http = kwargs.get("http")
         if "http" not in kwargs:
             from anagram.local.sources import http as http_mod
 
             kwargs["http"] = http_mod.default_http()
+        if "transport" not in kwargs and explicit_http is not None:
+            from anagram.local.sources import http as http_mod
+
+            kwargs["transport"] = http_mod.as_v1(explicit_http)
         given = kwargs.pop("credentials", None)
         idx = cls(Path(client.home) / INDEX_DB, key, **kwargs)
         if given is None:
@@ -366,10 +371,12 @@ class LocalIndex:
         is empty. With `full`, hash each file again (then a change that keeps
         size and mtime is seen too)."""
         report = ScanReport()
+        scanned: list[str] = []
         for sid in sources if sources is not None else sorted(self.sources()):
             try:
-                self.scanner.scan_source(sid, report, full)
+                self.scanner.scan_source(sid, report, full, run_after=not process)
                 self.store.x("UPDATE source SET error = NULL WHERE id = ?", (sid,))
+                scanned.append(sid)
             except Exception as exc:  # one bad source must not stop the rest
                 msg = f"{type(exc).__name__}: {exc}"
                 log.warning("scan of source %s failed: %s", sid, msg, exc_info=True)
@@ -378,6 +385,13 @@ class LocalIndex:
                 self.scanner.record_fault(sid, exc)
         if process:
             self.jobs.run()
+            for sid in scanned:
+                try:
+                    self.scanner.after_scan(sid)
+                except Exception as exc:  # one bad source must not stop the rest
+                    msg = f"{type(exc).__name__}: {exc}"
+                    log.warning("after_scan of source %s failed: %s", sid, msg, exc_info=False)
+                    report.errors.append((sid, msg))
         return report
 
     # ---------------------------------------------------------- relations

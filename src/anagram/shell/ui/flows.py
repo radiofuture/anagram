@@ -83,7 +83,7 @@ FLOWS: tuple[dict, ...] = (
         "cannot open them. In this version the enclave runs in a simulated mode, so the "
         "operator of the enclave can read your lines. It never gets your files. Even with "
         "a real enclave, three risks remain: someone with physical access to the cloud's "
-        "machine, a break of the chip maker's keys, and side channels that leak which "
+        "machine, a break of the keys of the chip maker or of the cloud that checks the machine, and side channels that leak which "
         "memory the enclave uses.",
     },
     {

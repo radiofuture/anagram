@@ -659,7 +659,10 @@ function LabView({ id, tab, query, labs }) {
 function View({ params, query }) {
   const mine = useResource(MINE, LIVE);
   const labs = mine.data.value;
-  if (!labs) return html`<${Screen} title=${t('lab.title')} resources=${[mine]}>${() => null}<//>`;
+  // A lab that the route names but the list does not show yet (just
+  // started; the list reloads): wait, so the start form does not come back.
+  const waiting = labs && params.id && !labs.some((l) => l.id === params.id) && mine.state.value !== 'ready';
+  if (!labs || waiting) return html`<${Screen} title=${t('lab.title')} resources=${[mine]}>${() => null}<//>`;
   if (!labs.length) {
     return html`<${Screen} title=${t('lab.title')} resources=${[mine]}>${() => html`<${NoLab} />`}<//>`;
   }

@@ -74,9 +74,28 @@ def test_people_set_up_and_on(ready_demo):
         assert st["draft"]["offers"] and st["draft"]["wants"], p.name
 
 
+def test_lines_come_from_the_persons_files(ready_demo):
+    """Each PI's draft is the offer and need bullets of the PI's own notes
+    and slides, not the chips of the lab profile."""
+    d, _ = ready_demo
+    chen = d.person("chen")
+    st = chen.service.enclave.state()
+    offers, wants = demomod.draft_from_files(chen.own)
+    assert [x["text"] for x in st["draft"]["offers"]] == offers
+    assert [x["text"] for x in st["draft"]["wants"]] == wants
+    assert "Binding-affinity prediction for pocket ligands" in wants  # the deck
+    assert any("Krios time" in t for t in offers)  # the project plan
+    labels = {x["label"] for x in chen.lab["profile"]["offers"]}
+    assert not labels & set(offers)
+    for p in d.people:
+        assert not any(
+            "Internal ref" in x["text"] for x in p.service.enclave.state()["draft"]["offers"]
+        )
+
+
 def test_planted_pairs_get_both_reveals(ready_demo):
-    """The lab profiles have complementary offers and needs, so the planted
-    pairs get a proposal, both say yes, and both get the reveal."""
+    """The people's files state complementary offers and needs, so the
+    planted pairs get a proposal, both say yes, and both get the reveal."""
     d, _ = ready_demo
     met = {}
     for p in d.people:

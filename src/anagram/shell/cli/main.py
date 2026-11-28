@@ -3,7 +3,8 @@
     anagram                                 open the local web UI (same as `anagram ui`)
     anagram ui [--port N] [--no-browser]
     anagram app run|install|uninstall|status  the app: local UI, index helper, login service
-    anagram demo up [--dir DIR] [--everyone] [--ready] [--day-seconds N] | anagram demo down [--dir DIR]
+    anagram demo up [--dir DIR] [--everyone] [--ready] [--day-seconds N] [--nodes 1|2|3]
+    anagram demo day [--dir DIR] | anagram demo down [--dir DIR]
     anagram init [--node-url URL --log-key VKEY ...]
     anagram commit PATH... [--claim TEXT] [--supersedes ROOT] [--builds-on ROOT] [--includes ROOT]
     anagram verify PROOF.json [--file PATH] [--log-key VKEY] [--bitcoin-headers FILE] ...
@@ -99,7 +100,10 @@ def cmd_demo(args) -> int:  # pragma: no cover - starts processes
             everyone=args.everyone,
             ready=args.ready,
             day_seconds=args.day_seconds,
+            nodes=args.nodes,
         )
+    if args.demo_command == "day":
+        return demo.day(Path(args.dir))
     return demo.down(Path(args.dir))
 
 
@@ -119,14 +123,20 @@ def _register_local(sub) -> None:
 
 
 def _register_demo(sub) -> None:
-    """Add demo up and demo down."""
+    """Add demo up, demo day and demo down."""
     p = sub.add_parser("demo", help="demo community for local tests")
     dsub = p.add_subparsers(dest="demo_command", required=True)
-    s = dsub.add_parser("up", help="start a demo node and one UI per fake person")
+    s = dsub.add_parser("up", help="start demo nodes and one UI per fake person")
     s.add_argument("--dir", default="anagram-demo", help="demo data directory")
     s.add_argument("--everyone", action="store_true", help="one UI for each of the 11 people")
     s.add_argument("--ready", action="store_true", help="join and approve all but the first PI")
     s.add_argument("--day-seconds", type=int, default=120, help="length of one matching day")
+    s.add_argument(
+        "--nodes", type=int, default=1, choices=(1, 2, 3), help="local nodes (one community each)"
+    )
+    s.set_defaults(func=cmd_demo)
+    s = dsub.add_parser("day", help="start the next matching day of the demo now")
+    s.add_argument("--dir", default="anagram-demo")
     s.set_defaults(func=cmd_demo)
     s = dsub.add_parser("down", help="stop the demo")
     s.add_argument("--dir", default="anagram-demo")

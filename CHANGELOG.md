@@ -129,6 +129,23 @@ The first release for labs, and private matching through a network enclave.
   `/proofs`, and `/log/entries`, excluded non-open reader invites from
   `open_invites()`, and fixed `verify.js` crashes on empty `other_node`,
   overwritten `no_crypto` notices, and malformed content digests.
+- Production nodes (`anagram node start` and `anagram node init`) now allow
+  starting without ORCID credentials (omitting both client ID and secret
+  disables ORCID sign-in cleanly and hides the ORCID form on `/admin`),
+  default `forwarded_allow_ips` to `127.0.0.1`, and disable raw access logs
+  while preserving structured ticker fields.
+- Hardened `/admin` login and passkey options against ORCID enumeration,
+  missing `Origin`, brute-force floods, and logout CSRF; hardened
+  `/auth/orcid/callback` redirect headers, UI `/auth/callback` state checks
+  (with a join cancel route), node-supplied redirect URL validation,
+  `received_file` path traversal/symlink checks, `Content-Disposition` header
+  escaping, systemd/XDG `%` and newline escaping, `Client.close()` cleanup,
+  Windows PID checks, Caddy environment isolation in `deploy/compose.yaml`,
+  and macOS packaging (`entry.py`, `anagram.spec`, `build.sh`).
+- Improved local app onboarding, model setup, live "What leaves this
+  computer" flow status, deep-linking to `#/account#models-title`, optional
+  institution entry, copy polish across screens, and confirmation dialogs for
+  destructive actions.
 - Summed token counts and costs across both billed attempts on `OpenAICompatModel`
   `text`-mode retries.
 - Prevented `remove_source` foreign-key failures when items have `kind_override`

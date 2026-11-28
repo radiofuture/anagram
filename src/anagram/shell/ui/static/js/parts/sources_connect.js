@@ -189,6 +189,7 @@ function NotSetUp({ kind }) {
   const data = optional(settings);
   if (!data) return null;
   const name = providerName(kind);
+  if (!data.labs.length) return html`<p>${t('sources.no_lab_client', { provider: name })}</p>`;
   const lab = data.labs.find((l) => l.can_edit);
   if (!lab) return html`<p>${t('sources.ask_admin', { provider: name })}</p>`;
   return html`
@@ -555,12 +556,20 @@ function PathAdd({ kind, onDone }) {
 
 function PickFolder({ kind, onDone, onCancel }) {
   const add = useAdd();
-  return html`<${FolderPicker} onPick=${async (path) => onDone(await add({ kind: kind.kind, path }))} onCancel=${onCancel} />`;
+  return html`<${FolderPicker} kind=${kind.kind} onPick=${async (path) => onDone(await add({ kind: kind.kind, path }))} onCancel=${onCancel} />`;
 }
 
 /** The setup of one kind, below the grid. `onDone(result)` gets the answer of `POST /api/sources`. */
 export function Setup({ kind, onDone, onCancel }) {
   const [space, setSpace] = useState(kind.default_space || 'private');
+  const titleRef = useRef(null);
+  useEffect(() => {
+    const el = titleRef.current;
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      el.focus({ preventScroll: true });
+    }
+  }, [kind.kind]);
   let body;
   if (missingClient(kind)) {
     body = html`<${NotSetUp} kind=${kind} />`;
@@ -577,7 +586,7 @@ export function Setup({ kind, onDone, onCancel }) {
   }
   return html`
     <section class="ag-setup" aria-labelledby="setup-title">
-      <h2 class="ag-setup-title" id="setup-title" tabindex="-1">${kind.label}</h2>
+      <h2 class="ag-setup-title" id="setup-title" tabindex="-1" ref=${titleRef}>${kind.label}</h2>
       ${kind.available && html`<${SpaceChoice} kind=${kind} value=${space} onChange=${setSpace} />`}
       <${SpaceContext.Provider} value=${space}>${body}<//>
     </section>`;

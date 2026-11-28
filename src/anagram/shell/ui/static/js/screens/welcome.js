@@ -31,6 +31,15 @@ const STEPS = 3;
 const BUSY = ['starting', 'signin', 'working', 'joined'];
 const restoring = signal(false); // the person chose "I have a recovery kit"
 
+function isHttpUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 // The state of the join or sign-in: the newest event, or what the server
 // said when the screen opened.
 function useJoin(info) {
@@ -39,7 +48,9 @@ function useJoin(info) {
   const { state } = status;
   useEffect(() => {
     // Only an invite to an ORCID iD, or a link of an ORCID iD, goes to ORCID.
-    if (state === 'signin' && status.authorize_url) window.location.assign(status.authorize_url);
+    if (state === 'signin' && status.authorize_url && isHttpUrl(status.authorize_url)) {
+      window.location.assign(status.authorize_url);
+    }
     // The keys exist: the overview has the next step.
     if (state === 'joined') invalidate(['/api/overview']);
   }, [state, status.authorize_url]);
@@ -55,7 +66,15 @@ function start(path, body) {
 function Working({ status }) {
   if (!BUSY.includes(status.state)) return null;
   const text = status.state === 'signin' ? t('welcome.opening') : t('welcome.working');
-  return html`<${StatusLine} state="pending" text=${text} />`;
+  const cancel = async () => {
+    store.live.join.value = await api('POST', '/api/join/cancel');
+  };
+  return html`
+    <${StatusLine} state="pending" text=${text} />
+    ${
+      status.state === 'signin' &&
+      html`<div class="rf-ui-actions"><${Button} kind="quiet" onClick=${cancel}>${t('common.cancel')}<//></div>`
+    }`;
 }
 
 function PendingDevice({ status, again }) {
@@ -125,6 +144,9 @@ function Code({ status }) {
       <div class="rf-ui-actions ag-actions">
         <${ActionButton} label=${t('welcome.code_action')} busyLabel=${t('welcome.working')}
           run=${start('/api/join/code', () => ({ code }))} errorTo=${setError} />
+        <${Button} kind="quiet" onClick=${async () => {
+          store.live.join.value = await api('POST', '/api/join/cancel');
+        }}>${t('common.cancel')}<//>
       </div>
     <//>`;
 }
@@ -161,6 +183,7 @@ function Invite() {
         ${
           !busy &&
           html`
+          ${!pending && html`<${InviteField} value=${typed} onInput=${setTyped} help=${t('welcome.invite_help')} />`}
           <${Field} id="join-name" label=${t('welcome.name_label')}>
             <${TextInput} value=${shownName} onInput=${setName} autocomplete="name" />
           <//>
@@ -171,22 +194,22 @@ function Invite() {
               <${TextInput} type="email" value=${email} onInput=${setEmail} autocomplete="email" />
             <//>`
           }
+          <div class="rf-ui-actions ag-actions">
+            <${ActionButton} label=${t('welcome.join_action')} busyLabel=${t('welcome.working')}
+              run=${start('/api/join/start', body(pending ? undefined : typed))} errorTo=${setError} />
+          </div>
           ${
             pending &&
             html`
-            <div class="rf-ui-actions ag-actions">
-              <${ActionButton} label=${t('welcome.join_action')} busyLabel=${t('welcome.working')}
-                run=${start('/api/join/start', body(undefined))} errorTo=${setError} />
-            </div>`
+            <${Disclosure} summary=${t('welcome.use_invite')}>
+              <${InviteField} value=${typed} onInput=${setTyped} help=${t('welcome.invite_help')} />
+              <div class="rf-ui-actions">
+                <${ActionButton} kind="secondary" label=${t('welcome.invite_action')}
+                  busyLabel=${t('welcome.working')} errorTo=${setError}
+                  run=${start('/api/join/start', body(typed))} />
+              </div>
+            <//>`
           }
-          <${Disclosure} summary=${t('welcome.use_invite')}>
-            <${InviteField} value=${typed} onInput=${setTyped} help=${t('welcome.invite_help')} />
-            <div class="rf-ui-actions">
-              <${ActionButton} kind=${pending ? 'secondary' : 'primary'} label=${t('welcome.invite_action')}
-                busyLabel=${t('welcome.working')} errorTo=${setError}
-                run=${start('/api/join/start', body(typed))} />
-            </div>
-          <//>
           <p class="ag-welcome-other">
             <button type="button" class="ag-link" onClick=${() => {
               restoring.value = true;
@@ -260,7 +283,7 @@ function Kit() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const next = async () => {
-    if (!saved) throw new Error(t('welcome.kit_need'));
+    if (kit.data.value?.available && !saved) throw new Error(t('welcome.kit_need'));
     await mutate('POST', '/api/recovery-kit/saved', undefined, { invalidate: ['/api/overview'] });
   };
   return html`
@@ -276,11 +299,11 @@ function Kit() {
                 <${DownloadLink} href="/api/recovery-kit/file" filename="anagram-recovery-kit.md"
                   label=${t('welcome.kit_download')} />
               </div>
-            <//>`
+            <//>
+            <${Check} id="kit-saved" label=${t('welcome.kit_check')} checked=${saved} onChange=${setSaved} />
+            <p class="rf-ui-help">${t('welcome.kit_delete_note')}</p>`
             : html`<p class="rf-ui-help">${t('welcome.kit_gone')}</p>`
         }
-        <${Check} id="kit-saved" label=${t('welcome.kit_check')} checked=${saved} onChange=${setSaved} />
-        <p class="rf-ui-help">${t('welcome.kit_delete_note')}</p>
         <${ErrorLine} text=${error} />
         <div class="rf-ui-actions ag-actions">
           <${ActionButton} label=${t('welcome.kit_continue')} run=${next} errorTo=${setError} />

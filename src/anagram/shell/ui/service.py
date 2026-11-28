@@ -189,7 +189,7 @@ class UIService:
             finally:
                 if idx is not None:
                     idx.close()
-                client.vault.close()
+                client.close()
 
     @contextmanager
     def open_client(self, index: bool = False):
@@ -206,4 +206,4 @@ class UIService:
         finally:
             if idx is not None:
                 idx.close()
-            client.vault.close()
+            client.close()

@@ -86,6 +86,10 @@ def test_open_url_rejects_options(tmp_path, monkeypatch, lab_link):
         assert calls == [{"invite": None}], argv
     launcher.open_url(tmp_path / "h", [good])
     assert calls[-1]["invite"].startswith("https://node.test/join#")
+    # Case-insensitive anagram:// scheme and macOS -psn_* flag filtering.
+    calls.clear()
+    launcher.open_url(tmp_path / "h", ["-psn_0_12345", good.replace("anagram://", "ANAGRAM://")])
+    assert calls[-1]["invite"].startswith("https://node.test/join#")
 
 
 def test_open_url_command_takes_all_words_as_data(tmp_path, monkeypatch):

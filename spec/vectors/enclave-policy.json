@@ -1,0 +1,676 @@
+{
+ "cases": [
+  {
+   "cloud": {
+    "csp_ids": [
+     "ExampleCloud"
+    ]
+   },
+   "cpu": {
+    "csp_id": "ExampleCloud",
+    "debug": false,
+    "migratable": false,
+    "policy": {
+     "abi_major": 0,
+     "abi_minor": 0,
+     "ciphertext_hiding": true,
+     "cxl_allow": false,
+     "debug": false,
+     "mem_aes_256_xts": false,
+     "migrate_ma": false,
+     "page_swap_disable": true,
+     "rapl_dis": false,
+     "single_socket": false,
+     "smt": false
+    },
+    "signing_key": "vlek"
+   },
+   "expect": "ok",
+   "gpu": null,
+   "name": "snp_vlek_pinned",
+   "production": true,
+   "profile": "raw-snp"
+  },
+  {
+   "cloud": {
+    "csp_ids": [
+     "ExampleCloud"
+    ]
+   },
+   "cpu": {
+    "csp_id": null,
+    "debug": false,
+    "migratable": false,
+    "policy": {
+     "abi_major": 0,
+     "abi_minor": 0,
+     "ciphertext_hiding": true,
+     "cxl_allow": false,
+     "debug": false,
+     "mem_aes_256_xts": false,
+     "migrate_ma": false,
+     "page_swap_disable": true,
+     "rapl_dis": false,
+     "single_socket": false,
+     "smt": false
+    },
+    "signing_key": "vcek"
+   },
+   "expect": "evidence_not_cloud_bound",
+   "gpu": null,
+   "name": "snp_vcek",
+   "production": true,
+   "profile": "raw-snp"
+  },
+  {
+   "cloud": {
+    "csp_ids": [
+     "ExampleCloud"
+    ]
+   },
+   "cpu": {
+    "csp_id": "OtherCloud",
+    "debug": false,
+    "migratable": false,
+    "policy": {
+     "abi_major": 0,
+     "abi_minor": 0,
+     "ciphertext_hiding": true,
+     "cxl_allow": false,
+     "debug": false,
+     "mem_aes_256_xts": false,
+     "migrate_ma": false,
+     "page_swap_disable": true,
+     "rapl_dis": false,
+     "single_socket": false,
+     "smt": false
+    },
+    "signing_key": "vlek"
+   },
+   "expect": "evidence_not_cloud_bound",
+   "gpu": null,
+   "name": "snp_vlek_other_cloud",
+   "production": true,
+   "profile": "raw-snp"
+  },
+  {
+   "cloud": {
+    "csp_ids": [
+     "ExampleCloud"
+    ]
+   },
+   "cpu": {
+    "csp_id": "ExampleCloud",
+    "debug": false,
+    "migratable": false,
+    "policy": {
+     "abi_major": 0,
+     "abi_minor": 0,
+     "ciphertext_hiding": true,
+     "cxl_allow": false,
+     "debug": false,
+     "mem_aes_256_xts": false,
+     "migrate_ma": false,
+     "page_swap_disable": true,
+     "rapl_dis": false,
+     "single_socket": false,
+     "smt": false
+    },
+    "signing_key": "vcek"
+   },
+   "expect": "evidence_not_cloud_bound",
+   "gpu": null,
+   "name": "snp_vcek_in_development",
+   "production": false,
+   "profile": "raw-snp"
+  },
+  {
+   "cloud": {
+    "project_numbers": [
+     "123456789012"
+    ],
+    "zones": [
+     "us-central1-a",
+     "us-central1-b"
+    ]
+   },
+   "cpu": {
+    "cloud": {
+     "project_number": "123456789012",
+     "zone": "us-central1-a"
+    },
+    "cmd_override": [],
+    "debug": false,
+    "env_override": {},
+    "migratable": false,
+    "secboot": true,
+    "support_attributes": [
+     "LATEST",
+     "STABLE",
+     "USABLE"
+    ]
+   },
+   "expect": "ok",
+   "gpu": {
+    "bound_by_cpu_evidence": true,
+    "cc_mode": "ON",
+    "dbgstat": "disabled"
+   },
+   "name": "gcp_pinned",
+   "production": true,
+   "profile": "gcp-cs"
+  },
+  {
+   "cloud": {
+    "project_numbers": [
+     "123456789012"
+    ],
+    "zones": [
+     "us-central1-a",
+     "us-central1-b"
+    ]
+   },
+   "cpu": {
+    "cloud": {
+     "project_number": "999",
+     "zone": "us-central1-a"
+    },
+    "cmd_override": [],
+    "debug": false,
+    "env_override": {},
+    "migratable": false,
+    "secboot": true,
+    "support_attributes": [
+     "LATEST",
+     "STABLE",
+     "USABLE"
+    ]
+   },
+   "expect": "evidence_not_cloud_bound",
+   "gpu": null,
+   "name": "gcp_other_project",
+   "production": true,
+   "profile": "gcp-cs"
+  },
+  {
+   "cloud": {
+    "project_numbers": [
+     "123456789012"
+    ],
+    "zones": [
+     "us-central1-a",
+     "us-central1-b"
+    ]
+   },
+   "cpu": {
+    "cloud": {
+     "project_number": "123456789012",
+     "zone": "europe-west4-a"
+    },
+    "cmd_override": [],
+    "debug": false,
+    "env_override": {},
+    "migratable": false,
+    "secboot": true,
+    "support_attributes": [
+     "LATEST",
+     "STABLE",
+     "USABLE"
+    ]
+   },
+   "expect": "evidence_not_cloud_bound",
+   "gpu": null,
+   "name": "gcp_other_zone",
+   "production": true,
+   "profile": "gcp-cs"
+  },
+  {
+   "cloud": {
+    "project_numbers": [
+     "123456789012"
+    ],
+    "zones": [
+     "us-central1-a",
+     "us-central1-b"
+    ]
+   },
+   "cpu": {
+    "cloud": null,
+    "cmd_override": [],
+    "debug": false,
+    "env_override": {},
+    "migratable": false,
+    "secboot": true,
+    "support_attributes": [
+     "LATEST",
+     "STABLE",
+     "USABLE"
+    ]
+   },
+   "expect": "evidence_not_cloud_bound",
+   "gpu": null,
+   "name": "gcp_no_gce_claims",
+   "production": true,
+   "profile": "gcp-cs"
+  },
+  {
+   "cloud": {},
+   "cpu": {
+    "debug": false,
+    "migratable": false
+   },
+   "expect": "evidence_not_cloud_bound",
+   "gpu": null,
+   "name": "tdx_production",
+   "production": true,
+   "profile": "raw-tdx"
+  },
+  {
+   "cloud": {},
+   "cpu": {
+    "debug": false,
+    "migratable": false
+   },
+   "expect": "ok",
+   "gpu": null,
+   "name": "tdx_development",
+   "production": false,
+   "profile": "raw-tdx"
+  },
+  {
+   "cloud": {},
+   "cpu": {
+    "debug": false,
+    "migratable": false
+   },
+   "expect": "evidence_not_cloud_bound",
+   "gpu": null,
+   "name": "azure_parked",
+   "production": true,
+   "profile": "azure-cvm-gpu"
+  },
+  {
+   "cloud": {},
+   "cpu": {
+    "debug": false,
+    "migratable": false
+   },
+   "expect": "ok",
+   "gpu": null,
+   "name": "simulated_has_no_cloud",
+   "production": false,
+   "profile": "simulated"
+  },
+  {
+   "cloud": {
+    "csp_ids": [
+     "ExampleCloud"
+    ]
+   },
+   "cpu": {
+    "csp_id": "ExampleCloud",
+    "debug": true,
+    "migratable": false,
+    "policy": {
+     "abi_major": 0,
+     "abi_minor": 0,
+     "ciphertext_hiding": true,
+     "cxl_allow": false,
+     "debug": false,
+     "mem_aes_256_xts": false,
+     "migrate_ma": false,
+     "page_swap_disable": true,
+     "rapl_dis": false,
+     "single_socket": false,
+     "smt": false
+    },
+    "signing_key": "vlek"
+   },
+   "expect": "policy_refused",
+   "gpu": null,
+   "name": "snp_debug",
+   "production": true,
+   "profile": "raw-snp"
+  },
+  {
+   "cloud": {
+    "csp_ids": [
+     "ExampleCloud"
+    ]
+   },
+   "cpu": {
+    "csp_id": "ExampleCloud",
+    "debug": false,
+    "migratable": true,
+    "policy": {
+     "abi_major": 0,
+     "abi_minor": 0,
+     "ciphertext_hiding": true,
+     "cxl_allow": false,
+     "debug": false,
+     "mem_aes_256_xts": false,
+     "migrate_ma": false,
+     "page_swap_disable": true,
+     "rapl_dis": false,
+     "single_socket": false,
+     "smt": false
+    },
+    "signing_key": "vlek"
+   },
+   "expect": "policy_refused",
+   "gpu": null,
+   "name": "snp_migratable",
+   "production": true,
+   "profile": "raw-snp"
+  },
+  {
+   "cloud": {
+    "csp_ids": [
+     "ExampleCloud"
+    ]
+   },
+   "cpu": {
+    "csp_id": "ExampleCloud",
+    "debug": false,
+    "migratable": false,
+    "policy": {
+     "abi_major": 0,
+     "abi_minor": 0,
+     "ciphertext_hiding": true,
+     "cxl_allow": false,
+     "debug": false,
+     "mem_aes_256_xts": false,
+     "migrate_ma": false,
+     "page_swap_disable": true,
+     "rapl_dis": false,
+     "single_socket": false,
+     "smt": true
+    },
+    "signing_key": "vlek"
+   },
+   "expect": "smt_allowed",
+   "gpu": null,
+   "name": "snp_smt",
+   "production": true,
+   "profile": "raw-snp"
+  },
+  {
+   "cloud": {
+    "csp_ids": [
+     "ExampleCloud"
+    ]
+   },
+   "cpu": {
+    "csp_id": "ExampleCloud",
+    "debug": false,
+    "migratable": false,
+    "policy": {
+     "abi_major": 0,
+     "abi_minor": 0,
+     "ciphertext_hiding": false,
+     "cxl_allow": false,
+     "debug": false,
+     "mem_aes_256_xts": false,
+     "migrate_ma": false,
+     "page_swap_disable": true,
+     "rapl_dis": false,
+     "single_socket": false,
+     "smt": false
+    },
+    "signing_key": "vlek"
+   },
+   "expect": "ciphertext_hiding_off",
+   "gpu": null,
+   "name": "snp_ciphertext_hiding_off",
+   "production": true,
+   "profile": "raw-snp"
+  },
+  {
+   "cloud": {
+    "csp_ids": [
+     "ExampleCloud"
+    ]
+   },
+   "cpu": {
+    "csp_id": "ExampleCloud",
+    "debug": false,
+    "migratable": false,
+    "policy": {
+     "abi_major": 0,
+     "abi_minor": 0,
+     "ciphertext_hiding": true,
+     "cxl_allow": false,
+     "debug": false,
+     "mem_aes_256_xts": false,
+     "migrate_ma": false,
+     "page_swap_disable": false,
+     "rapl_dis": false,
+     "single_socket": false,
+     "smt": false
+    },
+    "signing_key": "vlek"
+   },
+   "expect": "page_swap_allowed",
+   "gpu": null,
+   "name": "snp_page_swap",
+   "production": true,
+   "profile": "raw-snp"
+  },
+  {
+   "cloud": {
+    "csp_ids": [
+     "ExampleCloud"
+    ]
+   },
+   "cpu": {
+    "csp_id": "ExampleCloud",
+    "debug": false,
+    "migratable": false,
+    "signing_key": "vlek"
+   },
+   "expect": "smt_allowed",
+   "gpu": null,
+   "name": "snp_no_policy",
+   "production": true,
+   "profile": "raw-snp"
+  },
+  {
+   "cloud": {
+    "project_numbers": [
+     "123456789012"
+    ],
+    "zones": [
+     "us-central1-a",
+     "us-central1-b"
+    ]
+   },
+   "cpu": {
+    "cloud": {
+     "project_number": "123456789012",
+     "zone": "us-central1-a"
+    },
+    "cmd_override": [],
+    "debug": false,
+    "env_override": {},
+    "migratable": false,
+    "secboot": false,
+    "support_attributes": [
+     "LATEST",
+     "STABLE",
+     "USABLE"
+    ]
+   },
+   "expect": "secure_boot_off",
+   "gpu": null,
+   "name": "gcp_secure_boot_off",
+   "production": true,
+   "profile": "gcp-cs"
+  },
+  {
+   "cloud": {
+    "project_numbers": [
+     "123456789012"
+    ],
+    "zones": [
+     "us-central1-a",
+     "us-central1-b"
+    ]
+   },
+   "cpu": {
+    "cloud": {
+     "project_number": "123456789012",
+     "zone": "us-central1-a"
+    },
+    "cmd_override": [],
+    "debug": false,
+    "env_override": {},
+    "migratable": false,
+    "secboot": true,
+    "support_attributes": [
+     "USABLE"
+    ]
+   },
+   "expect": "image_not_stable",
+   "gpu": null,
+   "name": "gcp_image_not_stable",
+   "production": true,
+   "profile": "gcp-cs"
+  },
+  {
+   "cloud": {
+    "project_numbers": [
+     "123456789012"
+    ],
+    "zones": [
+     "us-central1-a",
+     "us-central1-b"
+    ]
+   },
+   "cpu": {
+    "cloud": {
+     "project_number": "123456789012",
+     "zone": "us-central1-a"
+    },
+    "cmd_override": [
+     "/bin/sh"
+    ],
+    "debug": false,
+    "env_override": {},
+    "migratable": false,
+    "secboot": true,
+    "support_attributes": [
+     "LATEST",
+     "STABLE",
+     "USABLE"
+    ]
+   },
+   "expect": "launch_override",
+   "gpu": null,
+   "name": "gcp_cmd_override",
+   "production": true,
+   "profile": "gcp-cs"
+  },
+  {
+   "cloud": {
+    "project_numbers": [
+     "123456789012"
+    ],
+    "zones": [
+     "us-central1-a",
+     "us-central1-b"
+    ]
+   },
+   "cpu": {
+    "cloud": {
+     "project_number": "123456789012",
+     "zone": "us-central1-a"
+    },
+    "cmd_override": [],
+    "debug": false,
+    "env_override": {
+     "DEBUG": "1"
+    },
+    "migratable": false,
+    "secboot": true,
+    "support_attributes": [
+     "LATEST",
+     "STABLE",
+     "USABLE"
+    ]
+   },
+   "expect": "launch_override",
+   "gpu": null,
+   "name": "gcp_env_override",
+   "production": true,
+   "profile": "gcp-cs"
+  },
+  {
+   "cloud": {
+    "project_numbers": [
+     "123456789012"
+    ],
+    "zones": [
+     "us-central1-a",
+     "us-central1-b"
+    ]
+   },
+   "cpu": {
+    "cloud": {
+     "project_number": "123456789012",
+     "zone": "us-central1-a"
+    },
+    "cmd_override": [],
+    "debug": false,
+    "env_override": {},
+    "migratable": false,
+    "secboot": true,
+    "support_attributes": [
+     "LATEST",
+     "STABLE",
+     "USABLE"
+    ]
+   },
+   "expect": "policy_refused",
+   "gpu": {
+    "bound_by_cpu_evidence": true,
+    "cc_mode": "ON",
+    "dbgstat": "enabled"
+   },
+   "name": "gcp_gpu_devtools",
+   "production": true,
+   "profile": "gcp-cs"
+  },
+  {
+   "cloud": {
+    "csp_ids": [
+     "ExampleCloud"
+    ]
+   },
+   "cpu": {
+    "csp_id": "ExampleCloud",
+    "debug": false,
+    "migratable": false,
+    "policy": {
+     "abi_major": 0,
+     "abi_minor": 0,
+     "ciphertext_hiding": true,
+     "cxl_allow": false,
+     "debug": false,
+     "mem_aes_256_xts": false,
+     "migrate_ma": false,
+     "page_swap_disable": true,
+     "rapl_dis": false,
+     "single_socket": false,
+     "smt": true
+    },
+    "signing_key": "vcek"
+   },
+   "expect": "evidence_not_cloud_bound",
+   "gpu": null,
+   "name": "cloud_before_policy",
+   "production": true,
+   "profile": "raw-snp"
+  }
+ ],
+ "schema": "anagram.vectors.enclave_policy.v1"
+}

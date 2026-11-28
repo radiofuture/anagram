@@ -7,7 +7,8 @@ What the app, the log, the witnesses and the instances check:
 - `logview`: the checked entries of the log, with their signed log times;
 - `release`: the release rules (notice, rebuilds, revocation, floors);
 - `lines`: leases, authorised lines, shards, state epochs and failovers;
-- `attestation`: the attestation document and its checks (rules 1 to 8);
+- `attestation`: the attestation document and its checks (rules 1 to 9;
+  the cloud binding and the policy bits are in `policy`);
 - `platform`: the ports of a confidential VM (`Platform`) and of a
   profile's evidence step (`EvidenceVerifier`), with the registry;
 - `profiles/`: `simulated` (development and CI), and the SEV-SNP and TDX

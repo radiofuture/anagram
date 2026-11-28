@@ -297,6 +297,17 @@ def _gpu(payload: dict[str, Any]) -> JsonObject | None:
 EVIDENCE_FIELDS = frozenset({"token"})
 
 
+def _cloud(p: JsonObject) -> JsonObject | None:
+    """The project and zone of the VM (`submods.gce`), for rule 9."""
+    gce = _get(p, "submods.gce", dict, optional=True)
+    if gce is None:
+        return None
+    return {
+        "project_number": _get(gce, "project_number", str),
+        "zone": _get(gce, "zone", str),
+    }
+
+
 def gcp_claims(platform_evidence: object, gpu_evidence: object, roots: Roots) -> Claims:
     """Rule 8 for `gcp-cs`, then the claims that the other rules read."""
     ev = evidence_object(platform_evidence, "platform_evidence")
@@ -320,6 +331,7 @@ def gcp_claims(platform_evidence: object, gpu_evidence: object, roots: Roots) ->
         "swname": _get(p, "swname", str),
     }
     cpu: JsonObject = {
+        "cloud": _cloud(p),
         "cmd_override": _strings(
             _get(container, "cmd_override", list, optional=True) or [], "cmd_override"
         ),

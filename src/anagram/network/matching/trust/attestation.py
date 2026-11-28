@@ -28,6 +28,12 @@ from anagram.network.matching.trust.lines import (
 )
 from anagram.network.matching.trust.logview import LogView
 from anagram.network.matching.trust.platform import evidence_verifier
+from anagram.network.matching.trust.policy import (
+    CLOUD_CODES,
+    POLICY_CODES,
+    check_cloud,
+    check_policy,
+)
 from anagram.network.matching.trust.profiles import evidence_object
 from anagram.network.matching.trust.release import effective_floor, meets
 from anagram.network.matching.trust.roots import Roots, quorum_times
@@ -45,7 +51,7 @@ NEVER_PASSES = ("Revoked", "Unsupported")
 RULE_CODES = {
     1: ("measurement_mismatch",),
     2: ("tcb_below_floor",),
-    3: ("policy_refused",),
+    3: POLICY_CODES[:1],
     4: ("evidence_expired",),
     5: ("binding_mismatch",),
     6: ("gpu_binding_mismatch",),
@@ -59,6 +65,9 @@ RULE_CODES = {
     ),
     8: ("untrusted_root", "cert_revoked"),
 }
+# The rules of the strict policy (section 4.9). Their cases are in
+# vectors/enclave-policy.json; the first vector file keeps rules 1 to 8.
+POLICY_RULE_CODES = {3: POLICY_CODES[1:], 9: CLOUD_CODES}
 PRE_CODES = ("bad_attestation", "unknown_profile")
 
 _DOC_FIELDS = {
@@ -131,7 +140,7 @@ def verify_successor(
 def verify_evidence(
     doc: JsonObject, release: JsonObject, view: LogView, roots: Roots, now: int
 ) -> int:
-    """The pre-checks and rules 8, 4, 3, 2, 1, 5 and 6, in that order: what
+    """The pre-checks and rules 8, 9, 4, 3, 2, 1, 5 and 6, in that order: what
     the log and the witnesses check before they accept an instance key
     (section 5.4). Return the signed issue time of the evidence."""
     bind, issued = _pre_checks(doc, release, roots)
@@ -141,16 +150,16 @@ def verify_evidence(
     claims = evidence_verifier(doc["profile"]).claims(doc, roots)
     cpu, gpu = claims.cpu, claims.gpu
 
+    # Rule 9: a pinned cloud runs the instance.
+    check_cloud(doc["profile"], ref.get("cloud", {}), cpu, production=roots.dev_root is None)
+
     # Rule 4: age by signed time (the checkpoint that the evidence binds).
     if now - issued > MAX_EVIDENCE_AGE or issued > now + MAX_SKEW:
         raise Refused("evidence_expired")
     _check_collateral(cpu, now)
 
     # Rule 3: policy bits.
-    if cpu.get("debug") is not False or cpu.get("migratable") is not False:
-        raise Refused("policy_refused", "cpu")
-    if gpu is not None and (gpu.get("dbgstat") != "disabled" or gpu.get("cc_mode") != "ON"):
-        raise Refused("policy_refused", "gpu")
+    check_policy(doc["profile"], cpu, gpu)
 
     # Rule 2: TCB floor (release floor, raised by enclave_floor entries).
     _check_floor(effective_floor(release, doc["profile"], view, roots), cpu, gpu)

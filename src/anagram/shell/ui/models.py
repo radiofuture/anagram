@@ -28,8 +28,8 @@ from anagram.local.api import (
     space_of,
 )
 from anagram.models import ModelError, profile, recipients
-from anagram.models.budget import ledger_state
-from anagram.models.ledger import usd_text
+from anagram.models.budget import ledger_path, ledger_state
+from anagram.models.ledger import BudgetLedger, EngineError, usd_text
 from anagram.models.ollama_client import OllamaClient, OllamaError
 from anagram.shell.client import lab_context
 from anagram.shell.ui.errors import UIError
@@ -132,7 +132,16 @@ class ModelsUI:
         try:
             got = ledger_state(self.ui.home, cfg.budget, self.today())
         except ModelError:
-            return out  # the approval is not valid now (for example, it expired)
+            # Expired or invalid approval: still show the real spent total if a
+            # ledger file exists, instead of falling back to $0.
+            try:
+                path = ledger_path(self.ui.home, cfg.budget)
+                if path.exists():
+                    snap = BudgetLedger(path, cfg.budget["budget_usd"]).snapshot()
+                    out["spent_usd"] = usd_text(Decimal(snap["reserved_nanousd"]) / 10**9)
+            except (EngineError, KeyError, OSError, ValueError):
+                pass
+            return out
         out["open"] = not got["breached"] and got["spent_usd"] < got["budget_usd"]
         out["spent_usd"] = usd_text(got["spent_usd"])
         return out

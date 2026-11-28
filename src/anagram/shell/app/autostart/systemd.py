@@ -20,9 +20,12 @@ UNIT = "anagram.service"
 
 def _quote(arg: str) -> str:
     """One argument in the quoting of systemd and of desktop files."""
+    if any(c in arg for c in ("\n", "\r", "\x00")):
+        raise ValueError("command argument cannot contain newline or NUL")
     if arg and all(c.isalnum() or c in "-_./:=@+," for c in arg):
         return arg
-    return '"' + arg.replace("\\", "\\\\").replace('"', '\\"').replace("$", "$$") + '"'
+    escaped = arg.replace("\\", "\\\\").replace('"', '\\"').replace("$", "$$").replace("%", "%%")
+    return '"' + escaped + '"'
 
 
 def exec_line(command: list[str]) -> str:
@@ -30,7 +33,7 @@ def exec_line(command: list[str]) -> str:
 
 
 def parse_exec(line: str) -> list[str]:
-    return [a.replace("$$", "$") for a in shlex.split(line)]
+    return [a.replace("$$", "$").replace("%%", "%") for a in shlex.split(line)]
 
 
 def unit_text(command: list[str]) -> str:

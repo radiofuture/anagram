@@ -49,10 +49,17 @@ export function navItems(group) {
 }
 
 function parse(hash) {
-  const raw = hash.replace(/^#\/?/, '');
+  let raw = hash.replace(/^#\/?/, '');
+  let anchor = null;
+  const hashCut = raw.indexOf('#');
+  if (hashCut >= 0) {
+    anchor = raw.slice(hashCut + 1) || null;
+    raw = raw.slice(0, hashCut);
+  }
   const cut = raw.indexOf('?');
   const path = cut < 0 ? raw : raw.slice(0, cut);
   const query = Object.fromEntries(new URLSearchParams(cut < 0 ? '' : raw.slice(cut + 1)));
+  if (anchor && !query.section) query.section = anchor;
   const segments = path
     .split('/')
     .filter(Boolean)

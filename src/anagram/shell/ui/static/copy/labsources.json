@@ -7,7 +7,7 @@
   "rules_title": "Sources in the lab space",
   "allowed": "Kinds that members can put in the lab space",
   "allowed_none": "None",
-  "default": "Start value for a new source",
+  "default": "New sources go to",
   "default_private": "Only you",
   "default_private_help": "A member chooses the lab space for each source.",
   "default_lab": "The lab space",

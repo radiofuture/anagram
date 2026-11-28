@@ -9,15 +9,15 @@
 // gets it; the lab form has no key: each member types their own).
 import { html, useState } from '../core/html.js';
 import { t } from '../core/copy.js';
-import { ActionButton, Check, ChoiceGroup, ErrorLine, Field, TextInput } from '../components/index.js';
+import { ActionButton, Check, CheckList, ChoiceGroup, ErrorLine, Field, TextInput } from '../components/index.js';
 
 export const WHERE = ['local', 'university', 'cloud'];
 export const CLOUD = ['anthropic', 'openai', 'openrouter'];
-// A first value for each cloud provider. The person can change the model.
+// Neutral starting values for each cloud provider; placeholders give examples.
 const START = {
-  anthropic: { model: 'claude-haiku-5-5' },
+  anthropic: { model: '' },
   openai: { model: '' },
-  openrouter: { model: 'anthropic/claude-haiku-5.5', route: 'anthropic' },
+  openrouter: { model: '', route: 'anthropic' },
 };
 
 /** The place of Profile JSON (or of no profile: a model on each computer). */
@@ -58,6 +58,7 @@ export function ModelForm({
   lab = false,
   labText = false,
   budget = false,
+  sources = [],
   onSubmit,
   submitLabel,
   busyLabel,
@@ -76,6 +77,7 @@ export function ModelForm({
   const [limit, setLimit] = useState('10');
   const [until, setUntil] = useState(inDays(90));
   const [text, setText] = useState(labText);
+  const [allowSources, setAllowSources] = useState([]);
   // An embedding model cannot read or answer: it is not a choice.
   const installed = (ollama?.models || []).filter(
     (m) => !/embed/i.test(m) && !taken.includes(m.replace(/:latest$/, '')),
@@ -117,6 +119,7 @@ export function ModelForm({
       key: lab ? null : key.trim() || null,
       budget: paid ? { budget_usd: limit.trim(), expires: until } : null,
       lab_text: text,
+      allow_sources: where !== 'local' && !lab ? allowSources : [],
     });
     setKey('');
   };
@@ -169,7 +172,8 @@ export function ModelForm({
         </select>
       <//>
       <${Field} id="model-cloud-name" label=${t('models.model_name')}>
-        <${TextInput} value=${model} onInput=${setModel} spellcheck=${false} autocomplete="off" />
+        <${TextInput} value=${model} onInput=${setModel} placeholder=${t(`models.model_placeholder_${provider}`)}
+          spellcheck=${false} autocomplete="off" />
       <//>
       ${
         provider === 'openrouter' &&
@@ -188,7 +192,8 @@ export function ModelForm({
           <${Field} id="model-price-out" label=${t('models.price_out')}>
             <${TextInput} value=${prices[1]} onInput=${(v) => setPrices([prices[0], v])} inputmode="decimal" autocomplete="off" />
           <//>
-        </div>`
+        </div>
+        <p class="rf-ui-help">${t('models.prices_help')}</p>`
       }
       ${
         !lab &&
@@ -222,6 +227,14 @@ export function ModelForm({
       <${ChoiceGroup} legend=${t('models.where')} name=${lab ? 'lab-model-where' : 'model-where'} value=${where}
         options=${options} onChange=${setWhere} />
       ${fields}
+      ${
+        !lab &&
+        where !== 'local' &&
+        sources.length > 0 &&
+        html`
+        <${CheckList} legend=${t('models.sources_add_legend')} name="model-new-sources" value=${allowSources}
+          items=${sources.map((s) => ({ value: s.id, label: s.label }))} onChange=${setAllowSources} />`
+      }
       ${
         lab &&
         where !== 'local' &&

@@ -314,3 +314,21 @@ def test_install_uninstall_status_commands(tmp_path, capsys):
 
 def test_autostart_module_names():
     assert autostart.LABEL == "org.radiofuture.anagram"
+
+
+def test_systemd_rejects_newlines_and_escapes_percent():
+    for bad in ("/a\nExecStart=/evil", "/a\r/b", "/a\x00b"):
+        with pytest.raises(ValueError, match="newline or NUL"):
+            unit_text([bad])
+    cmd = ["/opt/100% app/anagram", "--home", "/home/user/%u/data", "app", "run"]
+    unit = unit_text(cmd)
+    assert "100%%" in unit and "%%u" in unit
+    assert parse_exec(unit.split("ExecStart=")[1].split("\n")[0]) == cmd
+    desk = desktop_text(cmd)
+    assert "100%%" in desk and "%%u" in desk
+    assert parse_exec(desk.split("Exec=")[1].split("\n")[0]) == cmd
+
+
+def test_pid_alive_rejects_non_positive():
+    assert launcher._pid_alive(0) is False
+    assert launcher._pid_alive(-1) is False

@@ -112,7 +112,7 @@
   "rename": "Save the name",
   "set_sources": "Sources",
   "set_default": "New sources go to",
-  "default_private": "Only me",
+  "default_private": "Only you",
   "default_private_help": "A person adds an item to the lab space one at a time.",
   "default_lab": "The lab space",
   "default_lab_help": "Items of a new source go to the lab space. The person can change this for each source.",

@@ -22,7 +22,7 @@ def arguments(argv: list[str]) -> list[str]:
     argv = [a for a in argv if not a.startswith("-psn_")]
     if not argv:
         return ["open"]
-    if len(argv) == 1 and argv[0].startswith(PREFIX):
+    if len(argv) == 1 and argv[0].lower().startswith(PREFIX):
         return ["open-url", argv[0]]
     return argv
 

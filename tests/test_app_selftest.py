@@ -62,6 +62,8 @@ def test_entry_arguments():
     assert arguments([]) == ["open"]
     assert arguments(["-psn_0_12345"]) == ["open"]
     assert arguments(["anagram://open"]) == ["open-url", "anagram://open"]
+    assert arguments(["ANAGRAM://open"]) == ["open-url", "ANAGRAM://open"]
+    assert arguments(["-psn_0_123", "ANAGRAM://join/abc"]) == ["open-url", "ANAGRAM://join/abc"]
     assert arguments(["--home", "/h", "app", "run"]) == ["--home", "/h", "app", "run"]
     assert arguments(["open-url", "anagram://open"]) == ["open-url", "anagram://open"]
 
@@ -78,3 +80,4 @@ def test_spec_names_the_entry_and_the_plist():
     text = (PACKAGING / "anagram.spec").read_text()
     assert '"entry.py"' in text and '"Info.plist"' in text
     assert "argv_emulation" in text and "ANAGRAM_NO_BUNDLE" in text
+    assert "anagram.vectors" in text and "sim/data/kinds_*.json" in text

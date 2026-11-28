@@ -194,3 +194,104 @@ def test_organizer_passkey_login(site):
     assert r.status_code == 200
     assert "Members</th>" in site.tc.get("/admin").text
     assert "javascript" in site.tc.get("/admin/passkey.js").headers["content-type"]
+
+
+def test_admin_without_orcid_hides_form_and_keeps_enter_link(tmp_path):
+    nh = NodeHome(tmp_path / "node")
+    nh.create(
+        origin="real.example.org/log-v2",
+        public_url="https://real.example.org",
+        community="No ORCID Community",
+        orcid_mode="production",
+        orcid_client_id="",
+        orcid_client_secret="",
+        anchor_mode="background",
+    )
+    app, identity = nh.app_parts()
+    tc = TestClient(app, base_url="https://real.example.org")
+    r = tc.get("/admin")
+    assert r.status_code == 200
+    assert "Sign in with ORCID" not in r.text
+    assert "Sign in with a passkey" in r.text
+    r_login = tc.post(
+        "/admin/login", headers={"Origin": "https://real.example.org"}, follow_redirects=False
+    )
+    assert r_login.status_code == 503
+    # One-time enter link still works for an organizer without ORCID.
+    from anagram.admission.app.join import join
+    from anagram.core.nodeapi import NodeHTTPError
+
+    def transport(method, path, body, headers=None):
+        resp = tc.request(method, path, json=body, headers=headers or {})
+        if resp.status_code >= 400:
+            raise NodeHTTPError(resp.status_code, resp.json().get("detail", ""))
+        return resp.json()
+
+    invite_url = app.state.admission.create_invite(None, 7, organizer=True)["invite_url"]
+    org = join(
+        tmp_path / "org",
+        invite_url,
+        transport=transport,
+        display_name="Org Person",
+        method="invite",
+        open_home=Client.open,
+    ).client
+    try:
+        link = tc.post(
+            "/admin/enter-link", headers={"Authorization": f"Bearer {org.node.token}"}
+        ).json()["url"]
+        enter = tc.get(link, follow_redirects=False)
+        assert enter.status_code == 303 and enter.headers["location"] == "/admin"
+        assert "Members</th><td>1" in tc.get("/admin").text
+    finally:
+        org.close()
+
+
+def test_admin_passkey_options_no_enumeration_and_origin_and_logout_csrf(site):
+    h = {"Origin": NODE_URL}
+    # Unknown and non-organizer ORCIDs get a stable decoy allowCredentials entry.
+    unknown1 = site.tc.post(
+        "/admin/passkey/options", json={"orcid": "0000-0003-1415-9269"}, headers=h
+    ).json()
+    unknown2 = site.tc.post(
+        "/admin/passkey/options", json={"orcid": "0000-0003-1415-9269"}, headers=h
+    ).json()
+    non_org = site.tc.post("/admin/passkey/options", json={"orcid": MEMBER}, headers=h).json()
+    assert len(unknown1["options"]["allowCredentials"]) == 1
+    assert unknown1["options"]["allowCredentials"] == unknown2["options"]["allowCredentials"]
+    assert len(non_org["options"]["allowCredentials"]) == 1
+    assert unknown1["options"]["allowCredentials"] != non_org["options"]["allowCredentials"]
+    # POST /admin/login requires Origin header.
+    assert site.tc.post("/admin/login", follow_redirects=False).status_code == 403
+    # Failed logout CSRF returns 403 and does NOT clear the session cookie.
+    site.orcid_login(ORG)
+    page = site.tc.get("/admin").text
+    assert "Members</th>" in page
+    bad_logout = site.tc.post(
+        "/admin/logout", data={"csrf": "wrong-token"}, headers=h, follow_redirects=False
+    )
+    assert bad_logout.status_code == 403
+    assert "anagram_admin=" not in bad_logout.headers.get("set-cookie", "")
+    assert "Members</th>" in site.tc.get("/admin").text
+
+
+def test_orcid_callback_redirect_sets_security_headers(site):
+    from anagram.shell import pages
+
+    r = site.tc.post(
+        "/auth/orcid/start",
+        json={
+            "code_challenge": "a" * 43,
+            "device_key": "00" * 32,
+            "nonce": "11" * 16,
+            "return_to": "http://127.0.0.1:9999/auth/callback",
+        },
+    )
+    assert r.status_code == 200
+    auth_url = r.json()["authorize_url"]
+    r2 = site.tc.get(auth_url + f"&orcid={MEMBER}", follow_redirects=False)
+    assert r2.status_code == 303
+    r3 = site.tc.get(r2.headers["location"], follow_redirects=False)
+    assert r3.status_code == 303
+    for k, v in pages.HEADERS.items():
+        assert r3.headers.get(k.lower()) == v

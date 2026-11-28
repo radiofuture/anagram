@@ -8,7 +8,7 @@
   "close": "Close",
   "doc_title": "{title} - Anagram",
   "step": "Step {n} of {of}",
-  "loading": "Reading…",
+  "loading": "Loading…",
   "try_again": "Try again",
   "cancel": "Cancel",
   "fault_title": "Anagram cannot start",
@@ -33,7 +33,11 @@
     "pick_busy": "Reading the folder…",
     "up": "Up one folder",
     "inside": "Folders inside",
-    "none": "No folders inside."
+    "none": "No folders inside.",
+    "is_git": "Git repository",
+    "is_obsidian": "Obsidian vault",
+    "not_git": "This folder is not a Git repository.",
+    "not_obsidian": "This folder is not an Obsidian vault."
   },
   "months": {
     "january": "January",
@@ -64,6 +68,6 @@
     "noise": "Other",
     "unknown": "Unsorted"
   },
-  "locked_title": "Unlock the keychain",
-  "locked_text": "Anagram keeps its key in the keychain of this computer, and the keychain is locked. Unlock it, then try again."
+  "locked_title": "Unlock your key store",
+  "locked_text": "Anagram keeps its key in the key store of this computer, which is locked. Unlock it, then try again."
 }

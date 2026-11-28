@@ -30,9 +30,8 @@ services:
     depends_on:
       node:
         condition: service_healthy
-    env_file:
-      - path: anagram.env
-        required: false
+    environment:
+      ANAGRAM_DOMAIN: ${ANAGRAM_DOMAIN:-}
     ports:
       - "80:80"
       - "443:443"

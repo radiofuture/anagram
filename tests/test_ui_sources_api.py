@@ -545,3 +545,15 @@ def test_zotero_web_old_config_reads_the_keystore_entry():
     )
     assert conn.config() == {"kind": "zotero_web", "user_id": "1"}
     assert conn.fetch() == []
+
+
+def test_browse_detects_obsidian_and_git(tmp_path):
+    from anagram.shell.ui.sources import SourcesUI
+
+    vault = tmp_path / "vault"
+    (vault / ".obsidian").mkdir(parents=True)
+    got = SourcesUI.browse(str(vault))
+    assert got["is_obsidian"] is True and got["is_git"] is False
+    (vault / ".git").mkdir()
+    got2 = SourcesUI.browse(str(vault))
+    assert got2["is_obsidian"] is True and got2["is_git"] is True

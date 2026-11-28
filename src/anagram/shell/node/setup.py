@@ -9,11 +9,12 @@ Environment (see docs/deploy.md):
     ANAGRAM_DOMAIN                 required, for example anagram.example.org
     ANAGRAM_PUBLIC_URL             default https://<domain> (set it if a port is used)
     ANAGRAM_COMMUNITY              community name
-    ANAGRAM_ORCID_CLIENT_ID        ORCID client (required unless dev mode)
+    ANAGRAM_ORCID_CLIENT_ID        optional ORCID client (omit both to disable ORCID)
     ANAGRAM_ORCID_CLIENT_SECRET
     ANAGRAM_ORCID_SANDBOX=1        use sandbox.orcid.org
     ANAGRAM_DEV_FAKE_ORCID=1       LOCAL TESTS ONLY: fake ORCID and fake anchor.
                                    Refused unless the domain is localhost or *.localhost
+    ANAGRAM_FORWARDED_ALLOW_IPS    proxy IPs trusted for X-Forwarded-* (default 127.0.0.1)
     ANAGRAM_ORGANIZER_ORCIDS       optional comma list; they become organizers when they join
     ANAGRAM_TSA_URLS               comma list (default: FreeTSA and DigiCert)
     ANAGRAM_OTS=off                no OpenTimestamps (default on)
@@ -163,17 +164,18 @@ def settings_from_env(env: Mapping[str, str]) -> DeploySettings:
     if not dev and not public_url.startswith("https://"):
         raise SetupError("a real node needs an https:// public URL")
 
-    client_id = env.get("ANAGRAM_ORCID_CLIENT_ID", "")
-    secret = env.get("ANAGRAM_ORCID_CLIENT_SECRET", "")
+    client_id = (env.get("ANAGRAM_ORCID_CLIENT_ID") or "").strip()
+    secret = (env.get("ANAGRAM_ORCID_CLIENT_SECRET") or "").strip()
     if dev:
         mode = "fake"
     else:
         mode = (
             "sandbox" if (env.get("ANAGRAM_ORCID_SANDBOX") or "").lower() in TRUE else "production"
         )
-        if not client_id or not secret:
+        if bool(client_id) != bool(secret):
             raise SetupError(
-                "set ANAGRAM_ORCID_CLIENT_ID and ANAGRAM_ORCID_CLIENT_SECRET "
+                "set both ANAGRAM_ORCID_CLIENT_ID and ANAGRAM_ORCID_CLIENT_SECRET, "
+                "or omit both to run without ORCID "
                 f"(redirect URI to register: {public_url}/auth/orcid/callback)"
             )
 
@@ -281,7 +283,14 @@ def prepare(
         out(DEV_BANNER)
     out(f"Community: {cfg['community']}")
     out(f"Public URL: {cfg['public_url']}")
-    out(f"ORCID: {cfg['orcid']['mode']}; redirect URI: {cfg['public_url']}/auth/orcid/callback")
+    orcid_mode = cfg["orcid"]["mode"]
+    if orcid_mode != "fake" and (not cfg["orcid"].get("client_id") or not nh.orcid_client_secret()):
+        out(
+            "ORCID: off (set ANAGRAM_ORCID_CLIENT_ID and ANAGRAM_ORCID_CLIENT_SECRET to enable; "
+            f"redirect URI: {cfg['public_url']}/auth/orcid/callback)"
+        )
+    else:
+        out(f"ORCID: {orcid_mode}; redirect URI: {cfg['public_url']}/auth/orcid/callback")
     out(f"Anchors: {', '.join(cfg['anchors']) or 'none'} ({cfg['anchor_mode']})")
     out(enclave_line(nh))
     out(f"Node key fingerprint: {nh.fingerprint()}")
@@ -297,12 +306,41 @@ def prepare(
     return link
 
 
+def forwarded_allow_ips(env: Mapping[str, str]) -> str:
+    """Trusted proxy IPs for X-Forwarded-* headers. Defaults to loopback only."""
+    raw = (env.get("ANAGRAM_FORWARDED_ALLOW_IPS") or "").strip()
+    return raw or "127.0.0.1"
+
+
+def configure_node_logging() -> None:
+    """Structured-safe root logging for the node (keeps Ticker extra fields)."""
+    import logging
+
+    class _NodeFormatter(logging.Formatter):
+        def format(self, record: logging.LogRecord) -> str:
+            base = super().format(record)
+            fields = getattr(record, "fields", None)
+            if isinstance(fields, dict) and fields:
+                parts = " ".join(f"{k}={v}" for k, v in sorted(fields.items()))
+                return f"{base} {parts}"
+            return base
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(_NodeFormatter("%(asctime)s %(name)s %(levelname)s %(message)s"))
+    root = logging.getLogger()
+    root.handlers.clear()
+    root.addHandler(handler)
+    root.setLevel(logging.INFO)
+
+
 def serve_node(
     nh: NodeHome, host: str, port: int, *, proxy: bool = False
 ) -> int:  # pragma: no cover - server
     """Serve the node with its timers: background anchors, and the enclave
     relay (node.json "enclave" on). The timers stop
     when the server stops (SIGTERM or SIGINT)."""
+    import os
+
     import uvicorn
 
     from anagram.identity.api import mailer_from_env
@@ -316,7 +354,10 @@ def serve_node(
     stops = []
     if app.state.anchoring is not None:
         stops.append(app.state.anchoring.start())
-    extra = {"proxy_headers": True, "forwarded_allow_ips": "*"} if proxy else {}
+    extra: dict[str, object] = {"access_log": False, "log_config": None}
+    if proxy:
+        extra["proxy_headers"] = True
+        extra["forwarded_allow_ips"] = forwarded_allow_ips(os.environ)
     try:
         uvicorn.run(app, host=host, port=port, **extra)
     finally:
@@ -330,10 +371,9 @@ def serve_node(
 
 
 def main_start(nh: NodeHome, host: str, port: int) -> int:  # pragma: no cover - server
-    import logging
     import os
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    configure_node_logging()
     try:
         prepare(nh, os.environ, out=lambda line: print(line, flush=True))
     except (SetupError, ValueError) as exc:

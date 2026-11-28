@@ -84,17 +84,33 @@ function LineFields({ lines, setLines }) {
   const edit = (side, i, text) =>
     setLines({ ...lines, [side]: lines[side].map((l, j) => (j === i ? { ...l, text } : l)) });
   const add = (side) => setLines({ ...lines, [side]: [...lines[side], blank()] });
-  const side = (name) => html`
+  const remove = (side, i) => {
+    const rest = lines[side].filter((_, j) => j !== i);
+    setLines({ ...lines, [side]: rest.length ? rest : [blank()] });
+  };
+  const side = (name) => {
+    const placeholder = t(name === 'offers' ? 'netmatch.offer_placeholder' : 'netmatch.want_placeholder');
+    return html`
     <div class="ag-nm-side">
       <h3 class="ag-subtitle">${t(`netmatch.${name}`)}</h3>
       ${lines[name].map(
         (l, i) => html`
-        <${Field} id=${`nm-${name}-${i}`} label=${t('netmatch.line', { n: i + 1 })} hideLabel>
-          <${TextInput} value=${l.text} max=${140} onInput=${(v) => edit(name, i, v)} />
-        <//>`,
+        <div class="ag-nm-line-row" key=${i}>
+          <${Field} id=${`nm-${name}-${i}`} label=${t('netmatch.line', { n: i + 1 })} hideLabel>
+            <${TextInput} value=${l.text} max=${140} placeholder=${i === 0 ? placeholder : undefined}
+              onInput=${(v) => edit(name, i, v)} />
+          <//>
+          ${
+            (lines[name].length > 1 || l.text.trim()) &&
+            html`<button type="button" class="rf-ui-button rf-ui-button--quiet ag-nm-remove"
+              aria-label=${t('netmatch.remove_line_name', { n: i + 1 })}
+              onClick=${() => remove(name, i)}>${t('netmatch.remove_line')}</button>`
+          }
+        </div>`,
       )}
       ${lines[name].length < 5 && html`<button type="button" class="rf-ui-button rf-ui-button--quiet" onClick=${() => add(name)}>${t('netmatch.add')}</button>`}
     </div>`;
+  };
   return html`<div class="ag-nm-lines">${side('offers')}${side('wants')}</div>`;
 }
 
@@ -281,9 +297,18 @@ function Answer({ item }) {
     </div>
     <${ErrorLine} text=${error} />
     <div class="rf-ui-actions">
-      <${ActionButton} label=${t('netmatch.yes')} run=${send('yes')} errorTo=${setError} />
-      <${ActionButton} kind="secondary" label=${t('netmatch.not_now')} run=${send('not_now')} errorTo=${setError} />
-      <${ActionButton} kind="quiet" label=${t('netmatch.no')} run=${send('no')} errorTo=${setError} />
+      <${ActionButton} kind=${item.choice === 'yes' ? 'primary' : item.choice === 'unset' ? 'primary' : 'secondary'}
+        class=${item.choice === 'yes' ? 'ag-nm-chosen' : undefined}
+        aria-pressed=${item.choice === 'yes' ? 'true' : 'false'}
+        label=${t('netmatch.yes')} run=${send('yes')} errorTo=${setError} />
+      <${ActionButton} kind=${item.choice === 'not_now' ? 'primary' : 'secondary'}
+        class=${item.choice === 'not_now' ? 'ag-nm-chosen' : undefined}
+        aria-pressed=${item.choice === 'not_now' ? 'true' : 'false'}
+        label=${t('netmatch.not_now')} run=${send('not_now')} errorTo=${setError} />
+      <${ActionButton} kind=${item.choice === 'no' ? 'primary' : 'quiet'}
+        class=${item.choice === 'no' ? 'ag-nm-chosen' : undefined}
+        aria-pressed=${item.choice === 'no' ? 'true' : 'false'}
+        label=${t('netmatch.no')} run=${send('no')} errorTo=${setError} />
     </div>`;
 }
 
@@ -436,7 +461,7 @@ function View() {
         const open = cards.filter((c) => c.kind !== 'reveal' && c.choice !== 'sent');
         const sent = cards.filter((c) => c.kind === 'proposal' && c.choice === 'sent');
         return html`
-          <p class="rf-ui-help" role="note">${t('netmatch.simulated')}</p>
+          ${s.simulated && html`<p class="rf-ui-help" role="note">${t('netmatch.simulated')}</p>`}
           ${
             met.length + open.length + sent.length > 0 &&
             html`

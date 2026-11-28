@@ -29,7 +29,7 @@ def orcid_pages_router(identity, admin=None) -> APIRouter:
             return admin_callback(admin, request, state, code)
         location, one_time = identity.orcid_signin.callback(state, code)
         if location:
-            return RedirectResponse(location, status_code=303)
+            return RedirectResponse(location, status_code=303, headers=pages.HEADERS)
         return HTMLResponse(pages.orcid_code(one_time), headers=pages.HEADERS)
 
     if identity.orcid_signin.orcid.mode != "fake":
@@ -50,6 +50,6 @@ def orcid_pages_router(identity, admin=None) -> APIRouter:
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
         q = urllib.parse.urlencode({"code": code, "state": state})
-        return RedirectResponse(f"{redirect_uri}?{q}", status_code=303)
+        return RedirectResponse(f"{redirect_uri}?{q}", status_code=303, headers=pages.HEADERS)
 
     return router

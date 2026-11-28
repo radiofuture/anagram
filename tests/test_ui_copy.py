@@ -94,6 +94,7 @@ def screen_files() -> list[Path]:
             *(JS / "screens").glob("*.js"),
             *(JS / "components").glob("*.js"),
             *(JS / "parts").glob("*.js"),
+            *(JS / "slots").glob("*.js"),
         ]
     )
 

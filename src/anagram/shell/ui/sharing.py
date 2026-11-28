@@ -400,11 +400,22 @@ class SharingUI:
 
     def received_file(self, grant_id: str, name: str) -> Path:
         """A file of a finding that an older version opened into `received/`."""
-        if not GRANT_ID.fullmatch(grant_id) or "/" in name or name.startswith("."):
+        if (
+            not GRANT_ID.fullmatch(grant_id)
+            or not name
+            or "/" in name
+            or "\\" in name
+            or "\x00" in name
+            or name.startswith(".")
+            or Path(name).name != name
+        ):
             raise UIError(404, "This file is not in the finding.")
-        p = self.ui.home / RECEIVED_DIR / grant_id / name
-        if not p.is_file():
+        base = self.ui.home / RECEIVED_DIR / grant_id
+        p = base / name
+        if p.is_symlink() or not p.is_file():
             raise UIError(404, "Open the finding first, then open the file.")
+        if p.resolve().parent != base.resolve():
+            raise UIError(404, "This file is not in the finding.")
         return p
 
     # ----------------------------------------------------------------- rings

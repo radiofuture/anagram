@@ -8,6 +8,8 @@ iD, which is public. Tests use `FakeOrcid`.
 
 from __future__ import annotations
 
+import re
+import urllib.parse
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 
@@ -24,6 +26,13 @@ from anagram.local.sources.base import (
 
 API = "https://pub.orcid.org/v3.0"
 WORK_KIND = "orcid_work"
+_ORCID = re.compile(r"^(?:fake-)?\d{4}-\d{4}-\d{4}-\d{3}[\dX]$")
+
+
+def _check_orcid(orcid: object) -> str:
+    if not isinstance(orcid, str) or not _ORCID.match(orcid):
+        raise ConnectorError("invalid ORCID iD")
+    return orcid
 
 
 def _val(obj: object, *path: str) -> object:
@@ -60,7 +69,7 @@ class OrcidWorksConnector(Connector):
         return cls(cfg["orcid"], ctx.transport)
 
     def __init__(self, orcid: str, transport: Transport | None = None) -> None:
-        self.orcid = orcid
+        self.orcid = _check_orcid(orcid)
         self.transport = transport or urllib_transport()
 
     def config(self) -> dict:
@@ -70,8 +79,9 @@ class OrcidWorksConnector(Connector):
         return f"ORCID works of {self.orcid}"
 
     def fetch(self) -> list[dict]:
+        safe_orcid = urllib.parse.quote(_check_orcid(self.orcid), safe="")
         status, body = self.transport(
-            "GET", f"{API}/{self.orcid}/works", {"Accept": "application/json"}, None
+            "GET", f"{API}/{safe_orcid}/works", {"Accept": "application/json"}, None
         )
         if status != 200 or not isinstance(body, dict):
             raise ConnectorError(f"ORCID API status {status}")

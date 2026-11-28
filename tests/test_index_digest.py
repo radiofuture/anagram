@@ -191,3 +191,26 @@ def test_jobs_summarize_and_save_fill_the_cache_with_no_lock(lib):
         idx, scope=PRIVATE_SCOPE, since=SINCE, until=UNTIL, model=model, call=False
     )
     assert all(e["summary"] == "Text [1]." for e in got) and len(model.calls) == 2
+
+
+def test_digest_logs_disclosure_on_midflight_external_failure_only(lib):
+    idx, a, _, _ = lib
+    ext = FakeTextModel(
+        [ModelError("unreachable", retryable=True)],
+        external=True,
+        profile_id="cloud-12345678",
+        recipient="Cloud",
+    )
+    idx.set_source_prefs(a, allow_external=[ext.recipient_id])
+    digest.timeline(idx, scope=PRIVATE_SCOPE, since=SINCE, until=UNTIL, model=ext)
+    assert any(d["adapter"] == ext.recipient_id for d in idx.disclosures())
+
+    no_key = FakeTextModel(
+        [ModelError("no_key")],
+        external=True,
+        profile_id="cloud-99999999",
+        recipient="Cloud2",
+    )
+    idx.set_source_prefs(a, allow_external=[ext.recipient_id, no_key.recipient_id])
+    digest.timeline(idx, scope=PRIVATE_SCOPE, since=SINCE, until=UNTIL, model=no_key)
+    assert not any(d["adapter"] == no_key.recipient_id for d in idx.disclosures())

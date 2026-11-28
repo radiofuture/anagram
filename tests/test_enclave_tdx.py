@@ -733,3 +733,42 @@ def test_deeply_nested_signed_collateral_is_refused_not_a_crash(fake: FakeIntel)
     sig = tdxkit.raw_sig(fake.signer_key, body).hex().encode()
     got = fake_refused(fake, tcb_info=b'{"tcbInfo":' + body + b',"signature":"' + sig + b'"}')
     assert (got.code, got.detail) == ("bad_attestation", "tcb_info is not JSON")
+
+
+def test_h9_tdx_ca_constraints_and_validity(fake: FakeIntel) -> None:
+    from cryptography import x509
+    from cryptography.hazmat.primitives import serialization
+
+    # Valid TDX evidence exposes valid_from < valid_until.
+    got = claims_of(fake)
+    assert "valid_from" in got and got["valid_from"] < got["valid_until"]
+
+    # PCK CA without BasicConstraints(ca=True) is refused.
+    bad_ca = fake._cert(  # noqa: SLF001
+        fake.ca_cn, "Intel SGX Root CA", fake.ca_key.public_key(), fake.root_key, 0x101, ca=False
+    )
+    c = fake.chain()
+    pem = (
+        b"".join(
+            [
+                x509.load_der_x509_certificate(c["leaf"]).public_bytes(serialization.Encoding.PEM),
+                bad_ca.public_bytes(serialization.Encoding.PEM),
+                x509.load_der_x509_certificate(c["root"]).public_bytes(serialization.Encoding.PEM),
+            ]
+        )
+        + b"\x00"
+    )
+    err = fake_refused(fake, fake.quote(pem=pem))
+    assert err.code == "untrusted_root"
+
+    # TCB signing leaf marked ca=True is refused.
+    ca_signer = fake._cert(  # noqa: SLF001
+        "Intel SGX TCB Signing",
+        "Intel SGX Root CA",
+        fake.signer_key.public_key(),
+        fake.root_key,
+        0x102,
+        ca=True,
+    )
+    err2 = fake_refused(fake, tcb_signing=ca_signer.public_bytes(serialization.Encoding.DER))
+    assert err2.code == "untrusted_root"

@@ -402,3 +402,36 @@ def test_end_to_end_5000_files_with_the_real_store(env):
     n = len(f.calls)
     env.sync(sid)
     assert len(env.api_calls(n)) == 1
+
+
+def test_drive_rejects_malicious_ids_and_marks_owner_without_email_third_party(env):
+    from anagram.local.sources.base import ConnectorError, SourceContext
+    from anagram.local.sources.gdrive import GoogleDriveConnector
+
+    for bad_id in ("' or trashed=false or '", "abc'def", "a/b", "x" * 201, ""):
+        with pytest.raises(ConnectorError):
+            GoogleDriveConnector("a", {"folders": [bad_id]})
+        with pytest.raises(ConnectorError):
+            GoogleDriveConnector("a", {"drives": [bad_id]})
+    ctx = SourceContext(http=env.fake, credentials=env.creds)
+    with pytest.raises(ConnectorError):
+        GoogleDriveConnector.choices(ctx, env.acct, "' or true")
+
+    # Owner dict without emailAddress must be treated as third-party, not own.
+    lab = env.fake.add_folder("Lab")
+    fid = env.fake.add_file("anon.txt", b"external text", parent=lab)
+    orig_file_json = env.fake._file_json
+
+    def anon_owner_json(f: dict) -> dict:
+        out = orig_file_json(f)
+        if f["id"] == fid:
+            out["owners"] = [{"displayName": "Mystery Owner"}]
+        return out
+
+    env.fake._file_json = anon_owner_json
+    sid = env.add({"folders": [lab]})
+    env.sync(sid)
+    row = env.idx.store.one(
+        "SELECT v.extra FROM version v JOIN item i ON i.id = v.item_id WHERE i.key = ?", (fid,)
+    )
+    assert loads(row["extra"])["third_party"] is True

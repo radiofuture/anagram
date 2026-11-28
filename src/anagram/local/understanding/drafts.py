@@ -16,11 +16,12 @@ from __future__ import annotations
 
 import hashlib
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import PurePosixPath
 
+from anagram.local.index import spaces
 from anagram.local.index.local import ItemView, LocalIndex
 from anagram.local.ports import Committer
 from anagram.local.understanding import kinds, titles
@@ -55,6 +56,8 @@ class FindingDraft:
     # email). `approve_finding` gives these flags to the client vault, and the
     # vault's grant gate then asks for an acknowledgement before a share.
     third_party_keys: frozenset[str] = frozenset()
+    # (source_id, key) pairs of third-party items to prevent cross-source key collisions.
+    third_party_items: frozenset[tuple[str, str]] = frozenset()
     # Why Anagram proposes it, for people ("A result with a claim and 3 files
     # that support it"), and the state of the proposal (`proposals.py`).
     reason: str = ""
@@ -123,6 +126,99 @@ def suggest_claim(texts: Sequence[str], skip: Iterable[str] = ()) -> str | None:
     return first[:CLAIM_CHARS] if first else None
 
 
+WHAT_DRAFT = "texts for finding claim"
+
+
+def drafter_may_read(
+    index: LocalIndex,
+    sid: str,
+    drafter: Drafter,
+    *,
+    lab_allow: Mapping[str, frozenset[str]] | None = None,
+    space_cache: dict[str, str] | None = None,
+    prefs_cache: dict[str, set[str]] | None = None,
+) -> bool:
+    """True if `drafter` may read own text from source `sid`.
+
+    A local drafter may read all own items in scope. An external `ProviderDrafter`
+    needs the per-source opt-in (`prefs.allow_external`); for a lab space, any
+    external drafter also needs the lab opt-in (`lab_allow`)."""
+    if not drafter.external:
+        return True
+    model = getattr(drafter, "model", None)
+    rid = model.recipient_id if model is not None else drafter.name
+    if model is not None:
+        prefs = prefs_cache if prefs_cache is not None else {}
+        if sid not in prefs:
+            try:
+                prefs[sid] = set(index.source(sid)["prefs"].get("allow_external") or [])
+            except KeyError:
+                prefs[sid] = set()
+        if rid not in prefs[sid]:
+            return False
+    sp_cache = space_cache if space_cache is not None else {}
+    if sid not in sp_cache:
+        sp_cache[sid] = spaces.space_of(index, sid)
+    space = sp_cache[sid]
+    if space.startswith("lab:"):
+        return rid in (lab_allow or {}).get(space, frozenset())
+    return True
+
+
+def run_drafter(
+    index: LocalIndex,
+    items: Sequence[ItemView],
+    drafter: Drafter,
+    *,
+    may_read: bool,
+    lab_allow: Mapping[str, frozenset[str]] | None = None,
+    space_cache: dict[str, str] | None = None,
+    prefs_cache: dict[str, set[str]] | None = None,
+) -> tuple[str | None, list[str], list[str]]:
+    """Run `drafter.claim` on permitted owner prose of `items`, logging
+    disclosure for external drafters. Return `(claim, all_texts, doc_titles)`."""
+    texts, doc_titles = texts_for_claim(index, items)
+    if not may_read or not texts:
+        return None, texts, doc_titles
+    if not drafter.external:
+        return drafter.claim(texts), texts, doc_titles
+    permitted = [
+        it
+        for it in items
+        if drafter_may_read(
+            index,
+            it.source_id,
+            drafter,
+            lab_allow=lab_allow,
+            space_cache=space_cache,
+            prefs_cache=prefs_cache,
+        )
+    ]
+    allowed_texts, _ = texts_for_claim(index, permitted)
+    if not allowed_texts:
+        return None, texts, doc_titles
+    sids = tuple(dict.fromkeys(it.source_id for it in permitted))
+    model = getattr(drafter, "model", None)
+    adapter = model.recipient_id if model is not None else drafter.name
+    recipient = drafter.recipient or adapter
+    try:
+        claim = drafter.claim(allowed_texts)
+    finally:
+        # Log disclosure even if the external model call failed mid-flight
+        # (unless refused before sending due to missing key or budget gate).
+        err_code = getattr(drafter, "error", None)
+        if err_code not in (
+            "no_key",
+            "spend_limit_reached",
+            "usage_limit",
+            "no_budget",
+            "no_prices",
+        ):
+            for sid in sids:
+                index.log_disclosure(recipient, adapter, WHAT_DRAFT, sid)
+    return claim, texts, doc_titles
+
+
 def draft_findings(
     index: LocalIndex,
     *,
@@ -130,6 +226,7 @@ def draft_findings(
     allow_external: bool = False,
     select: Iterable[str] | None = None,
     gap_days: int = GAP_DAYS,
+    lab_allow: Mapping[str, frozenset[str]] | None = None,
 ) -> list[FindingDraft]:
     """Proposed findings from the content of the items (`proposals.py`): the
     items that a model or the rules call a finding or a result, grouped by
@@ -139,7 +236,12 @@ def draft_findings(
     from anagram.local.understanding.proposals import propose_findings
 
     return propose_findings(
-        index, drafter=drafter, allow_external=allow_external, select=select, gap_days=gap_days
+        index,
+        drafter=drafter,
+        allow_external=allow_external,
+        select=select,
+        gap_days=gap_days,
+        lab_allow=lab_allow,
     )
 
 
@@ -148,6 +250,9 @@ def texts_for_claim(index: LocalIndex, items: Iterable[ItemView]) -> tuple[list[
     not sentences), and the titles of the items (a title is not a claim)."""
     texts, names = [], []
     for it in items:
+        v = index.current_version(it.source_id, it.key)
+        if v is not None and index.is_third_party(v["id"]):
+            continue
         m = index.meaning(it.source_id, it.key)
         if m is None:
             continue
@@ -179,10 +284,12 @@ def group_title(index: LocalIndex, items: Sequence[ItemView], titles_by_vid: dic
 def draft_findings_by_folder(
     index: LocalIndex,
     *,
+    scope: frozenset[str] | None = None,
     drafter: Drafter | None = None,
     allow_external: bool = False,
     select: Iterable[str] | None = None,
     gap_days: int = GAP_DAYS,
+    lab_allow: Mapping[str, frozenset[str]] | None = None,
 ) -> list[FindingDraft]:
     """Group related evidence (same folder or repository, close in time) and
     propose a finding for each group. The fallback of `propose_findings` when
@@ -196,17 +303,29 @@ def draft_findings_by_folder(
     drafter = drafter or NullDrafter()
     check_drafter(drafter, allow_external)
     chosen = set(select) if select is not None else set()
+    space_cache: dict[str, str] = {}
+    prefs_cache: dict[str, set[str]] = {}
+
+    def in_scope(sid: str) -> bool:
+        if scope is None:
+            return True
+        if sid not in space_cache:
+            space_cache[sid] = spaces.space_of(index, sid)
+        return space_cache[sid] in scope
+
     groups: dict[tuple[str, str], list[ItemView]] = defaultdict(list)
     names = item_titles(index)
     refs = reference_items(index)
     for item in index.items(own_only=True):
         if item.kind in REFERENCE_KINDS or (item.source_id, item.key) in refs:
             continue
+        if not in_scope(item.source_id):
+            continue
         groups[_group_key(item)].append(item)
     out = []
     for (sid, where), items in sorted(groups.items()):
         for part in _split_by_time(items, gap_days):
-            chips, third_keys = [], set()
+            chips, third_keys, third_items = [], set(), set()
             for it in part:
                 m = index.meaning(it.source_id, it.key)
                 if m is None:
@@ -214,10 +333,18 @@ def draft_findings_by_folder(
                 chips.append(m.chips)
                 if m.has_third_party:
                     third_keys.add(it.key)
-            texts, doc_titles = texts_for_claim(index, part)
+                    third_items.add((it.source_id, it.key))
             digest = hashlib.sha256("\n".join(sorted(i.root for i in part)).encode()).hexdigest()
             may_read = not drafter.external or digest[:16] in chosen
-            claim = drafter.claim(texts) if texts and may_read else None
+            claim, texts, doc_titles = run_drafter(
+                index,
+                part,
+                drafter,
+                may_read=may_read,
+                lab_allow=lab_allow,
+                space_cache=space_cache,
+                prefs_cache=prefs_cache,
+            )
             by = drafter.name if claim else "deterministic"
             if claim is None:
                 claim = suggest_claim(texts, skip=doc_titles)
@@ -232,9 +359,10 @@ def draft_findings_by_folder(
                     start=part[0].time,
                     end=part[-1].time,
                     topics=[index.vocab.label(t) for t in topic_ids],
-                    third_party=bool(third_keys),
+                    third_party=bool(third_items),
                     drafted_by=by,
                     third_party_keys=frozenset(third_keys),
+                    third_party_items=frozenset(third_items),
                 )
             )
     return out
@@ -287,5 +415,10 @@ def approve_finding(
         [i.path for i in items],
         claim=claim,
         source="index",
-        third_party=[i.key in draft.third_party_keys for i in items],
+        third_party=[
+            ((i.source_id, i.key) in draft.third_party_items)
+            if draft.third_party_items
+            else (i.key in draft.third_party_keys)
+            for i in items
+        ],
     )

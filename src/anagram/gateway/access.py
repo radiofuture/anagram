@@ -298,29 +298,35 @@ def add(  # noqa: PLR0913 (one keyword for each field that the person sets)
     daily_chars: object = DAILY_CHARS,
 ) -> Grant:
     today = date.fromisoformat(now[:10])
-    doc = _doc(index)
-    active = _active(doc, today)
-    if len(active) >= MAX_ACTIVE:
-        raise AccessError(f"Anagram permits at most {MAX_ACTIVE} assistants.")
     text = _name(name)
-    if any(g.name.lower() == text.lower() for g in active):
-        raise AccessError("An assistant has this name. Give this one a new name.")
-    taken = {r["id"] for r in doc["grants"]}
-    gid = secrets.token_hex(8)
-    while gid in taken:
+    checked_spaces = _spaces(spaces)
+    checked_class = _class(recipient_class)
+    checked_tools = _tools(tools)
+    checked_daily = _daily(daily_chars)
+    checked_expires = _expires(expires, today)
+    with index.store.transaction():
+        doc = _doc(index)
+        active = _active(doc, today)
+        if len(active) >= MAX_ACTIVE:
+            raise AccessError(f"Anagram permits at most {MAX_ACTIVE} assistants.")
+        if any(g.name.lower() == text.lower() for g in active):
+            raise AccessError("An assistant has this name. Give this one a new name.")
+        taken = {r["id"] for r in doc["grants"]}
         gid = secrets.token_hex(8)
-    got = Grant(
-        id=gid,
-        name=text,
-        spaces=_spaces(spaces),
-        added_at=now,
-        recipient_class=_class(recipient_class),
-        tools=_tools(tools),
-        daily_chars=_daily(daily_chars),
-        expires=_expires(expires, today),
-    )
-    doc["grants"].append(got.json())
-    _save(index, doc)
+        while gid in taken:
+            gid = secrets.token_hex(8)
+        got = Grant(
+            id=gid,
+            name=text,
+            spaces=checked_spaces,
+            added_at=now,
+            recipient_class=checked_class,
+            tools=checked_tools,
+            daily_chars=checked_daily,
+            expires=checked_expires,
+        )
+        doc["grants"].append(got.json())
+        _save(index, doc)
     return got
 
 
@@ -341,41 +347,43 @@ def change(  # noqa: PLR0913
     """Change a grant that is not revoked. An expired grant can get a new end
     date. A field that is not given stays."""
     today = today or date.today()
-    doc = _doc(index)
-    for n, row in enumerate(doc["grants"]):
-        g = _grant(row)
-        if g.id != grant_id or g.revoked_at is not None:
-            continue
-        if spaces is not _UNSET:
-            g = replace(g, spaces=_spaces(spaces))
-        if recipient_class is not _UNSET:
-            g = replace(g, recipient_class=_class(recipient_class))
-        if tools is not _UNSET:
-            g = replace(g, tools=_tools(tools))
-        if expires is not _UNSET:
-            g = replace(g, expires=_expires(expires, today))
-        if daily_chars is not _UNSET:
-            g = replace(g, daily_chars=_daily(daily_chars))
-        doc["grants"][n] = g.json()
-        _save(index, doc)
-        return g
+    with index.store.transaction():
+        doc = _doc(index)
+        for n, row in enumerate(doc["grants"]):
+            g = _grant(row)
+            if g.id != grant_id or g.revoked_at is not None:
+                continue
+            if spaces is not _UNSET:
+                g = replace(g, spaces=_spaces(spaces))
+            if recipient_class is not _UNSET:
+                g = replace(g, recipient_class=_class(recipient_class))
+            if tools is not _UNSET:
+                g = replace(g, tools=_tools(tools))
+            if expires is not _UNSET:
+                g = replace(g, expires=_expires(expires, today))
+            if daily_chars is not _UNSET:
+                g = replace(g, daily_chars=_daily(daily_chars))
+            doc["grants"][n] = g.json()
+            _save(index, doc)
+            return g
     raise KeyError(grant_id)
 
 
 def revoke(index: Any, grant_id: str, now: str) -> Grant:
     """End a grant at once. The row stays (the log keeps the name); the HTTP
     key stops working."""
-    doc = _doc(index)
-    for n, row in enumerate(doc["grants"]):
-        g = _grant(row)
-        if g.id == grant_id and g.revoked_at is None:
-            g = replace(g, revoked_at=now, http=None)
-            doc["grants"][n] = g.json()
-            _save(index, doc)
-            usage = index.store.get_meta(USAGE) or {}
-            if isinstance(usage, dict) and usage.pop(grant_id, None) is not None:
-                index.store.set_meta(USAGE, usage)
-            return g
+    with index.store.transaction():
+        doc = _doc(index)
+        for n, row in enumerate(doc["grants"]):
+            g = _grant(row)
+            if g.id == grant_id and g.revoked_at is None:
+                g = replace(g, revoked_at=now, http=None)
+                doc["grants"][n] = g.json()
+                _save(index, doc)
+                usage = index.store.get_meta(USAGE) or {}
+                if isinstance(usage, dict) and usage.pop(grant_id, None) is not None:
+                    index.store.set_meta(USAGE, usage)
+                return g
     raise KeyError(grant_id)
 
 
@@ -383,12 +391,13 @@ def new_http_key(index: Any, grant_id: str) -> str:
     """A new bearer key for loopback HTTP. The record keeps its SHA-256 only;
     the caller shows the key one time. An older key stops working."""
     key = secrets.token_urlsafe(32)
-    doc = _doc(index)
-    for row in doc["grants"]:
-        if row["id"] == grant_id and not row.get("revoked_at"):
-            row["http"] = hashlib.sha256(key.encode()).hexdigest()
-            _save(index, doc)
-            return key
+    with index.store.transaction():
+        doc = _doc(index)
+        for row in doc["grants"]:
+            if row["id"] == grant_id and not row.get("revoked_at"):
+                row["http"] = hashlib.sha256(key.encode()).hexdigest()
+                _save(index, doc)
+                return key
     raise KeyError(grant_id)
 
 
@@ -401,6 +410,25 @@ def used_today(index: Any, grant_id: str, today: str) -> int:
     if not isinstance(row, dict) or row.get("day") != today:
         return 0
     return int(row.get("chars") or 0)
+
+
+def try_note_use(index: Any, grant_id: str, chars: int, limit: int, today: str, now: str) -> bool:
+    """Atomically check the daily limit and record `chars` if within `limit`."""
+    with index.store.transaction():
+        before = used_today(index, grant_id, today)
+        if before + int(chars) > limit:
+            return False
+        usage = index.store.get_meta(USAGE) or {}
+        if not isinstance(usage, dict):
+            usage = {}
+        usage[grant_id] = {"chars": before + int(chars), "day": today}
+        index.store.set_meta(USAGE, usage)
+        doc = _doc(index)
+        for row in doc["grants"]:
+            if row["id"] == grant_id:
+                row["last_used"] = now
+        index.store.set_meta(META, doc)
+        return True
 
 
 def note_use(index: Any, grant_id: str, chars: int, today: str, now: str) -> None:

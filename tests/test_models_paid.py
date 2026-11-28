@@ -435,3 +435,51 @@ def test_ledger_path_changes_with_the_approval(tmp_path):
     Gate(paid_fake(), led, BUDGET, today=TODAY)
     with pytest.raises(BudgetRefused):
         open_ledger(tmp_path, {**BUDGET, "expires": "2026-01-01"}, today=TODAY)
+
+
+def test_zero_price_and_nonpositive_reserve_are_refused(tmp_path):
+    from anagram.models.ledger import EngineError
+
+    led = ledger(tmp_path)
+    for amount in (0, -1):
+        with pytest.raises(EngineError, match="invalid_reservation"):
+            led.reserve("r", amount)
+    with pytest.raises(BudgetRefused) as err:
+        Gate(paid_fake(prices=(Decimal("0"), Decimal("0"))), led, BUDGET, today=TODAY)
+    assert err.value.code == "invalid_prices"
+
+
+@pytest.mark.parametrize("bad_cost", ["NaN", "Infinity", "-0.01", "bad", None, True, "1e30"])
+def test_ledger_finish_halts_on_invalid_reported_cost(tmp_path, bad_cost):
+    from anagram.models.ledger import EngineError
+
+    led = ledger(tmp_path)
+    cid = led.reserve("r", 1000)
+    with pytest.raises(EngineError, match="invalid_reported_cost"):
+        led.finish(cid, {"cost": bad_cost})
+    assert led.snapshot()["breached"] is True
+    with pytest.raises(EngineError, match="spend_limit_reached"):
+        led.reserve("r", 100)
+
+
+def test_gate_halts_on_nonfinite_provider_cost_and_clamps_negative_tokens(tmp_path):
+    led = ledger(tmp_path)
+    bad_reply = TextReply("ok", None, -10, -5, "paid-model", "stop", cost=Decimal("NaN"))
+    gate = Gate(paid_fake([bad_reply]), led, BUDGET, today=TODAY)
+    with pytest.raises(BudgetRefused) as err:
+        gate.generate(TextRequest("", "short"))
+    assert err.value.code == "invalid_reported_cost"
+    assert led.snapshot()["breached"] is True
+
+    # Negative usage tokens from Anthropic SDK are clamped to zero.
+    client = FakeAnthropic()
+    orig_create = client._create
+
+    def neg_create(**body):
+        resp = orig_create(**body)
+        resp.usage = SimpleNamespace(input_tokens=-100, output_tokens=-20)
+        return resp
+
+    client.messages = SimpleNamespace(create=neg_create, stream=client._stream)
+    reply = AnthropicModel("claude-haiku-5-5", client=client).generate(REQ)
+    assert (reply.input_tokens, reply.output_tokens) == (0, 0)

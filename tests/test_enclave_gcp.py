@@ -343,3 +343,42 @@ def test_a_deeply_nested_header_is_refused_not_a_crash(g: FakeGoogle, depth: int
     for raw in (deep, b'{"alg":"RS256","kid":' + deep + b"}"):
         got = refused(g, b64url(raw) + ".e30.AA")
         assert (got.code, got.detail) == ("bad_attestation", "token header is not JSON")
+
+
+def test_h9_gcp_ca_constraints_and_leaf_not_ca(g: FakeGoogle) -> None:
+    import datetime as dt
+
+    from cryptography.hazmat.primitives import hashes
+
+    leaf, mid, root = (x509.load_der_x509_certificate(c) for c in g.chain())
+    # Intermediate without CA BasicConstraints is refused.
+    bad_mid = (
+        x509.CertificateBuilder()
+        .subject_name(mid.subject)
+        .issuer_name(root.subject)
+        .public_key(g.mid_key.public_key())
+        .serial_number(99)
+        .not_valid_before(dt.datetime(2026, 1, 1, tzinfo=dt.UTC))
+        .not_valid_after(dt.datetime(2028, 1, 1, tzinfo=dt.UTC))
+        .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+        .sign(g.root_key, hashes.SHA256())
+        .public_bytes(serialization.Encoding.DER)
+    )
+    got = refused(g, g.token(x5c=[g.chain()[0], bad_mid, g.chain()[2]]))
+    assert got.code == "untrusted_root"
+
+    # Leaf marked ca=True is refused.
+    ca_leaf = (
+        x509.CertificateBuilder()
+        .subject_name(leaf.subject)
+        .issuer_name(mid.subject)
+        .public_key(g.leaf_key.public_key())
+        .serial_number(100)
+        .not_valid_before(dt.datetime(2026, 1, 1, tzinfo=dt.UTC))
+        .not_valid_after(dt.datetime(2028, 1, 1, tzinfo=dt.UTC))
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .sign(g.mid_key, hashes.SHA256())
+        .public_bytes(serialization.Encoding.DER)
+    )
+    got2 = refused(g, g.token(x5c=[ca_leaf, g.chain()[1], g.chain()[2]]))
+    assert got2.code == "untrusted_root"

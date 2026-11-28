@@ -577,7 +577,10 @@ know the person key learns nothing about who it is.
 
 The rule "issued before the event time" means that a credential from
 **another** node (after a move), or a later credential from the same node
-(the member came back), is not affected.
+(the member came back), is not affected. Dormancy for `moved` is tracked
+per `(subject, node)` and applies only to `member_left(moved)`: a `ban`,
+`node_removed`, `credential_revoked` or `member_removed` event still erases
+the subject even if the subject previously `moved`.
 
 The enclave deletes at once: when its writer applies the event, before it
 opens the next request ([enclave-trust.md](enclave-trust.md) section 7.1).
@@ -606,11 +609,15 @@ of the last one.
    (`stale_roster`); for the roster chain, all credentials. It fetches the
    missing events (8.7). When the gap is filled, it applies the held events
    and the chain runs again.
-3. **Fork.** Two different events with the same chain and `seq` are a
-   fork. The chain stops for good (`stale_roster`). A fork of a node chain
-   ends only with `node_removed` (a node that wants back is admitted again
-   with a new key, so a new ID). A fork of the roster chain stops the
-   network until a new release pins a new roster.
+3. **Fork.** Two different validly signed events with the same chain and
+   `seq` are a fork. The verifier checks `chain`, `signer` and the Ed25519
+   signature against the chain's known key before recording the event as
+   seen or marking a fork, so an unsigned or forged event cannot fork a
+   chain. When a valid fork occurs, the chain stops for good
+   (`stale_roster`). A fork of a node chain ends only with `node_removed`
+   (a node that wants back is admitted again with a new key, so a new ID).
+   A fork of the roster chain stops the network until a new release pins a
+   new roster.
 4. **Bad event.** An event with a wrong `prev`, `signer`, signature, time
    order or body is not applied; the chain then has a gap at that `seq`.
 5. **Freshness of the roster**: section 3.5 (at most 1 hour).

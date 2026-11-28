@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import hashlib
 from collections import defaultdict
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 
 from anagram.core.timefmt import iso_seconds
 from anagram.local.index import spaces
@@ -41,8 +41,8 @@ from anagram.local.understanding.drafts import (
     _time,
     draft_findings_by_folder,
     item_titles,
+    run_drafter,
     suggest_claim,
-    texts_for_claim,
 )
 
 GROUP_DAYS = 30
@@ -171,6 +171,7 @@ def propose_findings(
     select: Iterable[str] | None = None,
     gap_days: int = GAP_DAYS,
     publish: Publish | None = None,
+    lab_allow: Mapping[str, frozenset[str]] | None = None,
 ) -> list[FindingDraft]:
     """The proposed findings in `scope` (see the module text). An external
     drafter reads text only of the proposals whose IDs are in `select`."""
@@ -195,17 +196,34 @@ def propose_findings(
     seeds = pool.seeds(index.stamped())
     if not seeds:
         drafts = draft_findings_by_folder(
-            index, drafter=drafter, allow_external=allow_external, select=select, gap_days=gap_days
+            index,
+            scope=scope,
+            drafter=drafter,
+            allow_external=allow_external,
+            select=select,
+            gap_days=gap_days,
+            lab_allow=lab_allow,
         )
-        drafts = [d for d in drafts if all(in_scope(i.source_id) for i in d.items)]
         return _with_state(index, drafts, publish)
 
     links.update(index)
     support = _support(index, pool, seeds)
     names = item_titles(index)
     chosen = set(select) if select is not None else set()
+    prefs_cache: dict[str, set[str]] = {}
     out = [
-        _proposal(index, pool, members, support, names, drafter, chosen)
+        _proposal(
+            index,
+            pool,
+            members,
+            support,
+            names,
+            drafter,
+            chosen,
+            lab_allow=lab_allow,
+            space_cache=space,
+            prefs_cache=prefs_cache,
+        )
         for members in _groups(index, pool, seeds)
     ]
     out.sort(key=lambda d: (-_time(d.end), d.id))
@@ -251,7 +269,7 @@ def _support(index: LocalIndex, pool: _Pool, seeds: list[ItemView]) -> dict[str,
     return support
 
 
-def _proposal(
+def _proposal(  # noqa: PLR0913
     index: LocalIndex,
     pool: _Pool,
     members: list[ItemView],
@@ -259,6 +277,10 @@ def _proposal(
     names: dict,
     drafter: Drafter,
     chosen: set[str],
+    *,
+    lab_allow: Mapping[str, frozenset[str]] | None = None,
+    space_cache: dict[str, str] | None = None,
+    prefs_cache: dict[str, set[str]] | None = None,
 ) -> FindingDraft:
     """The proposal of one group of seeds."""
     members.sort(  # a finding first: its title names the proposal
@@ -282,14 +304,23 @@ def _proposal(
         claim, by = best[1], "model"
     else:
         may_read = not drafter.external or digest[:16] in chosen
-        claim, by = _drafted_claim(index, members, drafter, may_read=may_read)
-    chips, third = [], set()
+        claim, by = _drafted_claim(
+            index,
+            members,
+            drafter,
+            may_read=may_read,
+            lab_allow=lab_allow,
+            space_cache=space_cache,
+            prefs_cache=prefs_cache,
+        )
+    chips, third_keys, third_items = [], set(), set()
     for it in part:
         m = index.meaning(it.source_id, it.key)
         if m is not None:
             chips.append(m.chips)
             if m.has_third_party:
-                third.add(it.key)
+                third_keys.add(it.key)
+                third_items.add((it.source_id, it.key))
     topic_ids = [t for t, _ in select_topics(chips, index.vocab, 3, FINDING_TOPIC_SCORE)]
     times = sorted((i.time for i in part if i.time), key=_time)
     return FindingDraft(
@@ -300,9 +331,10 @@ def _proposal(
         start=times[0] if times else None,
         end=times[-1] if times else None,
         topics=[index.vocab.label(t) for t in topic_ids],
-        third_party=bool(third),
+        third_party=bool(third_items),
         drafted_by=by,
-        third_party_keys=frozenset(third),
+        third_party_keys=frozenset(third_keys),
+        third_party_items=frozenset(third_items),
         reason=_reason([pool.kind(m).kind for m in members], best is not None, len(evidence)),
         where=pool.ref(top),
         polarity=pool.kind(top).polarity,
@@ -310,12 +342,26 @@ def _proposal(
 
 
 def _drafted_claim(
-    index: LocalIndex, members: list[ItemView], drafter: Drafter, *, may_read: bool
+    index: LocalIndex,
+    members: list[ItemView],
+    drafter: Drafter,
+    *,
+    may_read: bool,
+    lab_allow: Mapping[str, frozenset[str]] | None = None,
+    space_cache: dict[str, str] | None = None,
+    prefs_cache: dict[str, set[str]] | None = None,
 ) -> tuple[str | None, str]:
     """A claim with no claim fact: from the drafter if it may read the text,
     else a sentence of the owner's text. Return `(claim, drafted_by)`."""
-    texts, doc_titles = texts_for_claim(index, members)
-    claim = drafter.claim(texts) if texts and may_read else None
+    claim, texts, doc_titles = run_drafter(
+        index,
+        members,
+        drafter,
+        may_read=may_read,
+        lab_allow=lab_allow,
+        space_cache=space_cache,
+        prefs_cache=prefs_cache,
+    )
     if claim is not None:
         return claim, drafter.name
     return suggest_claim(texts, skip=doc_titles), "deterministic"

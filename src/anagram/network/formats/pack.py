@@ -24,6 +24,7 @@ from anagram.network.formats.strict import (
     NODE_ID,
     ROR,
     Refused,
+    check_x25519_public,
     concepts,
     enum,
     exact,
@@ -292,7 +293,9 @@ def _block(doc: JsonObject, line_ids: set[str]) -> None:
 def _header(doc: JsonObject, ctx: Context) -> None:
     enum(doc["kind"], ("group", "person"), "kind")
     hexval(doc["subject"], HEX32, "subject")
-    hexval(doc["reply_key"], HEX32, "reply_key")
+    check_x25519_public(
+        bytes.fromhex(hexval(doc["reply_key"], HEX32, "reply_key")), "bad_message", "reply_key"
+    )
     intval(doc["version"], 1, MAX_SAFE, "version")
     hexval(doc["vocab"], ID, "vocab")
     c = exact(doc["consent"], {"approved_at", "descriptor_set", "statement"}, "consent")

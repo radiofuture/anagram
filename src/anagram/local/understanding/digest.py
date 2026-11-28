@@ -395,7 +395,13 @@ def _summaries(
         if got is None and calling:
             try:
                 got = summarize(model, job)
-            except (BudgetRefused, ModelError):
+            except BudgetRefused:
+                calling = False  # no text was sent
+                got = None
+            except ModelError as exc:
+                if model.external and exc.code != "no_key":
+                    for sid in job.sources:
+                        index.log_disclosure(model.recipient, model.recipient_id, WHAT, sid)
                 calling = False  # one fault ends the calls of this run
                 got = None
             else:

@@ -61,6 +61,7 @@ class Pins:
             release_key=self.release_key,
             rebuilders=self.rebuilders,
             dev_root=self.dev_root,
+            roster_key=self.roster_key,
         )
 
     def to_json(self) -> JsonObject:

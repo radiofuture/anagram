@@ -477,3 +477,31 @@ def test_from_config_does_not_load_the_index_for_a_cloud_provider():
     )
     done = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)  # noqa: S603
     assert done.returncode == 0, done.stderr
+
+
+def test_openrouter_route_is_part_of_profile_id_and_same_party():
+    a = profile.make_profile({**ROUTER, "route": ["anthropic"]})
+    b = profile.make_profile({**ROUTER, "route": ["together"]})
+    assert a.id != b.id
+    assert not profile.same_party(a.id, b.provider, b.base_url, b.route)
+    assert profile.same_party(a.id, a.provider, a.base_url, a.route)
+    # Changing route must not preserve the old id (or its per-source opt-ins).
+    moved = profile.make_profile({**ROUTER, "route": ["together"]}, keep_id=a.id)
+    assert moved.id == b.id and moved.id != a.id
+    # Order-invariant and deduplicated canonical route keeps the same party and id.
+    two_a = profile.make_profile({**ROUTER, "route": ["openai", "anthropic"]})
+    two_b = profile.make_profile({**ROUTER, "route": ["anthropic", "openai", "anthropic"]})
+    assert two_a.id == two_b.id
+    assert profile.same_party(two_a.id, two_b.provider, two_b.base_url, two_b.route)
+
+
+def test_lab_profile_cannot_undercut_builtin_price_table():
+    with pytest.raises(ModelError) as err:
+        profile.make_profile({**HAIKU, "prices": ["0.01", "0.01"]}, origin="lab:lab-1")
+    assert err.value.code == "invalid_prices"
+    with pytest.raises(ModelError) as err:
+        profile.make_profile({**ROUTER, "prices": ["0.01", "0.50"]}, origin="lab:lab-1")
+    assert err.value.code == "invalid_prices"
+    # At or above the built-in floor is accepted.
+    ok = profile.make_profile({**HAIKU, "prices": ["0.10", "0.50"]}, origin="lab:lab-1")
+    assert ok.prices == ("0.10", "0.50")

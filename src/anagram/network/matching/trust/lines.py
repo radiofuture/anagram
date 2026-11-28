@@ -190,11 +190,10 @@ class _Walk:
 
 
 def _walk(view: LogView, line_id: str, roots: Roots) -> _Walk:
-    keys = {
-        e["instance_id"]: e["signer"]
-        for _, e in view.of_kind("enclave_instance_key")
-        if e["line_id"] == line_id
-    }
+    keys: dict[str, str] = {}
+    for _, e in view.of_kind("enclave_instance_key"):
+        if e["line_id"] == line_id:
+            keys.setdefault(e["instance_id"], e["signer"])
     walk = _Walk(keys)
     steps: list[tuple[int, int, JsonObject | Failover]] = [
         (i, 0, e) for i, e in view.of_kind("enclave_state_epoch") if e["line_id"] == line_id

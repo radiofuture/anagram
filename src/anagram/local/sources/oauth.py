@@ -34,12 +34,14 @@ All three files and sections have the shape
 from __future__ import annotations
 
 import base64
+import contextlib
 import hashlib
 import hmac
 import html
 import json
 import logging
 import secrets
+import socket
 import threading
 import time
 import urllib.parse
@@ -176,18 +178,33 @@ _DONE = "You can close this tab and go back to Anagram."
 _REFUSED = "Anagram did not accept this sign-in. Start again in Anagram."
 
 
-class LoopbackReceiver:
-    """A one-use HTTP listener on 127.0.0.1. It accepts one GET
-    /oauth/callback with the expected `state`. It answers with a small static
-    page and stops. It stops after `timeout_s` (300) in each case.
+class _IPv6HTTPServer(HTTPServer):
+    address_family = socket.AF_INET6
 
-    The bind address is always 127.0.0.1; a caller cannot change it. With
+    def server_bind(self) -> None:
+        with contextlib.suppress(OSError, AttributeError):
+            self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+        super().server_bind()
+
+
+class LoopbackReceiver:
+    """A one-use HTTP listener on 127.0.0.1 (plus ::1 when `host_name` is
+    `localhost`). It accepts one GET /oauth/callback with the expected `state`.
+    It answers with a small static page and stops. It stops after `timeout_s`
+    (300) in each case.
+
+    The bind address is always loopback; a caller cannot change it. With
     `ports`, the receiver takes the first free port of the list (a provider
     that needs a registered redirect URI). With no ports, the system gives a
     free port."""
 
     def __init__(
-        self, ports: tuple[int, ...] = (), *, state: str | None = None, host_name: str = LOOPBACK
+        self,
+        ports: tuple[int, ...] = (),
+        *,
+        state: str | None = None,
+        host_name: str = LOOPBACK,
+        timeout_s: float = FLOW_TIMEOUT_S,
     ) -> None:
         self._expected = state
         self._result: dict | None = None
@@ -196,16 +213,31 @@ class LoopbackReceiver:
         self._close_lock = threading.Lock()
         self._closed = False
         self._host_name = host_name
-        self.server = self._bind(ports)
+        self.server, self._v6_server = self._bind(ports)
         self._thread = threading.Thread(
             target=self.server.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True
         )
         self._thread.start()
+        self._v6_thread: threading.Thread | None = None
+        if self._v6_server is not None:
+            self._v6_thread = threading.Thread(
+                target=self._v6_server.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True
+            )
+            self._v6_thread.start()
+        self._timer: threading.Timer | None = None
+        if timeout_s > 0:
+            self._timer = threading.Timer(timeout_s, self.close)
+            self._timer.daemon = True
+            self._timer.start()
 
-    def _bind(self, ports: tuple[int, ...]) -> HTTPServer:
+    def _bind(self, ports: tuple[int, ...]) -> tuple[HTTPServer, HTTPServer | None]:
         handle = self._handle  # the request handler class calls it
 
         class Handler(BaseHTTPRequestHandler):
+            def setup(self) -> None:
+                super().setup()
+                self.connection.settimeout(5.0)
+
             def do_GET(self) -> None:  # the name of the stdlib hook
                 ok = handle(self.path)
                 body = _PAGE.format(text=html.escape(_DONE if ok else _REFUSED)).encode()
@@ -224,9 +256,15 @@ class LoopbackReceiver:
         last: OSError | None = None
         for port in ports or (0,):
             try:
-                return HTTPServer((LOOPBACK, port), Handler)
+                v4 = HTTPServer((LOOPBACK, port), Handler)
             except OSError as exc:
                 last = exc
+                continue
+            v6: HTTPServer | None = None
+            if self._host_name == "localhost":
+                with contextlib.suppress(OSError):
+                    v6 = _IPv6HTTPServer(("::1", int(v4.server_address[1])), Handler)
+            return v4, v6
         raise OAuthError("refused", "no free port for the sign-in") from last
 
     @property
@@ -284,8 +322,13 @@ class LoopbackReceiver:
             if self._closed:
                 return
             self._closed = True
+        if self._timer is not None:
+            self._timer.cancel()
         self.server.shutdown()
         self.server.server_close()
+        if self._v6_server is not None:
+            self._v6_server.shutdown()
+            self._v6_server.server_close()
 
 
 # ------------------------------------------------------------------ tokens

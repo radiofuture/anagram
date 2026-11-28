@@ -122,21 +122,27 @@ class ReadLedger:
                 "leaf_index": result["leaf_index"],
                 "tree_size": result["tree_size"],
             }
-            event_id, event = self._add_event(grant, subject, None, rid)
-            self._db.execute(
-                "INSERT INTO read_receipts (receipt_id, grant_id, sender, reader, doc, log,"
-                " received_at, event_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    rid,
-                    grant_id,
-                    grant["sender"],
-                    subject,
-                    json.dumps(receipt),
-                    json.dumps(log),
-                    self.now(),
-                    event_id,
-                ),
-            )
+            self._db.execute("BEGIN")
+            try:
+                event_id, event = self._add_event(grant, subject, None, rid)
+                self._db.execute(
+                    "INSERT INTO read_receipts (receipt_id, grant_id, sender, reader, doc, log,"
+                    " received_at, event_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        rid,
+                        grant_id,
+                        grant["sender"],
+                        subject,
+                        json.dumps(receipt),
+                        json.dumps(log),
+                        self.now(),
+                        event_id,
+                    ),
+                )
+                self._db.execute("COMMIT")
+            except BaseException:
+                self._db.execute("ROLLBACK")
+                raise
         return {"event": event, "log": log, "receipt_id": rid}
 
     # --------------------------------------------------------------- gate
@@ -167,15 +173,17 @@ class ReadLedger:
     def gate(self, subject: str, *, grant_id: str | None = None, blob_id: str | None = None) -> str:
         """The receipt ID that lets `subject` fetch the grant or the blob now.
         Raise ReadRequired (428) if there is none."""
-        return self._find(subject, grant_id, blob_id)[0]
+        with self._lock:
+            return self._find(subject, grant_id, blob_id)[0]
 
     def serve(self, subject: str, *, grant_id: str | None = None, blob_id: str | None = None):
         """The hook of NodeVault. A grant envelope: gate only. A blob: gate,
         then one signed fetch event."""
-        rid, gid = self._find(subject, grant_id, blob_id)
-        if blob_id is not None:
-            self.record_fetch(subject, gid, blob_id, rid)
-        return rid
+        with self._lock:
+            rid, gid = self._find(subject, grant_id, blob_id)
+            if blob_id is not None:
+                self.record_fetch(subject, gid, blob_id, rid)
+            return rid
 
     # ------------------------------------------------------------- events
 
@@ -217,16 +225,17 @@ class ReadLedger:
         event, so a receipt comes with or before its first event)."""
         self.identity.require_member(sender)
         since = max(0, int(since))
-        rows = self._db.execute(
-            "SELECT id, doc FROM fetch_events WHERE sender = ? AND id > ? ORDER BY id LIMIT ?",
-            (sender, since, MAX_PAGE),
-        ).fetchall()
-        cursor = rows[-1][0] if rows else since
-        receipts = self._db.execute(
-            "SELECT doc, log FROM read_receipts WHERE sender = ? AND event_id > ?"
-            " AND event_id <= ? ORDER BY event_id",
-            (sender, since, cursor),
-        ).fetchall()
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT id, doc FROM fetch_events WHERE sender = ? AND id > ? ORDER BY id LIMIT ?",
+                (sender, since, MAX_PAGE),
+            ).fetchall()
+            cursor = rows[-1][0] if rows else since
+            receipts = self._db.execute(
+                "SELECT doc, log FROM read_receipts WHERE sender = ? AND event_id > ?"
+                " AND event_id <= ? ORDER BY event_id",
+                (sender, since, cursor),
+            ).fetchall()
         return {
             "cursor": cursor,
             "events": [json.loads(d) for _, d in rows],

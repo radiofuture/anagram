@@ -160,6 +160,10 @@ def _check_args(tool: Tool, args: dict) -> None:
         raise ToolError(f"This tool has no argument named {extra[0][:40]!r}.")
 
 
+class _LimitReached(Exception):
+    pass
+
+
 class Server:
     def __init__(
         self,
@@ -203,16 +207,31 @@ class Server:
                 return ctx, True
             try:
                 _check_args(tool, args)
-                data = tool.run(ctx, args)
+                grant, today = ctx.grant, ctx.today.isoformat()
+                if tool.act:
+                    with index.store.transaction():
+                        data = tool.run(ctx, args)
+                        text = HEADER + "\n" + json.dumps(data, ensure_ascii=False, indent=1)
+                        if not access.try_note_use(
+                            index, grant.id, len(text), grant.daily_chars, today, ctx.now
+                        ):
+                            raise _LimitReached
+                        for sid in ctx.sources:
+                            index.log_disclosure(grant.recipient, grant.adapter, tool.what, sid)
+                else:
+                    data = tool.run(ctx, args)
+                    text = HEADER + "\n" + json.dumps(data, ensure_ascii=False, indent=1)
+                    with index.store.transaction():
+                        if not access.try_note_use(
+                            index, grant.id, len(text), grant.daily_chars, today, ctx.now
+                        ):
+                            return LIMIT, True
+                        for sid in ctx.sources:
+                            index.log_disclosure(grant.recipient, grant.adapter, tool.what, sid)
             except ToolError as exc:
                 return str(exc), True
-            text = HEADER + "\n" + json.dumps(data, ensure_ascii=False, indent=1)
-            grant, today = ctx.grant, ctx.today.isoformat()
-            if access.used_today(index, grant.id, today) + len(text) > grant.daily_chars:
+            except _LimitReached:
                 return LIMIT, True
-            access.note_use(index, grant.id, len(text), today, ctx.now)
-            for sid in ctx.sources:
-                index.log_disclosure(grant.recipient, grant.adapter, tool.what, sid)
         return text, False
 
     def _context(

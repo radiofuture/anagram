@@ -36,7 +36,7 @@ from anagram.local.index.convert import (
 )
 from anagram.local.index.convert.document import BLOCK_KINDS, CONTAINER_KINDS, norm_text
 from anagram.local.index.local import LocalIndex
-from anagram.local.index.media import DOCX, PPTX, XLSX
+from anagram.local.index.media import DOCX, IPYNB, PPTX, XLSX
 from anagram.local.index.store import IndexStore, db_key, dumps
 from anagram.local.sources import FolderConnector
 from anagram.sim.writers import docx_bytes, normalize_zip, pdf_bytes, pdf_layout, pptx_bytes
@@ -363,12 +363,52 @@ def _case(kind: str, tag: str) -> tuple[Blob, Blob]:
         return Blob(_eml(before), "m.eml", "message/rfc822"), Blob(
             _eml(after), "m.eml", "message/rfc822"
         )
+    if kind == "ipynb":
+        paras = _paras(12, tag)
+
+        def _nb(items: list[str]) -> bytes:
+            cells = [
+                {"cell_type": "markdown", "source": [f"# Notebook {tag}\n", f"\n{items[0]}"]},
+                *[
+                    {"cell_type": "markdown", "source": [p]}
+                    if i % 3
+                    else {"cell_type": "code", "source": [f"val_{i} = '{p[:24]}'\n"], "outputs": []}
+                    for i, p in enumerate(items[1:], 1)
+                ],
+            ]
+            return json.dumps({"nbformat": 4, "cells": cells}).encode("utf-8")
+
+        return (
+            Blob(_nb(paras), "a.ipynb", IPYNB),
+            Blob(_nb([paras[0], "This paragraph is new.", *paras[1:]]), "a.ipynb", IPYNB),
+        )
+    if kind == "tex":
+        paras = _paras(12, tag)
+
+        def _tex(items: list[str]) -> bytes:
+            body = [
+                f"\\section{{Part {i // 4 + 1}}}\n{p}" if i % 4 == 0 else p
+                for i, p in enumerate(items)
+            ]
+            src = (
+                "\\documentclass{article}\n"
+                f"\\title{{Study {tag}}}\n"
+                "\\begin{document}\n" + "\n\n".join(body) + "\n\\end{document}\n"
+            )
+            return src.encode("utf-8")
+
+        return (
+            Blob(_tex(paras), "p.tex", "text/x-tex"),
+            Blob(_tex([paras[0], "This paragraph is new.", *paras[1:]]), "p.tex", "text/x-tex"),
+        )
     raise AssertionError(kind)
 
 
 CONVERTER = {
     "markdown": BasicConverter,
     "email": BasicConverter,
+    "ipynb": BasicConverter,
+    "tex": BasicConverter,
     "docx": MarkItDownConverter,
     "pdf": MarkItDownConverter,
     "pptx": MarkItDownConverter,

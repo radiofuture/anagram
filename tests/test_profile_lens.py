@@ -234,3 +234,52 @@ def test_role_of():
     assert role_of(_View("file", "run.ipynb")) == "notebook"
     assert role_of(_View("file", "Grid protocol.md")) == "protocol"
     assert role_of(_View("file", "notes.md")) == "doc"
+
+
+def test_lens_cache_key_includes_published_and_skips_caching_errors():
+    from anagram.models import ModelError
+
+    model = FakeTextModel(_rules)
+    lens = ProfileLens(model, FakeEmbedder())
+    items = _items()
+    v1 = lens.view(items, today=TODAY, published={"p1"})
+    v2 = lens.view(items, today=TODAY, published={"p1", "d1"})
+    assert v1 is not v2
+
+    # When read_item errors out, the view must not be cached.
+    flaky = FakeTextModel([ModelError("unreachable", retryable=True)])
+    flaky_lens = ProfileLens(flaky, FakeEmbedder())
+    one = [LensItem("d1", "doc", "2026-07-01", "The side views are still missing.")]
+    err_view = flaky_lens.view(one, today=TODAY)
+    assert err_view.errors > 0
+    assert flaky_lens._views == {}
+
+
+def test_lens_items_parses_rfc2822_email_date(tmp_path):
+    from indexkit import KEY
+
+    from anagram.local.index.local import LocalIndex
+    from anagram.local.sources import FolderConnector
+    from anagram.local.understanding.profile.items import from_index
+    from anagram.sim.writers import eml_bytes
+
+    folder = tmp_path / "mail"
+    folder.mkdir()
+    (folder / "m.eml").write_bytes(
+        eml_bytes(
+            sender=("Me", "me@example.org"),
+            to=("You", "you@example.org"),
+            subject="Date test",
+            date="Mon, 02 Nov 2026 10:00:00 +0000",
+            message_id="<d1@example.org>",
+            body="We can share our protocol next week.\n",
+        )
+    )
+    idx = LocalIndex(tmp_path / "i.sqlite", KEY, owner_emails=["me@example.org"])
+    try:
+        idx.add_source(FolderConnector(folder))
+        idx.scan()
+        got = from_index(idx)
+        assert len(got) == 1 and got[0].date == "2026-11-02"
+    finally:
+        idx.close()

@@ -41,6 +41,18 @@ The first release for labs, and private matching through a network enclave.
   the whole network on one computer, with no Docker.
 - **Specs and vectors.** The wire formats and protocols are in `spec/`, with
   test vectors that an independent implementation can check.
+- **Local OCR with Datalab Indra.** Added optional `IndraConverter` (`name = "indra"`,
+  `external = False`) for 100% local CPU / Apple Silicon ONNX OCR of PDFs and
+  images (`PNG`, `JPEG`, `WebP`, `TIFF`) via `indra-ocr`, rendering pages in
+  memory with `pypdfium2`/Pillow (zero plaintext temp files), emitting
+  `Span(page=..., bbox=...)` blocks, and falling back automatically to
+  `markitdown` and `basic` when unavailable or offline without cached weights.
+- **Native `.ipynb` and `.tex` extraction.** Added stdlib-only extractors for
+  Jupyter notebooks (`application/x-ipynb+json` — markdown cells, fenced code
+  cells, and concise plain-text outputs with binary/base64 blobs skipped) and
+  LaTeX manuscripts (`text/x-tex` — title/author/abstract extraction, preamble
+  and `%` comment stripping, section headings, inline macro unwrapping, and
+  compact math preservation).
 - **Project tooling.** CI checks, type checks on a strict set, coverage
   floor, dependency audit, secret scan, pre-commit hooks, Dependabot, and the
   contributor, security and conduct files.
@@ -86,6 +98,48 @@ The first release for labs, and private matching through a network enclave.
   `IdentityService.key_state()` read-only, wrapped invite claims in atomic
   transactions, enforced key backup size/count limits, and verified signatures
   in `NodePersonalStore.put_person_keys()`.
+- **Models and spend gate.** Rejected zero-price or non-sequence price tuples,
+  non-positive ledger reservations, and lab profiles undercutting built-in
+  model price tables; included canonical sorted OpenRouter `route` in
+  `profile_id` and `same_party`; halted the spend ledger on invalid, negative,
+  or non-finite provider-reported costs and clamped negative token counts;
+  disabled external proxies and HTTP redirects for `OllamaClient` and loopback
+  model transports.
+- **Local sources, extractors, and understanding.** Blocked Git `rev` argument
+  injection (`--end-of-options`), Google Drive query injection via strict folder
+  ID validation and escaping, cross-host redirects and URL path injection in v1
+  source connectors, decompression bombs in PNG/PDF/Office/ZIP extraction, and
+  symlink reads in local file ingestion and repo summaries; enforced scope,
+  source/lab opt-in, third-party exclusion, stripped quoted text, and
+  disclosure logging across drafters, external enrichers, and failed external
+  ask/digest calls; fixed `TrustPolicy.item_tier` folder prefix boundaries,
+  Obsidian fail-closed private frontmatter and >4 MiB privacy checks, and
+  `0o600` permissions / leftover journal cleanup for `index.sqlite`.
+- **MCP gateway.** Rejected expired grant bearer keys at HTTP auth, duplicate
+  `Host` headers, and reads from sources being removed; made grant updates,
+  daily character quota enforcement, `acts.decide`, and `propose_lines`
+  rollback transactional.
+- **Enclave transparency log & handoff hardening.** Enforced signer
+  authorization, line/epoch invariants, and immutable `(line_id, instance_id)`
+  output-key binding in `TransparencyLog.append()` and
+  `append_instance_key()`; rejected low-order X25519 `reply_key` and
+  `response` keys before state mutation and isolated slot-sealing failures;
+  verified control-chain signatures before recording `seen` or marking forks;
+  fixed `Network.removes()` so bans, node removals, and credential revocations
+  still erase previously moved subjects; tightened `accept_hand_off()` role
+  and line checks, self-handoff refusal, and per-successor standby tracking;
+  required fresh user approval when `statement_hash` or `descriptor_set`
+  changes; and enforced certificate validity windows, CA `BasicConstraints`/
+  `KeyUsage`, and SEV-SNP `launch_tcb` floors across AMD, Intel, and GCP
+  attestation verifiers.
+- **Lab & sharing access hardening.** Required `settings` permission on
+  `topic="settings"` writes, transferred stored `author` on settings updates,
+  bounded record version jumps, enforced monotonic `roster.seq` and exact
+  `from_seq` keeper checks on clients, refused writes to closed labs, revoked
+  member invites on `leave`, wrapped multi-table `ReadLedger`/`NodeVault`
+  writes in transactions under locks, checked `grant_id` via `gated_call` in
+  `Grants.fetch_payload()`, disallowed `image/svg+xml` in reading-copy
+  figures, and bounded ZIP figure decompression.
 
 ### Fixed
 
@@ -125,3 +179,23 @@ The first release for labs, and private matching through a network enclave.
   computer" flow status, deep-linking to `#/account#models-title`, optional
   institution entry, copy polish across screens, and confirmation dialogs for
   destructive actions.
+- Summed token counts and costs across both billed attempts on `OpenAICompatModel`
+  `text`-mode retries.
+- Prevented `remove_source` foreign-key failures when items have `kind_override`
+  rows, preserved existing OAuth `refresh_token` on re-grant, prevented
+  concurrent `Streams.checkpoint` overwrites, and fixed `ProfileLens` cache
+  keying on `published` sets and error handling.
+- Fixed `Gateway` multi-client HTTP/1.1 concurrency via `ThreadingHTTPServer`
+  with request timeouts, `IndexStore` nested `SAVEPOINT` transactions,
+  `vec_store` search loop termination, RFC 2822 email date parsing, Git `\x1e`
+  commit parsing, Gmail label add/remove history sync, Notion empty timestamp
+  and stop handling, `LoopbackReceiver` IPv6/timeout cleanup, stranded
+  understanding job recovery, redacted error logging, and `after_scan` ordering.
+- **Enclave reliability & matching.** Prevented writer crash/restart before
+  epoch cosigning from emitting conflicting epochs or deadlocking the log;
+  fetched covering checkpoints during incremental `LogFollower.follow()` and
+  verified checkpoints when `size <= len(view.entries)`; persisted and
+  restored `max_seen` across restarts and takeovers; handled non-positive
+  stage-1 cosine scores in `_reasons()` and validated judge candidate types;
+  rejected non-release entry digests cleanly in `accept_release()`; and
+  cleaned up user-facing error messages in `EnclaveMatching`.

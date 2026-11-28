@@ -16,6 +16,7 @@ API connectors (GitHub, Zotero Web API, ORCID) call the network only through a
 from __future__ import annotations
 
 import json
+import urllib.error
 import urllib.parse
 import urllib.request
 from abc import ABC, abstractmethod
@@ -185,20 +186,49 @@ class Connector(ABC):
         return self.kind
 
 
-def urllib_transport(timeout: int = 30) -> Transport:
+MAX_RESPONSE_BYTES = 64 * 1024 * 1024
+
+
+class _SameHostRedirect(urllib.request.HTTPRedirectHandler):
+    """Follow a redirect only to the same host over https."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        old = urllib.parse.urlsplit(req.full_url)
+        new = urllib.parse.urlsplit(newurl)
+        if (
+            new.scheme != "https"
+            or not new.hostname
+            or new.hostname != old.hostname
+            or new.port != old.port
+        ):
+            raise ConnectorError("a redirect to another host was refused")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _read_bounded(resp, max_bytes: int) -> bytes:
+    raw = resp.read(max_bytes + 1)
+    if len(raw) > max_bytes:
+        raise ConnectorError("the response is larger than the limit")
+    return raw
+
+
+def urllib_transport(timeout: int = 30, max_bytes: int = MAX_RESPONSE_BYTES) -> Transport:
     """Real network transport. Only API connectors use it, and only when the
     user connects that source. Tests never use it."""
+    opener = urllib.request.build_opener(_SameHostRedirect)
 
     def call(method: str, url: str, headers: dict[str, str], body: bytes | None):
-        if not url.startswith("https://"):
+        parts = urllib.parse.urlsplit(url)
+        if parts.scheme != "https" or not parts.hostname:
             raise ValueError("API calls must use https")
         req = urllib.request.Request(url, data=body, method=method, headers=headers)  # noqa: S310
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
-                raw = resp.read()
+            with opener.open(req, timeout=timeout) as resp:
+                raw = _read_bounded(resp, max_bytes)
                 return resp.status, json.loads(raw) if raw else None
         except urllib.error.HTTPError as exc:
-            raw = exc.read()
+            with exc:
+                raw = _read_bounded(exc, max_bytes)
             try:
                 return exc.code, json.loads(raw) if raw else None
             except ValueError:

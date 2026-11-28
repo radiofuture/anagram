@@ -452,3 +452,16 @@ def test_the_command_serves_a_real_home_in_a_second_process(tmp_path):
     result = answers[1]["result"]
     assert not result["isError"], result
     assert "Band shift of NbT7" in result["content"][0]["text"]
+
+
+def test_read_item_refuses_removing_source(lib):
+    from anagram.local.sources import source_state as ss
+
+    idx, _, session, (a, _, _) = lib
+    who = consent(idx)
+    peer = Peer(serve(session, who.id))
+    ref = peer.data("search", query="buffer")["hits"][0]["ref"]
+    assert not peer.call("read_item", ref=ref)[1]
+    ss.set_status(idx.store, a, ss.REMOVING, now=2.0)
+    text, error = peer.call("read_item", ref=ref)
+    assert error and "not open" in text

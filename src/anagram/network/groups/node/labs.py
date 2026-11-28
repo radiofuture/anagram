@@ -176,7 +176,7 @@ class LabService:
             (lab_id, entry["seq"], canonical_json(entry).decode(), state.head, self.now()),
         )
         self.directory.put(lab_id, state.name, state.pi(), list(state.members), self.now())
-        if entry["op"] in ("invite", "revoke_invite", "join", "remove"):
+        if entry["op"] in ("invite", "revoke_invite", "join", "remove", "leave"):
             self._sync_invites(state)
             self._change(lab_id, "invites")
         if state.members != old_members or entry["op"] in ("rename", "create", "close"):
@@ -444,6 +444,22 @@ class LabService:
             self._one("SELECT COALESCE(SUM(size), 0) FROM lab_records WHERE lab_id = ?", lab_id)[0]
         )
 
+    def _check_record_write(
+        self, state: labfmt.LabState, subject: str, lab_id: str, doc: dict, topic: str
+    ) -> int:
+        if state.closed:
+            raise Forbidden("this lab is closed")
+        if not state.can(subject, "publish"):
+            raise Forbidden("your role in this lab does not permit this")
+        quota, suspended = self._quota(lab_id)
+        if suspended:
+            raise Forbidden("This lab is read-only now. Ask the node organizer.")
+        if topic == "settings" and not state.can(subject, "settings"):
+            raise Forbidden("only the PI or an admin changes lab settings")
+        if doc["version"] > 2**31 - 1:
+            raise NodeError("record version is too large")
+        return quota
+
     def put_record(
         self,
         subject: str,
@@ -465,9 +481,7 @@ class LabService:
         size = record_size(doc)
         with self._lock:
             state = self.member_state(subject, lab_id)
-            quota, suspended = self._quota(lab_id)
-            if suspended:
-                raise Forbidden("This lab is read-only now. Ask the node organizer.")
+            quota = self._check_record_write(state, subject, lab_id, doc, topic)
             keeper = state.can(subject, "tombstone")
 
             def owned(rid: str):
@@ -499,10 +513,14 @@ class LabService:
                 MAX_LAB_RECORDS
             ):
                 raise QuotaExceeded("too many records in this lab space")
+            if topic == "settings" and doc["version"] > (old[0] if old else 0) + 1:
+                raise NodeError("settings version must increment by 1")
+            if topic != "settings" and doc["version"] > (old[0] if old else 0) + 1000:
+                raise NodeError("record version jump is too large")
             freed = (old[1] if old else 0) + sum(r[1] for r in gone)
             if self._used(lab_id) - freed + size > quota:
                 raise QuotaExceeded("The lab space is full. Ask the node organizer.")
-            author = old[3] if old else subject
+            author = subject if (old is None or topic == "settings") else old[3]
             change = self._write_record(lab_id, doc, author, blobs, topic, drop)
             self._drop_orphans(before - set(blobs))
             return {"change": change, "record_id": record_id, "version": doc["version"]}

@@ -13,7 +13,7 @@ reads the instance's line state and keys, which `EnclaveInstance` holds.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from anagram.core.canonical import JsonObject, loads_canonical
 from anagram.core.crypto import hpke
@@ -26,6 +26,7 @@ from anagram.network.matching.trust import handoff as ho
 from anagram.network.matching.trust import snapshot as snap
 from anagram.network.matching.trust.attestation import verify_successor
 from anagram.network.matching.trust.bundle import attestation_digest
+from anagram.network.matching.trust.clock import SignedClock
 from anagram.network.matching.trust.lines import latest_epoch, line_writer, writer_of
 from anagram.network.matching.trust.logview import LogView
 from anagram.network.matching.trust.release import APP_VERSION, accept_release, check_successor
@@ -42,6 +43,7 @@ class Handoff:
     received: tuple[str, int, str] | None = None  # (me, counter, digest) of the message I got
     sent: JsonObject | None = None  # the message of the handoff in progress
     successor_key: str | None = None  # the output key of its successor
+    standbys: dict[str, tuple[JsonObject, str]] = field(default_factory=dict)  # sid -> (msg, key)
 
 
 class HandoffSteps:
@@ -56,8 +58,10 @@ class HandoffSteps:
     role: Role
     state_key: bytes | None
     journal: Journal | None
+    signed: SignedClock
     last_epoch: int
     last_digest: str | None
+    pending_epoch: JsonObject | None
     handoff: Handoff
 
     @property
@@ -103,7 +107,13 @@ class HandoffSteps:
             raise Refused("snapshot_unknown", "the line has no cosigned epoch")
         self._load(view, latest)
         self.journal.cosigned = latest["counter"]
-        self.journal.restart()
+        self.journal.restart(keep_pending=True)
+        self.signed.max_seen = max(self.signed.max_seen, self.journal.ledger.max_seen)
+        if (
+            self.pending_epoch is not None
+            and self.pending_epoch["counter"] <= self.journal.cosigned
+        ):
+            self.pending_epoch = None
         self.last_digest = view.digests[view.entries.index(latest)].hex()
         self.last_epoch = self._signed_epoch()
         self._restored()
@@ -132,6 +142,11 @@ class HandoffSteps:
         try:
             if now is None:
                 raise Refused("clock_unsafe")
+            if isinstance(successor_doc, dict) and (
+                successor_doc.get("instance_id") == self.keys.instance_id
+                or successor_doc.get("line_id") != self.line_id
+            ):
+                raise Refused("handoff_not_successor", "self or cross-line handoff")
             accept_release(successor_release, view, self.roots, APP_VERSION, now)
             check_successor(self.release.entry, successor_release)
             verify_successor(successor_doc, successor_release, view, self.roots, now)
@@ -152,39 +167,73 @@ class HandoffSteps:
         self.role = Role.WRITER if standby else Role.DRAINING
         msg = ho.make(sealed, self.line_id, counter, digest, target, self.keys.output)
         h = self.handoff
-        h.successor, h.standby = successor_doc["instance_id"], standby
-        h.sent, h.successor_key = msg, successor_doc["output_key"]
+        sid = successor_doc["instance_id"]
+        if standby:
+            h.standbys[sid] = (msg, successor_doc["output_key"])
+            h.successor, h.standby = sid, True
+            h.sent, h.successor_key = msg, successor_doc["output_key"]
+        else:
+            h.successor, h.standby = sid, False
+            h.sent, h.successor_key = msg, successor_doc["output_key"]
         return msg
 
-    def check_ready(self, doc: object) -> None:
+    def check_ready(self, doc: object) -> str:
         """The successor's `ready` note for the handoff in progress (the
-        host asks for it before `finish_hand_off`)."""
+        host asks for it before `finish_hand_off`). Return the successor ID."""
         h = self.handoff
-        if h.sent is None or h.successor_key is None:
-            raise Refused("handoff_not_successor", "no handoff in progress")
-        ho.check_ready(doc, h.sent, h.successor_key)
+        if self.role == Role.DRAINING:
+            if h.sent is None or h.successor_key is None or h.successor is None:
+                raise Refused("handoff_not_successor", "no handoff in progress")
+            ho.check_ready(doc, h.sent, h.successor_key)
+            return h.successor
+        if h.standbys:
+            signer = doc.get("signer") if isinstance(doc, dict) else None
+            for sid, (sent, key) in h.standbys.items():
+                if signer == key:
+                    ho.check_ready(doc, sent, key)
+                    return sid
+            raise Refused("handoff_not_successor", "not the successor of this handoff")
+        raise Refused("handoff_not_successor", "no handoff in progress")
 
     def ready(self, msg: JsonObject) -> JsonObject:
         """The note that this successor accepted `msg` (`accept_hand_off`)."""
         return ho.ready(msg, self.keys.output)
 
-    def finish_hand_off(self) -> None:
+    def finish_hand_off(self, successor_id: str | None = None) -> None:
         """Step 5: the epoch that adds the successor to the holders. For an
         upgrade it names the successor the next writer, and after it this
         instance opens nothing."""
         h = self.handoff
-        if h.successor is None or self.role != (Role.WRITER if h.standby else Role.DRAINING):
+        if self.role == Role.DRAINING:
+            if h.successor is None or h.standby:
+                raise Refused("handoff_not_successor", "no handoff in progress")
+            sid = h.successor
+            latest = latest_epoch(self.log.view(), self.line_id)
+            holders = sorted({*(latest["holders"] if latest else []), sid})
+            self._write_epoch(next_writer=sid, holders=holders)
+            self._retire()
+            h.successor, h.standby, h.sent, h.successor_key = None, False, None, None
+            h.standbys.clear()
+            return
+        if self.role != Role.WRITER:
+            raise Refused("handoff_not_successor", "no handoff in progress")
+        target_id = successor_id if successor_id is not None else h.successor
+        if target_id is None or target_id not in h.standbys:
             raise Refused("handoff_not_successor", "no handoff in progress")
         latest = latest_epoch(self.log.view(), self.line_id)
-        holders = sorted({*(latest["holders"] if latest else []), h.successor})
-        self._write_epoch(next_writer=None if h.standby else h.successor, holders=holders)
-        if not h.standby:
-            self._retire()
-        h.successor, h.standby, h.sent, h.successor_key = None, False, None, None
+        holders = sorted({*(latest["holders"] if latest else []), target_id})
+        self._write_epoch(next_writer=None, holders=holders)
+        h.standbys.pop(target_id, None)
+        if h.successor == target_id:
+            h.successor, h.standby, h.sent, h.successor_key = None, False, None, None
 
     def accept_hand_off(self, msg: JsonObject) -> None:
         """Step 4 at the successor."""
         try:
+            if self.role != Role.NEW:
+                raise Refused("handoff_bad_sender", "instance is not new")
+            if not isinstance(msg, dict) or msg.get("line_id") != self.line_id:
+                raise Refused("handoff_bad_sender", "handoff is for another line")
             key = ho.accept(
                 msg,
                 self.log.view(),
@@ -216,8 +265,10 @@ class HandoffSteps:
             return
         _, body = snap.open_snapshot(self.state_key, self._load(view, latest))
         self.journal = self._journal(Ledger.from_json(loads_canonical(body)))
+        self.signed.max_seen = max(self.signed.max_seen, self.journal.ledger.max_seen)
         self.journal.counter = latest["counter"] + 1
         self.journal.cosigned = latest["counter"]
+        self.pending_epoch = None
         self.last_digest = view.digests[view.entries.index(latest)].hex()
         self.role = Role.WRITER
         self._restored()

@@ -341,3 +341,10 @@ def test_evaluation_p95_under_1_ms():
     p95_ms = times[int(0.95 * len(times))] * 1000
     print(f"trust evaluation p95 {p95_ms:.4f} ms, max {times[-1] * 1000:.4f} ms")
     assert p95_ms <= 1.0
+
+
+def test_folder_prefix_requires_path_boundary():
+    policy = TrustPolicy.from_doc(_doc(folders={"drive": {"exp": PRIVATE}}))
+    assert policy.item_tier("drive", "exp/run1.md", third_party=False) == PRIVATE
+    assert policy.item_tier("drive", "exp", third_party=False) == PRIVATE
+    assert policy.item_tier("drive", "experiments/run1.md", third_party=False) == DISCOVERABLE

@@ -86,7 +86,8 @@ change.
 For each candidate pair, one judge call reads both people's visible lines
 for the candidate types and gives `{"fit_a", "fit_b", "type"}`, where each
 fit is `fit` or `pass`. The enclave asks twice, with the order of the two
-people swapped. When the two answers do not agree, there is no decision
+people swapped. When the two answers do not agree, or when the returned
+`type` is not a candidate type for the pair, there is no decision
 (the audit counts it). The judge gives enums only, never free text. The
 enclave makes one decision for each pair and each material change of
 either pack.
@@ -118,8 +119,9 @@ ranking and the waiting pairs.
 
 The `reasons` of each copy are 1 to 4 line IDs of that person's own pack:
 the lines of the person that stage 1 matched for the pair and type, with a
-score of at least half the pair's best score. A copy never names a line of
-the peer.
+score at or above half the pair's best score (or `2 * best` when the best
+score is non-positive, falling back to the person's highest-scoring matched
+line so `reasons` is never empty). A copy never names a line of the peer.
 
 ## 4. Decision table
 

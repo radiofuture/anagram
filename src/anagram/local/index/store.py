@@ -30,6 +30,7 @@ import hashlib
 import hmac
 import json
 import logging
+import os
 from collections.abc import Iterable, Iterator, Sequence
 from pathlib import Path
 from typing import Any
@@ -313,6 +314,10 @@ class IndexStore:
         if len(key) != KEY_LEN:
             raise IndexStoreError("index key must be 32 bytes")
         self.path = Path(path)
+        if str(path) != ":memory:" and not self.path.exists():
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            fd = os.open(self.path, os.O_CREAT | os.O_RDWR, 0o600)
+            os.close(fd)
         self._db = sqlcipher3.connect(
             str(self.path), isolation_level=None, timeout=BUSY_TIMEOUT_MS / 1000
         )
@@ -324,6 +329,9 @@ class IndexStore:
         except sqlcipher3.DatabaseError as exc:
             self._db.close()
             raise IndexStoreError("index store does not open (wrong key or changed)") from exc
+        if str(path) != ":memory:":
+            with contextlib.suppress(OSError):
+                os.chmod(self.path, 0o600)
         self._db.execute(f"PRAGMA busy_timeout = {BUSY_TIMEOUT_MS}")
         self._db.execute("PRAGMA journal_mode = DELETE")
         # SQLCipher does not encrypt SQLite temp files (sorts, temp tables,
@@ -356,10 +364,12 @@ class IndexStore:
         try:
             self._db.enable_load_extension(True)
             self._db.load_extension(mod.loadable_path())
-            self._db.enable_load_extension(False)
         except Exception:  # the index works without vectors
             log.exception("sqlite-vec does not load: no vector search")
             return False
+        finally:
+            with contextlib.suppress(Exception):
+                self._db.enable_load_extension(False)
         return True
 
     def close(self) -> None:
@@ -381,19 +391,33 @@ class IndexStore:
 
     @contextlib.contextmanager
     def transaction(self) -> Iterator[None]:
-        """`BEGIN IMMEDIATE` ... `COMMIT` (or `ROLLBACK` on an error). An inner
-        transaction joins the outer one."""
+        """`BEGIN IMMEDIATE` ... `COMMIT` (or `ROLLBACK` on an error). A nested
+        transaction uses a SQLite `SAVEPOINT` so inner errors roll back cleanly."""
         if self._depth == 0:
             self._db.execute("BEGIN IMMEDIATE")
-        self._depth += 1
-        ok = False
-        try:
-            yield
-            ok = True
-        finally:
-            self._depth -= 1
-            if self._depth == 0:
+            self._depth = 1
+            ok = False
+            try:
+                yield
+                ok = True
+            finally:
+                self._depth = 0
                 self._db.execute("COMMIT" if ok else "ROLLBACK")
+        else:
+            self._depth += 1
+            sp = f"sp_{self._depth}"
+            self._db.execute(f"SAVEPOINT {sp}")
+            ok = False
+            try:
+                yield
+                ok = True
+            finally:
+                self._depth -= 1
+                if ok:
+                    self._db.execute(f"RELEASE SAVEPOINT {sp}")
+                else:
+                    self._db.execute(f"ROLLBACK TO SAVEPOINT {sp}")
+                    self._db.execute(f"RELEASE SAVEPOINT {sp}")
 
     # --------------------------------------------------------------- meta
 

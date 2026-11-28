@@ -275,6 +275,7 @@ def tdx_claims(platform_evidence: object, gpu_evidence: object, roots: Roots) ->
         "tcb_required": list(TCB_REQUIRED),
         "td_attributes": attrs,
         "tee_tcb_svn": body["tee_tcb_svn"].hex(),
+        "valid_from": chain.valid_from,
         "valid_until": min(chain.valid_until, tcb.next_update, qe_tcb.next_update),
     }
     return Claims(cpu=cpu, gpu=None)

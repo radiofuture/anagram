@@ -27,7 +27,7 @@ from anagram.core.errors import ClientError, FormatError
 from anagram.core.nodeapi import NodeHTTPError
 from anagram.core.timefmt import epoch_text, format_time
 from anagram.identity.api import Device, is_subject
-from anagram.network.formats.sharing import reading_blob_id
+from anagram.network.formats.sharing import SAFE_FIGURE_MEDIA_TYPES, reading_blob_id
 from anagram.network.ports import FindingVault
 from anagram.network.sharing.app import readcopy
 from anagram.network.sharing.app.grants import Grants, safe_name
@@ -399,6 +399,8 @@ class Received:
                 continue
             for fig in item["figures"]:
                 if fig["id"] == figure_id:
+                    if fig["media_type"] not in SAFE_FIGURE_MEDIA_TYPES:
+                        raise ClientError("unsupported figure media type")
                     return fig["media_type"], base64.b64decode(fig["data"])
         raise ClientError("no such figure in this shared finding")
 

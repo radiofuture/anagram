@@ -112,7 +112,11 @@ class LabKeys:
         """One key package. `roster_seq` is the roster seq at the start of
         the epoch, so that each package of an epoch names the same start
         (the rotation rule reads it)."""
-        if epoch_seq < 0 or epoch_seq not in state.heads:
+        if (
+            epoch_seq < 0
+            or epoch_seq not in state.heads
+            or not self.roster.was_keeper(state.lab_id, self.device.subject, epoch_seq)
+        ):
             epoch_seq = state.seq
         return labkey.make_key_package(
             lab_id=state.lab_id,

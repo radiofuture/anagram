@@ -128,9 +128,14 @@ class ProfileLens:
         self._signals: dict[str, ItemSignals] = {}  # by _item_key
         self._views: dict[str, ProfileView] = {}
 
-    def cache_key(self, items: Sequence[LensItem], today: date) -> str:
+    def cache_key(
+        self, items: Sequence[LensItem], today: date, published: Iterable[str] | None = None
+    ) -> str:
         inputs = _digest(*sorted(_item_key(i) + i.tier for i in items))
-        return _digest(self.name, self.version, PROMPT_VERSION, inputs, POLICY_VERSION, str(today))
+        pub = _digest(*sorted(published or ()))
+        return _digest(
+            self.name, self.version, PROMPT_VERSION, inputs, POLICY_VERSION, str(today), pub
+        )
 
     def view(
         self,
@@ -144,7 +149,7 @@ class ProfileLens:
         if not self.tiers <= grant:
             raise TierRefused(f"the {self.name} lens reads {sorted(self.tiers)}")
         usable = [i for i in items if i.tier in self.tiers and i.role != "received"]
-        key = self.cache_key(usable, today)
+        key = self.cache_key(usable, today, published)
         if key in self._views:
             return self._views[key]
         got: dict[str, ItemSignals] = {}
@@ -162,5 +167,6 @@ class ProfileLens:
         readings = combine(usable, got, self.embedder, today)
         offers, wants = draft(readings, published)
         out = ProfileView(readings, offers, wants, read, calls, errors, got)
-        self._views[key] = out
+        if errors == 0:
+            self._views[key] = out
         return out

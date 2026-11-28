@@ -320,3 +320,29 @@ def test_record_has_no_token(env, pages):
         )["extra"]
     )
     assert extra == {"project": "notion:d0000000-0000-4000-8000-0000000000aa"}
+
+
+def test_notion_empty_edit_time_and_stop_during_ids_reconcile(env, pages):
+    sid = env.add()
+    env.sync(sid)
+    assert len(env.keys(sid)) == 3
+    # An empty last_edited_time on a page must not abort incremental _live sync.
+    env.fake.pages[pages["row"]]["last_edited_time"] = ""
+    env.sync(sid)
+    assert len(env.keys(sid)) == 3
+
+    # A stop signal during _ids reconciliation must not delete existing items.
+    env.clock.now += 24 * 3600
+    env.fake.unshare(pages["row"])
+    conn = env.idx.connector(sid)
+    from anagram.local.sources.sync import SyncContext
+
+    ctx = SyncContext(
+        state=ss.get(env.idx.store, sid).cursor,
+        known=lambda k: None,
+        known_keys=lambda p="": iter(env.keys(sid)),
+        deadline=env.clock() + 60.0,
+        stop=lambda: True,
+    )
+    events = list(conn.sync(ctx))
+    assert not any(getattr(e, "key", None) == pages["row"] for e in events)

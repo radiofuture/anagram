@@ -271,8 +271,8 @@ class EnclaveHost:
 
     def finish_standby(self, note: object) -> None:
         with self.lock:
-            self.instance.check_ready(note)
-            self.instance.finish_hand_off()
+            sid = self.instance.check_ready(note)
+            self.instance.finish_hand_off(sid)
             self.save()
 
     def close(self) -> None:

@@ -259,3 +259,54 @@ def test_folder_drafts_keep_the_old_groups(sim_community, tmp_path):
     assert {d.where for d in draft_findings_by_folder(index)} == {
         d.where for d in draft_findings(index)
     }
+
+
+def test_propose_findings_filters_scope_before_drafter_and_enforces_external_opt_in(tmp_path):
+    from anagram.local.understanding.drafter import ProviderDrafter
+
+    index, sid = make(tmp_path, {"alpha/gel.md": GEL})
+    try:
+        source_state.set_space(index.store, sid, LAB, now=0)
+        fake = FakeModelDrafter()
+        # Out-of-scope lab item must never reach the drafter even when select matches its id.
+        all_ids = [d.id for d in proposals.propose_findings(index, scope=frozenset({LAB}))]
+        out = proposals.propose_findings(index, drafter=fake, allow_external=True, select=all_ids)
+        assert out == [] and fake.seen == []
+
+        # ProviderDrafter requires source allow_external, lab_allow, and logs disclosure.
+        ext_model = FakeTextModel(
+            lambda req: {"claim": "NbT7 binds ligand X at pH 6."},
+            external=True,
+            profile_id="cloud-1234abcd",
+            recipient="Cloud Co",
+        )
+        drafter = ProviderDrafter(ext_model)
+        # Without source opt-in: falls back without calling external model.
+        res = proposals.propose_findings(
+            index,
+            drafter=drafter,
+            allow_external=True,
+            select=all_ids,
+            scope=frozenset({LAB}),
+            lab_allow={LAB: frozenset({ext_model.recipient_id})},
+        )
+        assert ext_model.calls == [] and res[0].drafted_by == "deterministic"
+        # With source opt-in but no lab_allow: still blocked.
+        index.set_source_prefs(sid, allow_external=[ext_model.recipient_id])
+        res = proposals.propose_findings(
+            index, drafter=drafter, allow_external=True, select=all_ids, scope=frozenset({LAB})
+        )
+        assert ext_model.calls == [] and res[0].drafted_by == "deterministic"
+        # With both source opt-in and lab_allow: runs and logs disclosure.
+        res = proposals.propose_findings(
+            index,
+            drafter=drafter,
+            allow_external=True,
+            select=all_ids,
+            scope=frozenset({LAB}),
+            lab_allow={LAB: frozenset({ext_model.recipient_id})},
+        )
+        assert len(ext_model.calls) == 1 and res[0].drafted_by == drafter.name
+        assert any(d["adapter"] == ext_model.recipient_id for d in index.disclosures())
+    finally:
+        index.close()

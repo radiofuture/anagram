@@ -84,14 +84,15 @@ def make(
 
 
 def _holder_keys(view: LogView, line_id: str) -> set[str]:
-    """Output keys of the instances that hold the line's state key now."""
+    """Output keys of the instances that hold the line's state key now.
+    Each instance_id is bound immutably to its first logged output key."""
     epoch = latest_epoch(view, line_id)
     holders = set(epoch["holders"]) if epoch else set()
-    return {
-        e["signer"]
-        for _, e in view.of_kind("enclave_instance_key")
-        if e["line_id"] == line_id and e["instance_id"] in holders
-    }
+    first_key: dict[str, str] = {}
+    for _, e in view.of_kind("enclave_instance_key"):
+        if e["line_id"] == line_id:
+            first_key.setdefault(e["instance_id"], e["signer"])
+    return {first_key[iid] for iid in holders if iid in first_key}
 
 
 def accept(msg: object, view: LogView, successor: bytes, intake_private: bytes) -> bytes:

@@ -573,3 +573,22 @@ def test_is_own_reads_the_class_flag_with_no_open_connector(tmp_path, clock, toy
         assert idx.connectors == {}  # no connector was opened for the answer
     finally:
         idx.close()
+
+
+def test_sync_engine_redacts_unexpected_exception_logs(index, toy, caplog):
+    import logging
+
+    canary = "CANARY-PATH-IN-EXC"
+
+    class Boom(ToySource):
+        kind = "toy"
+
+        def sync(self, ctx):
+            raise RuntimeError(f"failed reading {canary}")
+
+    sid = index.add_source(Boom())
+    with caplog.at_level(logging.WARNING, logger="anagram.local.index"):
+        index.scan([sid])
+    assert canary not in caplog.text
+    assert any("RuntimeError" in r.getMessage() for r in caplog.records)
+    assert all(not r.exc_info for r in caplog.records)

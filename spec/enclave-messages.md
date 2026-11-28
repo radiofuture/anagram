@@ -122,8 +122,10 @@ A body of another type for its class gives `bad_message`; a JSON body with a
 
 In this order; the first failure gives the code:
 
-1. the length equals the size of `class`, `magic` is `AGE1` and `class` is
-   known (`bad_envelope`);
+1. the length equals the size of `class`, `magic` is `AGE1`, `class` is
+   known, and `response` is a valid non-low-order X25519 public key
+   (`bad_envelope`; low-order points that produce an all-zero X25519 shared
+   secret are refused before any state change);
 2. `intake` is a live intake key of this instance (`unknown_instance_key`);
 3. `attestation` is the digest of the current attestation document for
    that intake key (`stale_attestation`);

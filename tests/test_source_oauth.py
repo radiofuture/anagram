@@ -274,3 +274,18 @@ def test_client_resolution_order(tmp_path):
     # The secret is never in the text form of a client.
     lab_secret = _Labs({"l": {"google": {"client_id": "c", "client_secret": "s3cr3t"}}})
     assert "s3cr3t" not in repr(client_resolver(lab_secret, home, build)("google"))
+
+
+def test_loopback_receiver_auto_closes_after_timeout():
+    import time
+
+    from anagram.local.sources.oauth import LoopbackReceiver
+
+    rec = LoopbackReceiver(state="st", timeout_s=0.05)
+    try:
+        deadline = time.monotonic() + 2.0
+        while not rec._closed and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert rec._closed is True
+    finally:
+        rec.close()

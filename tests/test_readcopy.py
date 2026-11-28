@@ -136,3 +136,47 @@ def test_share_uploads_the_reading_copy_one_time(tmp_path):
     for g in chen.vault.grants_sent(root):
         chen.vault.add_grant_sent(g["grant_id"], g["root"], g["recipient"], [], g["created_at"])
     assert len(chen.grants.sync_grants()) == 2
+
+
+def test_m15_svg_figures_disallowed_and_zip_extraction_bounded(monkeypatch):
+    import base64
+    import io
+    import zipfile
+
+    # validate_reading_copy refuses image/svg+xml figures.
+    bad_copy = {
+        "items": [
+            {
+                "blocks": None,
+                "figures": [
+                    {
+                        "data": base64.b64encode(b"<svg><script>alert(1)</script></svg>").decode(),
+                        "id": "fig1",
+                        "media_type": "image/svg+xml",
+                    }
+                ],
+                "media_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "name": "x.docx",
+                "size": 100,
+                "slot": 0,
+                "table": None,
+                "truncated": False,
+                "view": "document",
+            }
+        ],
+        "made_by": "anagram.readcopy.v1",
+        "schema": "anagram.reading_copy.v1",
+        "title": None,
+    }
+    with pytest.raises(FormatError, match="raster"):
+        validate_reading_copy(bad_copy)
+
+    # _zip_figures skips .svg entries and bounds decompression of oversized entries.
+    monkeypatch.setattr(readcopy, "READING_FIGURES_MAX", 256)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("word/media/evil.svg", b"<svg/>")
+        zf.writestr("word/media/bomb.png", b"A" * 50_000)
+        zf.writestr("word/media/good.png", PNG[:50])
+    got = readcopy._zip_figures(buf.getvalue(), "word/media")  # noqa: SLF001
+    assert [(fid, mt) for fid, mt, _ in got] == [("good", "image/png")]

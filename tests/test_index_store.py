@@ -135,3 +135,28 @@ def test_store_savepoint_mode_leftovers_and_vec_search_termination(tmp_path, mon
     erase_plain_leftovers(db)
     assert db.exists()
     assert all(not p.exists() for p in leftovers)
+
+
+def test_concurrent_first_open_does_not_race_add_columns(tmp_path):
+    """Concurrent threads opening a brand-new IndexStore must not race on
+    `ALTER TABLE ... ADD COLUMN` (`duplicate column name: schema`)."""
+    import threading
+
+    db = tmp_path / "race.sqlite"
+    barrier = threading.Barrier(8)
+    errors: list[BaseException] = []
+
+    def opener() -> None:
+        barrier.wait()
+        try:
+            store = IndexStore(db, KEY)
+            store.close()
+        except BaseException as exc:
+            errors.append(exc)
+
+    threads = [threading.Thread(target=opener) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert errors == []

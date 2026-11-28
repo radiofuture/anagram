@@ -43,6 +43,11 @@ class Lazy:
     def __init__(self, clients: dict, url: str) -> None:
         self.clients, self.url = clients, url
 
+    def close(self) -> None:
+        # Stack owns the shared TestClients in self.clients; callers closing
+        # their view must not close the shared client for other callers.
+        pass
+
     def __getattr__(self, name: str):
         return getattr(self.clients[self.url], name)
 

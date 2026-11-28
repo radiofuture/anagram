@@ -40,12 +40,31 @@ def wire(monkeypatch, node_dir):
     return tc
 
 
-def test_node_init_requires_orcid_credentials(tmp_path, capsys):
-    nd = str(tmp_path / "node")
+def test_node_init_orcid_credentials_optional_but_paired(tmp_path, capsys):
+    # Setting only one of client ID / client secret is refused.
+    nd_bad = str(tmp_path / "node-bad")
     code, _, err = run(
-        capsys, "node", "--node-dir", nd, "init", "--domain", "anagram.example.org", "-y"
+        capsys,
+        "node",
+        "--node-dir",
+        nd_bad,
+        "init",
+        "--domain",
+        "anagram.example.org",
+        "--orcid-client-id",
+        "APP-1",
+        "-y",
     )
     assert code == 1 and "orcid-client-id" in err
+    # Omitting both works (ORCID is optional for a production node).
+    nd_no_orcid = str(tmp_path / "node-no-orcid")
+    code, _, err = run(
+        capsys, "node", "--node-dir", nd_no_orcid, "init", "--domain", "anagram.example.org", "-y"
+    )
+    assert code == 0, err
+    cfg0 = json.loads((tmp_path / "node-no-orcid" / "node.json").read_text())
+    assert cfg0["orcid"] == {"client_id": "", "mode": "production"}
+    nd = str(tmp_path / "node")
     code, out, err = run(
         capsys,
         "node",

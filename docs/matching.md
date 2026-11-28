@@ -60,6 +60,8 @@ and resistant to spam:
   for sensitive work.
 - To see the matching flow end to end on your own computer in ~2 minutes, follow
   [demo.md](demo.md).
+- For a system diagram of the app, community nodes, witnesses, and matching
+  enclave, see [architecture.md](architecture.md).
 - For the wire formats, scheduling, and queue rules, see
   [spec/matching.md](../spec/matching.md) and
   [spec/enclave-messages.md](../spec/enclave-messages.md).

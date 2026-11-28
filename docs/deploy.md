@@ -2,7 +2,8 @@
 
 This guide is for a community organizer. You need one Linux server with Docker,
 a domain name, and about 30 minutes. For a test on a laptop, see
-[local-test.md](local-test.md).
+[local-test.md](local-test.md); for how a node fits into the wider network, see
+[architecture.md](architecture.md).
 
 The node is one container (`anagram node start`) behind Caddy. Caddy gets a
 Let's Encrypt certificate automatically. All node data is in one Docker volume.

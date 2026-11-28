@@ -2,8 +2,9 @@
 
 This guide is for operators. It tells you how to run the enclave processes
 of a network (the log, the witnesses, the roster, and the enclave
-instances), and how to connect a community node to them. The protocol is
-in [spec/enclave-trust.md](../spec/enclave-trust.md),
+instances), and how to connect a community node to them. For a visual overview
+of how these services fit together, see [architecture.md](architecture.md). The
+protocol is in [spec/enclave-trust.md](../spec/enclave-trust.md),
 [spec/enclave-messages.md](../spec/enclave-messages.md) and
 [spec/network.md](../spec/network.md).
 

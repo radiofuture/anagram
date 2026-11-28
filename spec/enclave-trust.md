@@ -66,6 +66,7 @@ receipt codes that the enclave puts in a sealed receipt are in
 | Entry form | `bad_entry`, `bad_entry_signature` | 2.2 |
 | Release | `release_not_logged`, `release_revoked`, `release_app_too_old`, `release_rebuild_differs`, `release_rebuilds_missing`, `release_fix_not_cosigned`, `release_notice_short`, `release_not_yet` | 2.5 |
 | Attestation pre-checks | `bad_attestation`, `unknown_profile` | 3.4 |
+| Attestation bundle (app) | `not_sealable`, `log_view_stale` | 3.7 |
 | Attestation rules 1 to 9 | `measurement_mismatch`, `tcb_below_floor`, `policy_refused`, `smt_allowed`, `ciphertext_hiding_off`, `page_swap_allowed`, `secure_boot_off`, `image_not_stable`, `launch_override`, `evidence_expired`, `binding_mismatch`, `gpu_binding_mismatch`, `instance_not_logged`, `line_not_authorised`, `instance_revoked`, `line_forked`, `instance_not_writer`, `instance_limit`, `untrusted_root`, `cert_revoked`, `evidence_not_cloud_bound` | 3.5 |
 | Handoff | `handoff_not_successor`, `handoff_bad_sender`, `handoff_bad_ciphertext` (plus all codes above, and `snapshot_unknown`) | 5.3 |
 | Snapshot load (enclave, counted) | `snapshot_stale`, `snapshot_unknown`, `line_forked` | 6.2 |
@@ -546,7 +547,13 @@ enclave) answer with one canonical JSON document:
 At most 64 documents and 1 MiB in total. The node passes it on unchanged;
 the app trusts nothing in it that its own checks do not confirm. The app:
 
-1. checks the checkpoint (section 2.4) and reads the new log entries;
+1. checks the checkpoint (section 2.4) and reads the new log entries. If
+   `lower` of the checkpoint (the earliest cosignature of its quorum) is
+   more than 3,600 seconds before the computer clock, the view may miss a
+   revoke or a newer release: the app seals nothing (`log_view_stale`),
+   tells the person why, and tries again. A target that the app checked
+   is used for at most 3,600 seconds after that `lower`; then the app
+   fetches and checks the bundle again;
 2. checks the descriptors (section 3.6);
 3. for each document, computes `shard(subject, n)` with the `n` of the
    document's line and keeps the documents whose line serves its subject;
@@ -582,12 +589,22 @@ sees as no receipt, the same as a node that drops it.
 | Profile | Use | Trusted base (besides our code, the witnesses and the rebuilders) |
 | --- | --- | --- |
 | `simulated` | development and CI | nothing; it protects nothing. A production app refuses it |
-| `raw-snp` | later; first choice to drop cloud verifiers | AMD (silicon, PSP firmware, ARK/ASK/VCEK, KDS) |
-| `raw-tdx` | later | Intel (silicon, TDX module, QE, PCS collateral) |
+| `raw-snp` | a cloud VM with a VLEK of a pinned cloud (rule 9) | AMD (silicon, PSP firmware, ARK/ASK/VLEK, KDS); the cloud that runs the machine |
+| `raw-tdx` | development only (rule 9 refuses it in production) | Intel (silicon, TDX module, QE, PCS collateral) |
 | `gcp-cs` | CPU path first; GPU if the platform spike confirms it | Intel (or AMD); Google firmware, the Confidential Space image and launcher, the Google Cloud Attestation verifier and its signing keys; for a GPU, NVIDIA and Google's GPU verification |
 | `azure-cvm-gpu` | GPU path | AMD; Microsoft's paravisor (HCL) and vTPM, Microsoft Azure Attestation (MAA); NVIDIA (device root, RIM service, OCSP, and NRAS if used) |
 
 This table is the trusted base of each profile. The privacy page shows it.
+
+What the enclave protects against, and what it does not. A production
+enclave keeps the lines from Radiofuture (the operator), from the
+community servers and from anyone who reads the network. It does not
+protect against: someone with physical access to the machine at the cloud
+(memory-bus attacks forge or read evidence and memory); a compromise of
+the vendor's root keys (AMD, Intel, Google), which can sign evidence for
+any machine; and page-fault and cache side channels that the policy bits
+of section 4.9 do not close. Each claim of the privacy page maps to a
+rule of section 3.5 or to one of these named risks (section 7.6).
 
 ### 4.2 `simulated`
 
@@ -1022,6 +1039,17 @@ parts for `gpu_driver`, hexadecimal parts for `gpu_vbios`.
 A status claim (an item whose name ends in `_status`) of `Revoked` or
 `Unsupported` (no TCB level of the collateral matches) is
 `tcb_below_floor` whatever the floor lists.
+
+`advisory_allow` (`raw-tdx`; a list of Intel advisory IDs) lets a status
+claim of `OutOfDate` or `OutOfDateConfigurationNeeded` that its list does
+not name pass, when the evidence has at least one advisory ID and every
+one is on the list: the advisories that do not apply to the enclave's
+setup. Only the release carries it, so it goes through the full notice
+and the rebuilds. An `enclave_floor` entry (the release key alone, 7.2)
+can shorten the list but never add it, so the release key alone can never
+lower the bar. A `gcp-cs` token carries no advisory IDs: an `OutOfDate`
+status there stops the profile until Google's collateral moves (a named
+risk of availability, not of privacy).
 
 The values come from the vendors' current advisories at release time.
 The platform spike records the values of the spike platforms.
@@ -1581,6 +1609,11 @@ then re-seals. The privacy page lists these events.
 | Extra lines (fresh state to probe) | `enclave_line` entries with an independent quorum; total-loss notice and rate limit | rule 7 (b); `wrong_shard` |
 | Instance output or intake key leaked | log; anomaly | revoke instance; new key epoch |
 | Node misuses credentials | `member_credential` entries; node's own check | control events; node removal (network.md) |
+| Evidence from a machine that the operator owns | the evidence names no pinned cloud | rule 9 (`evidence_not_cloud_bound`) |
+| Stale view of the log (a stalled log or node hides a revoke) | the newest checkpoint is over an hour old | the app seals nothing (`log_view_stale`, 3.7) |
+| Physical access at the cloud (memory-bus interposer) | none by the app | named risk (4.1); cloud-bound evidence (rule 9) keeps it to the cloud's own staff |
+| Vendor root compromise | vendor disclosure | named risk (4.1); new app with new pins |
+| Page-fault and cache side channels | research, vendor advisory | named risk (4.1, 4.9); floor raise when a fix ships |
 
 ## 8. Test vectors
 
@@ -1680,6 +1713,8 @@ logic; sharding (v1 has one line per shard).
 - 2026-11-27: differential tests; `azure-cvm-gpu` parked (section 20).
 - 2026-11-27: cloud binding (rule 9) and the policy bits per profile
   (section 21).
+- 2026-11-27: stale-view refusal, the advisory allowlist and the named
+  risks (section 22).
 
 ## 12. Changes after the spec review (2026-11-25)
 
@@ -1870,3 +1905,15 @@ enclave-messages.md section 15.
   new file, `vectors/enclave-policy.json`; `enclave-trust.json` is
   unchanged. Every release in it lists only `simulated`, which has no
   `cloud`.
+
+## 22. Stale view, advisory allowlist and the honest claim (2026-11-27)
+
+- The app seals only while the newest checkpoint is at most an hour old,
+  and checks its target again after an hour (3.7, `log_view_stale`). The
+  person sees why nothing was sent.
+- `advisory_allow` in a release's `raw-tdx` floor lets an `OutOfDate`
+  platform pass when every advisory is listed; a floor entry can only
+  shorten it (4.8).
+- Section 4.1 says what the enclave protects against and names the
+  residual risks; section 7.6 maps each to a rule or a named risk; the
+  privacy page names the same three risks.

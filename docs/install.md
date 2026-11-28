@@ -2,7 +2,7 @@
 
 This page is for a member: a person who uses Anagram with a node (a lab, or
 Radiofuture). To run a node, read [deploy.md](deploy.md). To work on the
-code, read the README.
+code, read [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 Status: the first release is for macOS. Windows and Linux builds come
 later. There is no public download location yet: a build comes from your
@@ -53,6 +53,11 @@ If you prefer the command line, the CLI fallback is also available:
 ```sh
 /Applications/Anagram.app/Contents/MacOS/Anagram recover --help
 ```
+
+You can also name **recovery guardians** (for example, 2 of 3 colleagues) in
+**Account** so you can still recover if you lose both your computer and your
+recovery kit. Your node keeps an encrypted copy of your findings, so a new
+computer gets them back.
 
 ## 4. What Anagram keeps on this computer
 
@@ -115,11 +120,47 @@ Apple Developer ID.
 
 ## 8. For developers and headless computers
 
-`uv run anagram ...` works as before: `anagram ui` (a local UI in this
-terminal), `anagram app run` (the app with no login service), and the CLI
-commands. A new home uses the keychain of the operating system, as the app
-does. Where there is no keychain, the keys are hex files. To use hex key files
-on purpose, add `--plain-key-files` (for example `anagram --plain-key-files
-ui`), or set `ANAGRAM_KEYSTORE=file` (tests and headless hosts do this). The
-`node` and `demo` commands keep `file` as the default. See
-[spec/identity.md](../spec/identity.md) section 16.
+On macOS and Linux, you can run the local web app directly from source with
+[uv](https://docs.astral.sh/uv/) (0.7.20 or later; it installs Python 3.13):
+
+```sh
+uv sync
+uv run anagram
+```
+
+This starts the local web UI on `127.0.0.1` and opens your browser with a
+one-time link. Your data stays in `~/.anagram` (use `--home DIR` for another
+folder).
+
+Optional extras:
+
+- `uv sync --extra node` — required to run a community node or enclave process
+  (not needed for the local app alone).
+- `uv sync --extra anthropic` — required to use Anthropic as a model provider.
+
+Other CLI entry points also work as `uv run anagram ...`: `anagram ui` (a local
+UI in this terminal), `anagram app run` (the app with no login service), and the
+CLI commands (see [priority-proofs.md](priority-proofs.md)). A new home uses the
+keychain of the operating system, as the app does. Where there is no keychain,
+the keys are hex files. To use hex key files on purpose, add `--plain-key-files`
+(for example `anagram --plain-key-files ui`), or set `ANAGRAM_KEYSTORE=file`
+(tests and headless hosts do this). The `node` and `demo` commands keep `file`
+as the default. See [spec/identity.md](../spec/identity.md) section 16.
+
+## 9. Models, AI assistants (MCP), and cost
+
+- **Supported models:** For reading and summarizing your work, Anagram supports
+  a local model through [Ollama](https://ollama.com) (the default if Ollama is
+  running on your computer), any OpenAI-compatible endpoint (including OpenAI
+  and OpenRouter), or Anthropic (requires `uv sync --extra anthropic`). You
+  choose the provider in the app.
+- **Your own AI assistant (MCP):** Claude Desktop or any other MCP client can
+  connect locally through `anagram mcp` on your computer. It supports read tools
+  plus draft proposals (such as matching statements) that wait for your explicit
+  approval in the app. You approve each assistant and what it can access.
+- **Cost:** Anagram is free and open source. Running a local model costs
+  nothing. With a cloud model, you bring your own API key and pay the provider
+  directly; Anagram refuses any paid call unless you set a budget or spend
+  limit. Running a community node requires one small server and a domain name.
+- **ORCID iD:** Not required. Your invite is the proof of membership; you can
+  link an ORCID iD later in **Account** if you want.

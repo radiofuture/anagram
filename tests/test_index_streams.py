@@ -100,3 +100,22 @@ def test_index_key_is_in_the_keystore_and_survives_reopen(setup, tmp_path):
     again = LocalIndex.for_client(Client(client.home, clock=clock))
     assert len(again.items(sid)) == 2
     assert len(again.streams.pending(sid)) == 2
+
+
+def test_checkpoint_refuses_to_overwrite_existing_unbundled_checkpoint(setup):
+    from anagram.local.index.store import dumps
+    from anagram.proofs.records import Opening
+
+    client, index, sid, root, clock = setup
+    index.scan()
+    existing = Opening("anagram.stream_checkpoint.v1", {"seq": 0}, {"seq": b"\xaa" * 32})
+    sentinel = "01" * 32
+    index.store.x(
+        "INSERT INTO checkpoint (source_id, seq, root, opening, item_roots, bundle, created_at)"
+        " VALUES (?, 0, ?, ?, ?, NULL, ?)",
+        (sid, sentinel, dumps(existing.to_json()), dumps([]), index.now()),
+    )
+    with pytest.raises(RuntimeError, match="already exists"):
+        index.streams.checkpoint(client, sid)
+    row = index.store.one("SELECT root FROM checkpoint WHERE source_id = ? AND seq = 0", (sid,))
+    assert row["root"] == sentinel

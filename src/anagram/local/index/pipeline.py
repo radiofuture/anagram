@@ -13,13 +13,16 @@ chunks (full-text search), enrich keeps the facts and plans the
 
 from __future__ import annotations
 
+import errno
 import logging
-from dataclasses import dataclass, field
+import os
+import stat
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from anagram.core.crypto.chunked import ContentDigest, hash_bytes
-from anagram.local.index import jobs, retention
+from anagram.local.index import jobs, retention, spaces
 from anagram.local.index.chunk import chunk_document, context_chunks
 from anagram.local.index.convert import (
     Blob,
@@ -231,16 +234,30 @@ class JobRunner:
         doc = index.document(vid)
         if doc is None:
             return
-        prefs = index.source(self.version(vid)["sid"])["prefs"]
+        sid = self.version(vid)["sid"]
+        prefs = index.source(sid)["prefs"]
         allowed = set(prefs.get("allow_external", []))
+        other = index.is_third_party(vid)
+        space = spaces.space_of(index, sid)
         ctx = EnrichContext(vocab=index.vocab, item=kind_rules.item_info(index, vid))
         extractor = f"{doc.converter}@{doc.converter_version}"
         rows = []
         for e in index.enrichers:
-            if e.external and e.name not in allowed:
-                continue
-            check_enricher(e, e.name in allowed)
-            for f in e.enrich(doc, ctx):
+            if e.external:
+                if e.name not in allowed or other or space != spaces.PRIVATE:
+                    continue
+                check_enricher(e, True)
+                doc_for_enricher = replace(doc, quoted="")
+                try:
+                    found = e.enrich(doc_for_enricher, ctx)
+                finally:
+                    index.log_disclosure(
+                        e.recipient or e.name, e.name, "document for enrichment", sid
+                    )
+            else:
+                check_enricher(e, e.name in allowed)
+                found = e.enrich(doc, ctx)
+            for f in found:
                 span = fact_span(doc, f)
                 rows.append(
                     (
@@ -351,6 +368,42 @@ class JobRunner:
         }
 
 
+def _open_regular_file(p: Path) -> bytes | Skip:
+    """Open and read a regular (non-symlink) file up to `MAX_CONVERT_BYTES`."""
+    if p.is_symlink():
+        return Skip("the file is a symlink", "Nothing to do.")
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(p, flags)
+    except FileNotFoundError:
+        return Skip("the file was gone before conversion", "Nothing to do.")
+    except OSError as exc:
+        if exc.errno in (errno.ELOOP, errno.EISDIR):
+            return Skip("the file is a symlink or folder", "Nothing to do.")
+        raise
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode):
+            return Skip("the file is not a regular file", "Nothing to do.")
+        if st.st_size > MAX_CONVERT_BYTES:
+            return Skip(
+                f"too large to convert ({st.st_size} bytes)",
+                "The file stays as evidence and keeps its date proof.",
+            )
+        with os.fdopen(fd, "rb") as fh:
+            fd = -1
+            data = fh.read(MAX_CONVERT_BYTES + 1)
+    finally:
+        if fd >= 0:
+            os.close(fd)
+    if len(data) > MAX_CONVERT_BYTES:
+        return Skip(
+            f"too large to convert (more than {MAX_CONVERT_BYTES} bytes)",
+            "The file stays as evidence and keeps its date proof.",
+        )
+    return data
+
+
 def _read_file(p: Path, digest: ContentDigest) -> bytes | Skip:
     """The bytes of a file version, or a `Skip` when they cannot be read or
     no longer have the digest of the version."""
@@ -359,10 +412,9 @@ def _read_file(p: Path, digest: ContentDigest) -> bytes | Skip:
             f"too large to convert ({digest.size} bytes)",
             "The file stays as evidence and keeps its date proof.",
         )
-    try:
-        data = p.read_bytes()
-    except FileNotFoundError:
-        return Skip("the file was gone before conversion", "Nothing to do.")
+    data = _open_regular_file(p)
+    if isinstance(data, Skip):
+        return data
     if hash_bytes(data, digest.chunk_size).digest != digest.digest:
         return Skip(
             "the file changed before conversion; the next scan converts the new version",

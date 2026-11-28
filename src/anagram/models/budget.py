@@ -120,6 +120,14 @@ class Gate(TextModel):
             raise BudgetRefused(str(exc)) from None
         if model.prices is None:
             raise BudgetRefused("no_prices")
+        price_in, price_out = model.prices
+        if (
+            not (price_in.is_finite() and price_out.is_finite())
+            or price_in < 0
+            or price_out < 0
+            or (price_in == 0 and price_out == 0)
+        ):
+            raise BudgetRefused("invalid_prices")
         if ledger.limit_nano > approved:
             raise BudgetRefused("ledger limit is more than the approved budget")
         self.model = model
@@ -164,6 +172,8 @@ class Gate(TextModel):
     # -------------------------------------------------------------- costs
 
     def usd(self, input_tokens: int, output_tokens: int) -> Decimal:
+        if input_tokens < 0 or output_tokens < 0:
+            raise BudgetRefused("invalid_tokens")
         price_in, price_out = self.model.prices  # type: ignore[misc]
         return (price_in * input_tokens + price_out * output_tokens) / Decimal(1_000_000)
 
@@ -176,8 +186,11 @@ class Gate(TextModel):
         tokens = size // 2 + 64
         if tokens > LONG_PROMPT_TOKENS:
             raise BudgetRefused("prompt too long for the price table")
+        out_limit = self.model.output_limit(request)
+        if out_limit < 0:
+            raise BudgetRefused("invalid_output_limit")
         attempts = max(1, self.model.max_attempts(request))
-        return self.usd(tokens, self.model.output_limit(request)) * attempts
+        return self.usd(tokens, out_limit) * attempts
 
     def route(self, request: TextRequest) -> str:
         return f"{request.purpose or 'text'}:{self.model.model_id}"
@@ -191,6 +204,8 @@ class Gate(TextModel):
             raise BudgetRefused(str(exc)) from None
         self.model.ready()  # no key: refuse before any reservation
         amount = _nano_ceil(self.reserve_usd(request))
+        if amount <= 0:
+            raise BudgetRefused("invalid_reservation")
         try:
             key = self.ledger.reserve(self.route(request), amount)
         except EngineError as exc:
@@ -221,32 +236,35 @@ class Gate(TextModel):
         self.ledger.finish(key, usage)
 
     def _record(self, key: str, reply: TextReply) -> TextReply:
+        in_tokens = max(0, reply.input_tokens)
+        out_tokens = max(0, reply.output_tokens)
         reported = reply.cost is not None
-        cost = reply.cost if reported else self.usd(reply.input_tokens, reply.output_tokens)
-        with self._lock:
-            self.stats["calls"] += 1
-            self.stats["input_tokens"] += reply.input_tokens
-            self.stats["output_tokens"] += reply.output_tokens
-            self.stats["refusals"] += int(reply.refusal)
-            self.stats["cost_nanousd"] += _nano_ceil(cost)
-            self.stats["cost_from_provider"] += int(reported)
+        cost = reply.cost if reported else self.usd(in_tokens, out_tokens)
         usage = {
             "cost": str(cost),
             "cost_source": "provider" if reported else "tokens",
-            "input_tokens": reply.input_tokens,
+            "input_tokens": in_tokens,
             "model": reply.model or self.model.model_id,
-            "output_tokens": reply.output_tokens,
+            "output_tokens": out_tokens,
             "stop_reason": reply.stop,
         }
         if reply.provider:
             usage["provider"] = reply.provider
         try:
-            # finish() halts the ledger and raises if the cost is more than
-            # the reservation.
+            # finish() halts the ledger and raises if the cost is invalid or
+            # more than the reservation.
             self.ledger.finish(key, usage)
         except EngineError as exc:
             raise BudgetRefused(str(exc)) from None
-        return replace(reply, cost=cost)
+        cost_nano = _nano_ceil(cost)  # type: ignore[arg-type]
+        with self._lock:
+            self.stats["calls"] += 1
+            self.stats["input_tokens"] += in_tokens
+            self.stats["output_tokens"] += out_tokens
+            self.stats["refusals"] += int(reply.refusal)
+            self.stats["cost_nanousd"] += cost_nano
+            self.stats["cost_from_provider"] += int(reported)
+        return replace(reply, input_tokens=in_tokens, output_tokens=out_tokens, cost=cost)
 
 
 # ----------------------------------------------------------- usage limit

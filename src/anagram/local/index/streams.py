@@ -79,13 +79,32 @@ class Streams:
         seq = src["seq"]
 
         def store_opening(root: bytes, opening: Opening) -> None:
-            # Committed at once (no open transaction): the salts are safe
-            # before the node sees anything.
-            self.store.x(
-                "INSERT OR REPLACE INTO checkpoint (source_id, seq, root, opening, item_roots,"
-                " bundle, created_at) VALUES (?, ?, ?, ?, ?, NULL, ?)",
-                (sid, seq, root.hex(), dumps(opening.to_json()), dumps(roots_hex), index.now()),
-            )
+            # Reserved inside BEGIN IMMEDIATE before the node sees anything:
+            # never overwrite an existing checkpoint opening or its salts.
+            with self.store.transaction():
+                cur_src = self.store.one("SELECT seq FROM source WHERE id = ?", (sid,))
+                if cur_src is None or cur_src["seq"] != seq:
+                    raise RuntimeError(f"concurrent checkpoint for {sid} at seq {seq}")
+                existing = self.store.one(
+                    "SELECT root, bundle FROM checkpoint WHERE source_id = ? AND seq = ?",
+                    (sid, seq),
+                )
+                if existing is not None:
+                    raise RuntimeError(
+                        f"checkpoint {seq} for {sid} already exists; refusing to overwrite salts"
+                    )
+                self.store.x(
+                    "INSERT INTO checkpoint (source_id, seq, root, opening, item_roots,"
+                    " bundle, created_at) VALUES (?, ?, ?, ?, ?, NULL, ?)",
+                    (
+                        sid,
+                        seq,
+                        root.hex(),
+                        dumps(opening.to_json()),
+                        dumps(roots_hex),
+                        index.now(),
+                    ),
+                )
 
         result = commit_stream_checkpoint(
             client,
@@ -97,17 +116,19 @@ class Streams:
             store_opening=store_opening,
         )
         with self.store.transaction():
+            updated = self.store.x(
+                "UPDATE source SET last_checkpoint_at = ?, prev = ?, seq = ?, start = ?"
+                " WHERE id = ? AND seq = ?",
+                (index.now(), result.root.hex(), seq + 1, src["start"] + len(vids), sid, seq),
+            )
+            if updated.rowcount != 1:
+                raise RuntimeError(f"concurrent checkpoint update for {sid} at seq {seq}")
             self.store.x(
                 "UPDATE checkpoint SET bundle = ? WHERE source_id = ? AND seq = ?",
                 (dumps(result.bundle.to_json()), sid, seq),
             )
             self.store.many(
                 "UPDATE version SET checkpoint_seq = ? WHERE id = ?", [(seq, v) for v in vids]
-            )
-            self.store.x(
-                "UPDATE source SET last_checkpoint_at = ?, prev = ?, seq = ?, start = ?"
-                " WHERE id = ?",
-                (index.now(), result.root.hex(), seq + 1, src["start"] + len(vids), sid),
             )
         return result
 

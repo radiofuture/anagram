@@ -569,3 +569,41 @@ def test_null_outcome_words(text, null):
     from anagram.local.understanding.kind_rules import null_outcome
 
     assert null_outcome(text) is null
+
+
+def test_batch_stop_and_lab_error_leave_no_stranded_running_jobs(tmp_path):
+    from anagram.core.errors import ClientError
+
+    files = {f"results/r{i}.md": RESULT.replace("three", f"{i + 3}") for i in range(3)}
+    index, sid, _ = make(tmp_path, files)
+    try:
+        index.set_source_prefs(sid, allow_external=["model:cloud-1234abcd"])
+        model = FakeTextModel(
+            [ModelError("unreachable", retryable=True)],
+            external=True,
+            profile_id="cloud-1234abcd",
+            recipient="Cloud",
+        )
+        report = understand.run(index, model)
+        assert report.stopped == "unreachable"
+        states = [r[0] for r in index.store.q("SELECT state FROM job WHERE stage = 'understand'")]
+        assert "running" not in states
+
+        # Lab policy raising ClientError must fail closed and leave no running jobs.
+        source_state.set_space(index.store, sid, LAB, now=0)
+        understand.again(index)
+        index.store.x("UPDATE job SET next_at = 0 WHERE stage = 'understand'")
+
+        def broken_lab(_lab_id):
+            raise ClientError("no lab policy")
+
+        report2 = understand.run(
+            index,
+            FakeTextModel(scripted, external=True, profile_id="cloud-1234abcd"),
+            lab=broken_lab,
+        )
+        assert report2.skipped == 3
+        states2 = [r[0] for r in index.store.q("SELECT state FROM job WHERE stage = 'understand'")]
+        assert "running" not in states2
+    finally:
+        index.close()

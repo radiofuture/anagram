@@ -201,3 +201,14 @@ def test_file_events_mark_the_source(setup):
         assert sid in indexer._dirty
     finally:
         indexer._stop_observer()
+
+
+def test_indexer_error_logs_omit_raw_exception_details(setup, caplog):
+    _, open_session, sid, _, clock = setup
+    canary = "CANARY-PATH-OR-ITEM-TEXT"
+
+    indexer = Indexer(open_session, nightly_hour=24, watch=False, clock=clock)
+    with caplog.at_level(logging.ERROR, logger="anagram.local.index"):
+        indexer._error("loop", RuntimeError(f"boom with {canary}"))
+    assert canary not in caplog.text
+    assert all(not r.exc_info for r in caplog.records)

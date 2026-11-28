@@ -45,6 +45,7 @@ from anagram.local.api import (
     kind_of,
     placeholders,
     search_index,
+    source_state,
     tier_at_least,
 )
 from anagram.network.api import typed_draft
@@ -265,8 +266,9 @@ def read_item(ctx: Context, args: dict) -> dict:
         "SELECT i.id, i.source_id, i.name, i.time, coalesce(ss.space, ?) AS space,"  # noqa: S608
         " (SELECT id FROM version WHERE item_id = i.id ORDER BY n DESC LIMIT 1) AS vid"
         " FROM item i LEFT JOIN source_state ss ON ss.source_id = i.source_id"
-        f" WHERE i.id = ? AND i.present = 1 AND coalesce(ss.space, ?) IN ({','.join('?' * len(space_list))})",
-        (PRIVATE, iid, PRIVATE, *space_list),
+        " WHERE i.id = ? AND i.present = 1 AND coalesce(ss.status, '') != ?"
+        f" AND coalesce(ss.space, ?) IN ({','.join('?' * len(space_list))})",
+        (PRIVATE, iid, source_state.REMOVING, PRIVATE, *space_list),
     )
     if row is None or row["vid"] is None or row["source_id"] in ctx.skip:
         raise ToolError("This item is not open to this assistant.")

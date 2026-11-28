@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator, Sequence
+from dataclasses import replace
 from decimal import Decimal, InvalidOperation
 
 from anagram.models.base import (
@@ -251,7 +252,19 @@ class OpenAICompatModel(TextModel):
                 if mode != "text":
                     raise
             # Text mode: one more attempt, then the fault goes to the caller.
-            return checked_reply(self._post(body, request.timeout_s), request.schema)
+            second = self._post(body, request.timeout_s)
+            combined_cost = (
+                None
+                if reply.cost is None and second.cost is None
+                else (reply.cost or Decimal(0)) + (second.cost or Decimal(0))
+            )
+            combined = replace(
+                second,
+                input_tokens=reply.input_tokens + second.input_tokens,
+                output_tokens=reply.output_tokens + second.output_tokens,
+                cost=combined_cost,
+            )
+            return checked_reply(combined, request.schema)
         raise ModelError("bad_answer")  # pragma: no cover - the loop always returns
 
     def stream(self, request: TextRequest) -> Iterator[str]:

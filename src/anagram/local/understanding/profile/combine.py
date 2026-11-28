@@ -179,7 +179,7 @@ def combine(
     no reading)."""
     own = {i.id: i for i in items if i.role in OWN_ROLES}
     vec = _Vectors(embedder)
-    pool: dict[str, list[tuple[Basis, str]]] = {
+    pool: dict[str, list[tuple[Basis, str, str]]] = {
         k: [] for k in ("ask", "offer", "stuck", "method", "solved")
     }
     paper_methods: list[str] = []
@@ -195,8 +195,8 @@ def combine(
                 continue
             if s.kind == "method" and item.role not in WORK_ROLES:
                 continue
-            pool[s.kind].append((Basis(iid, s.sentence, item.date, item.role), s.cls))
-    vec.prime([b.sentence for rows in pool.values() for b, _ in rows] + paper_methods)
+            pool[s.kind].append((Basis(iid, s.sentence, item.date, item.role), s.cls, s.summary))
+    vec.prime([b.sentence for rows in pool.values() for b, _, _ in rows] + paper_methods)
     terms = _Terms(s for item in own.values() for s in own_sentences(item.text, item.role))
     out: list[Reading] = []
     for kind, reading in (
@@ -206,7 +206,7 @@ def combine(
         ("method", "tacit_skill"),
     ):
         rows = pool[kind]
-        texts = [b.sentence for b, _ in rows]
+        texts = [b.sentence for b, _, _ in rows]
         for group in _groups(texts, vec, SAME, terms):
             basis = [rows[i][0] for i in group]
             items_in = {b.item for b in basis}
@@ -222,13 +222,22 @@ def combine(
             if reading == "tacit_skill":
                 cls = "skill"
             weight = sum(recency(own[i].date, today) for i in items_in)
-            out.append(Reading(reading, cls, cut(_central(members, vec)), basis, weight))
+            central_sent = _central(members, vec)
+            summary = next(
+                (rows[i][2] for i in group if texts[i] == central_sent and rows[i][2]), ""
+            )
+            if not summary:
+                summary = next((rows[i][2] for i in group if rows[i][2]), "")
+            out.append(Reading(reading, cls, cut(summary or central_sent), basis, weight))
     out += _trajectory(own, signals, today)
     return out
 
 
 def _solved_later(
-    basis: Sequence[Basis], solved: Sequence[tuple[Basis, str]], vec: _Vectors, terms: _Terms
+    basis: Sequence[Basis],
+    solved: Sequence[tuple[Basis, str, str]],
+    vec: _Vectors,
+    terms: _Terms,
 ) -> bool:
     """True if a newer own sentence says that this problem is solved."""
     newest = max(b.date for b in basis)
@@ -238,7 +247,7 @@ def _solved_later(
             vec.cos(s.sentence, b.sentence) >= SAME or terms.link(s.sentence, b.sentence)
             for b in basis
         )
-        for s, _ in solved
+        for s, _, _ in solved
     )
 
 

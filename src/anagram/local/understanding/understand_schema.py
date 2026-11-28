@@ -50,8 +50,20 @@ CREATE TABLE IF NOT EXISTS digest_cache (
     output TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS lens_cache (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 """
-TABLES = ("understand_cache", "kind_override", "proposal", "ask_log", "digest_cache")
+TABLES = (
+    "understand_cache",
+    "kind_override",
+    "proposal",
+    "ask_log",
+    "digest_cache",
+    "lens_cache",
+)
 
 # The open stores that have the tables (a store leaves the set when it is freed).
 _READY: weakref.WeakSet[IndexStore] = weakref.WeakSet()

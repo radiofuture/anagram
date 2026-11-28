@@ -75,11 +75,17 @@ class FastEmbedder(Embedder):
     name = "fastembed"
 
     def __init__(
-        self, model: str = DEFAULT_MODEL, dim: int = DEFAULT_DIM, cache_dir: Path | None = None
+        self,
+        model: str = DEFAULT_MODEL,
+        dim: int = DEFAULT_DIM,
+        cache_dir: Path | None = None,
+        *,
+        local_files_only: bool = False,
     ) -> None:
         self.model = model
         self.dim = dim
         self.cache_dir = cache_dir
+        self.local_files_only = local_files_only
         self._engine = None
 
     def ident(self) -> str:
@@ -95,7 +101,11 @@ class FastEmbedder(Embedder):
                 from fastembed import TextEmbedding
             except ImportError as exc:
                 raise EmbedderError("fastembed is not installed") from exc
-            kw = {"cache_dir": str(self.cache_dir)} if self.cache_dir else {}
+            kw: dict[str, object] = {}
+            if self.cache_dir:
+                kw["cache_dir"] = str(self.cache_dir)
+            if self.local_files_only:
+                kw["local_files_only"] = True
             try:
                 self._engine = TextEmbedding(model_name=self.model, **kw)
             except Exception as exc:  # download or load failure

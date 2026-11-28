@@ -56,6 +56,24 @@ The first release for labs, and private matching through a network enclave.
 - **Project tooling.** CI checks, type checks on a strict set, coverage
   floor, dependency audit, secret scan, pre-commit hooks, Dependabot, and the
   contributor, security and conduct files.
+- **Ambient matching profile and real enclave engines.** Enforced `TrustPolicy`
+  tier filtering in `EnclaveUI` beacon drafting so `private`-tier items never
+  leak into drafts; added persistent `lens_cache` SQLite caching and batched
+  per-document LLM synthesis in `ProfileLens`; added one-time opt-in ambient
+  consent (`mode: "ambient" | "manual"`) with non-blocking background line
+  updates from indexed work, direct line removal with `excluded_lines`
+  suppression, a quiet switch back to manual lines, and a local decline-archive
+  helper; wired fail-closed `pack.v1` `deny`, `block` (refusing over-limit
+  combined lists instead of truncating), per-type `charter.rules`, and
+  `MAX_LINES = 10` in `EnclaveMatching`; preserved credential `kind` in
+  `Matching._member` and unified `T1` (`research_fit`); added stage-1
+  `min_score` filtering, class-contextualized line embeddings, offline
+  `OnnxEmbedder` (`local_files_only=True`, `HF_HUB_OFFLINE=1`), SHA-256 weight
+  file fingerprinting (`fingerprint_model_path`) verified against release
+  descriptors, and deterministic in-enclave `LlmJointJudge` (in-process runtime
+  or strictly loopback-only HTTP with `follow_redirects=False` and
+  `trust_env=False`, opt-in via `ANAGRAM_ENCLAVE_ENGINE=real`, keeping
+  `simulated_engines` as the default).
 
 ### Removed
 

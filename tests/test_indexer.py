@@ -121,6 +121,36 @@ def test_nightly_full_scan(setup):
     assert _status(open_session)["last_full_scan_at"] is not None
 
 
+def test_on_indexed_hook_runs_on_changes_and_never_breaks_cycle(setup):
+    client, open_session, sid, root, clock = setup
+    calls = 0
+
+    def hook() -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("ambient hook fault")
+
+    indexer = Indexer(
+        open_session,
+        embedder=FakeEmbedder(),
+        nightly_hour=24,
+        watch=False,
+        clock=clock,
+        on_indexed=hook,
+    )
+    out1 = indexer.cycle()
+    assert out1["new"] == 1 and calls == 1
+    # No changes on second cycle -> hook is not invoked.
+    out2 = indexer.cycle()
+    assert out2["new"] == 0 and out2["changed"] == 0 and calls == 1
+    # A new file triggers hook; even if hook raises, cycle succeeds and logs error.
+    (root / "second.md").write_text("# Second\n\nWe can share cryo-EM grids.\n")
+    out3 = indexer.cycle()
+    assert out3["new"] == 1 and calls == 2
+    assert any(e["where"] == "on_indexed" for e in indexer.state.errors)
+
+
 def test_errors_are_logged_and_kept_in_status(setup, caplog):
     client, open_session, sid, root, clock = setup
     with open_session() as (_, idx):

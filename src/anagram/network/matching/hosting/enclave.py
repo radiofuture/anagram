@@ -50,9 +50,10 @@ from anagram.core.crypto import aead
 from anagram.core.crypto.signing import SigningKey
 from anagram.core.files import atomic_write
 from anagram.network.formats.strict import Refused
+from anagram.network.matching.enclave.funnel import EngineFactory
 from anagram.network.matching.enclave.http import FrontEnd, relay_router
 from anagram.network.matching.enclave.instance import EnclaveInstance
-from anagram.network.matching.enclave.simulated_engines import simulated_engines
+from anagram.network.matching.enclave.real_engines import engines_from_env
 from anagram.network.matching.enclave.state import Host, Release
 from anagram.network.matching.hosting.clients import HttpFeed, HttpLog
 from anagram.network.matching.hosting.runtime import Ticker, event
@@ -179,7 +180,7 @@ class EnclaveHost:
         self._health = self._read_health()
 
     @classmethod
-    def open(
+    def open(  # noqa: PLR0913 - host dependencies of an enclave instance
         cls,
         state_dir: Path,
         release: ReleaseFile,
@@ -189,6 +190,8 @@ class EnclaveHost:
         clock: Callable[[], int],
         dev_root: SigningKey,
         snapshots: Path,
+        *,
+        engines: EngineFactory | None = None,
     ) -> EnclaveHost:
         """The instance of `state_dir`: the sealed record of an earlier run,
         or a new instance with new keys. `snapshots` is the directory of the
@@ -200,14 +203,15 @@ class EnclaveHost:
         platform = SimulatedPlatform(dev_root, reference)
         host = Host(log_client, feed, clock, disk=DiskSnapshots(snapshots))
         sealed = SealedFile(state_dir)
+        factory = engines if engines is not None else engines_from_env()
         record = sealed.read()
         if record is not None:
             if record["line_id"] != release.line_id:
                 raise ValueError("the state directory holds another line")
-            inst = EnclaveInstance.resume(record, rel, platform, roots, host, simulated_engines)
+            inst = EnclaveInstance.resume(record, rel, platform, roots, host, factory)
             event(log, "resumed", role=inst.role, instance_id=inst.instance_id)
         else:
-            inst = EnclaveInstance(rel, platform, roots, host, release.line_id, simulated_engines)
+            inst = EnclaveInstance(rel, platform, roots, host, release.line_id, factory)
             event(log, "created", instance_id=inst.instance_id)
         return cls(inst, sealed, closers=[log_client.http.close, feed.close])
 

@@ -99,6 +99,7 @@ class Indexer:
         watch: bool = True,
         ignore: tuple[Path, ...] = (),
         clock: Callable[[], float] = time.time,
+        on_indexed: Callable[[], None] | None = None,
     ) -> None:
         self.open_session = open_session
         self.ready = ready
@@ -111,6 +112,7 @@ class Indexer:
         # helper's own writes must not start a new scan).
         self.ignore = tuple(Path(p).resolve() for p in ignore)
         self.clock = clock
+        self.on_indexed = on_indexed
         self.state = IndexerState(started_at=clock())
         self._dirty: dict[str, float] = {}  # source id -> time of the last event
         self._dirty_lock = threading.Lock()
@@ -174,6 +176,11 @@ class Indexer:
             out["jobs"] = done.done + done.skipped
             self.state.last_cycle_at = self.clock()
             self._write_status(idx)
+        if self.on_indexed is not None and (out["new"] or out["changed"]):
+            try:
+                self.on_indexed()
+            except Exception as exc:  # ambient hook must not fail indexing
+                self._error("on_indexed", exc)
         return out
 
     def work(self, jobs: int = JOB_BATCH) -> int:

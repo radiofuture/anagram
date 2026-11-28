@@ -343,12 +343,13 @@ class IndexStore:
         self._db.execute("PRAGMA foreign_keys = ON")
         self.vec = self._load_vec()
         self._db.executescript(SCHEMA)
-        self._add_columns()
-        got = self.get_meta("schema")
-        if got is None:
-            self.set_meta("schema", SCHEMA_VERSION)
-        elif got != SCHEMA_VERSION:
-            raise IndexStoreError(f"index store schema {got} is not {SCHEMA_VERSION}")
+        with self.transaction():
+            self._add_columns()
+            got = self.get_meta("schema")
+            if got is None:
+                self.set_meta("schema", SCHEMA_VERSION)
+            elif got != SCHEMA_VERSION:
+                raise IndexStoreError(f"index store schema {got} is not {SCHEMA_VERSION}")
 
     def _add_columns(self) -> None:
         for table, col, decl in ADDED_COLUMNS:

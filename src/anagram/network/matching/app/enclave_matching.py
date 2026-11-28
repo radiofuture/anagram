@@ -34,9 +34,10 @@ pins the keys of `devnet.json` (`simulated` profile: development only).
 
 from __future__ import annotations
 
+import re
 import secrets
 import ssl
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING
@@ -51,7 +52,7 @@ from anagram.core.keyvalue import JsonKeys, KeyValue
 from anagram.network.formats import enclave as m
 from anagram.network.formats import pack as packs
 from anagram.network.formats.roster import credential_request
-from anagram.network.formats.strict import DAY, Refused, fmt_time
+from anagram.network.formats.strict import DAY, DOMAIN, NODE_ID, ROR, Refused, fmt_time
 from anagram.network.matching.app.enclave_client import (
     RESEAL,
     EnclaveClient,
@@ -79,7 +80,10 @@ LENS_TYPES = {  # lens match types -> pack match types (spec/pack.md 3.3)
     "T5": "replication",
     "T6": "co_supervision",
 }
-MAX_LINES = 5  # a person beacon: at most 5 offers and 5 wants
+MAX_LINES = 10  # spec/pack.md LIMITS["person"].lines: at most 10 offers and 10 wants
+MAX_DENY = 32
+MAX_BLOCK = 128
+_PERSON_LINE_ID = re.compile(r"^[ow](0[1-9]|10)$")
 CHOICES = ("yes", "no", "not_now")
 TIMEOUT = 30.0
 KEEP_DAYS = 30  # items and receipts on the screen (a proposal lives 22 days at most)
@@ -134,16 +138,147 @@ def typed_draft(offers: list[str], wants: list[str]) -> JsonObject:
     return draft
 
 
-def charter(lines: dict[str, list[JsonObject]], weekly_cap: int) -> JsonObject:
-    """Every match type of the lines, with no inside/outside rule, and the
-    person's weekly cap (pack.md 3.3)."""
+def charter(
+    lines: dict[str, list[JsonObject]],
+    weekly_cap: int,
+    rules: dict[str, str] | None = None,
+) -> JsonObject:
+    """Every match type of the lines, with per-type inside/outside rules
+    (defaulting to `any`), and the person's weekly cap (pack.md 3.3)."""
     types = sorted({t for side in lines.values() for line in side for t in line["types"]})
+    rule_map: dict[str, str] = {}
+    for t in types:
+        rule = (rules or {}).get(t, "any")
+        if rule not in packs.RULES:
+            raise ClientError(f"charter rule for {t}: must be one of {packs.RULES}")
+        rule_map[t] = rule
     return {
         "disclosure": "d0",
         "protocols": types,
-        "rules": dict.fromkeys(types, "any"),
+        "rules": rule_map,
         "weekly_cap": weekly_cap,
     }
+
+
+def _check_list(values: Iterable[str], pattern: re.Pattern[str], what: str) -> list[str]:
+    clean: list[str] = []
+    for raw in values:
+        if not isinstance(raw, str) or not pattern.match(raw):
+            raise ClientError(f"{what}: invalid entry {raw!r}")
+        clean.append(raw)
+    return sorted(set(clean))
+
+
+def normalize_deny(
+    domains: Iterable[str] = (),
+    nodes: Iterable[str] = (),
+    rors: Iterable[str] = (),
+) -> JsonObject:
+    """Validate and sort a `pack.v1` `deny` object (spec/pack.md 3.7)."""
+    out: JsonObject = {
+        "domains": _check_list(domains, DOMAIN, "deny domains"),
+        "nodes": _check_list(nodes, NODE_ID, "deny nodes"),
+        "rors": _check_list(rors, ROR, "deny rors"),
+    }
+    total = len(out["domains"]) + len(out["nodes"]) + len(out["rors"])
+    if total > MAX_DENY:
+        raise ClientError(f"deny: at most {MAX_DENY} entries")
+    return out
+
+
+def normalize_block(
+    people: Iterable[str] = (),
+    hide: Iterable[JsonObject] = (),
+    *,
+    line_ids: set[str] | None = None,
+) -> JsonObject:
+    """Validate and sort a `pack.v1` `block` object (spec/pack.md 3.8)."""
+    clean_people = _check_list(people, packs.SUBJECT_REF, "block people")
+    seen_hide: set[tuple[str, str]] = set()
+    clean_hide: list[JsonObject] = []
+    for entry in hide:
+        if not isinstance(entry, dict):
+            raise ClientError("block hide: expected an object")
+        who = entry.get("from")
+        lid = entry.get("line")
+        if not isinstance(who, str) or not packs.SUBJECT_REF.match(who):
+            raise ClientError(f"block hide: invalid subject ref {who!r}")
+        if not isinstance(lid, str) or not _PERSON_LINE_ID.match(lid):
+            raise ClientError(f"block hide: invalid line id {lid!r}")
+        if line_ids is not None and lid not in line_ids:
+            continue
+        pair = (who, lid)
+        if pair not in seen_hide:
+            seen_hide.add(pair)
+            clean_hide.append({"from": who, "line": lid})
+    clean_hide.sort(key=lambda h: (str(h["from"]), str(h["line"])))
+    if len(clean_people) + len(clean_hide) > MAX_BLOCK:
+        raise ClientError(f"block: at most {MAX_BLOCK} entries")
+    return {"hide": clean_hide, "people": clean_people}
+
+
+def trust_policy_controls(deny_subjects: JsonObject) -> tuple[JsonObject, JsonObject]:
+    """Map `TrustPolicy.subjects('deny')` to `pack.v1` `(deny, block)` entries."""
+    domains: list[str] = []
+    rors: list[str] = []
+    people: list[str] = []
+    for org in deny_subjects.get("orgs") or ():
+        if isinstance(org, str) and org.startswith("domain:"):
+            dom = org[len("domain:") :]
+            if DOMAIN.match(dom):
+                domains.append(dom)
+        elif isinstance(org, str) and org.startswith("ror:"):
+            ror = org[len("ror:") :]
+            if ROR.match(ror):
+                rors.append(ror)
+    for person in deny_subjects.get("people") or ():
+        if isinstance(person, str) and packs.SUBJECT_REF.match(person):
+            people.append(person)
+    deny: JsonObject = {
+        "domains": sorted(set(domains)),
+        "nodes": [],
+        "rors": sorted(set(rors)),
+    }
+    block: JsonObject = {"hide": [], "people": sorted(set(people))}
+    return deny, block
+
+
+def _merge_deny(base: JsonObject, extra: JsonObject) -> JsonObject:
+    domains = sorted(set(base.get("domains") or ()) | set(extra.get("domains") or ()))
+    nodes = sorted(set(base.get("nodes") or ()) | set(extra.get("nodes") or ()))
+    rors = sorted(set(base.get("rors") or ()) | set(extra.get("rors") or ()))
+    total = len(domains) + len(nodes) + len(rors)
+    if total > MAX_DENY:
+        raise ClientError(
+            f"Combined deny list has {total} entries, exceeding the network limit of {MAX_DENY}. "
+            "Reduce deny entries before matching can upload."
+        )
+    return {"domains": domains, "nodes": nodes, "rors": rors}
+
+
+def _merge_block(
+    base: JsonObject, extra: JsonObject, line_ids: set[str] | None = None
+) -> JsonObject:
+    people = sorted(set(base.get("people") or ()) | set(extra.get("people") or ()))
+    hide_raw = [*(base.get("hide") or ()), *(extra.get("hide") or ())]
+    valid_hide = [
+        {"from": str(h["from"]), "line": str(h["line"])}
+        for h in hide_raw
+        if isinstance(h, dict)
+        and isinstance(h.get("from"), str)
+        and isinstance(h.get("line"), str)
+        and packs.SUBJECT_REF.match(h["from"])
+        and (line_ids is None or h["line"] in line_ids)
+    ]
+    dedup_hide = list({(h["from"], h["line"]): h for h in valid_hide}.values())
+    dedup_hide.sort(key=lambda h: (h["from"], h["line"]))
+    total = len(people) + len(dedup_hide)
+    if total > MAX_BLOCK:
+        raise ClientError(
+            f"Combined block list has {total} entries, exceeding the network limit of {MAX_BLOCK}. "
+            "Reduce block entries before matching can upload."
+        )
+    return {"hide": dedup_hide, "people": people}
 
 
 def _prune(st: JsonObject, today: int) -> None:
@@ -188,6 +323,8 @@ class EnclaveMatching:
     # The development clock (`ANAGRAM_DEV_CLOCK_FILE`): used only while the
     # settings pin a development network (a `dev_root`); see `now`.
     dev_clock: Callable[[], float] | None = None
+    # Optional callback returning `TrustPolicy.subjects("deny")` to merge into uploads.
+    trust_deny: Callable[[], JsonObject] | None = None
     # One HTTP client for each (URL, session) for the life of this object.
     _clients: dict[tuple[str, str | None], httpx.Client] = field(
         default_factory=dict, init=False, repr=False
@@ -206,6 +343,11 @@ class EnclaveMatching:
         st.setdefault("items", [])
         st.setdefault("version", 0)
         st.setdefault("weekly_cap", packs.WEEKLY_CAP_DEFAULT)
+        st.setdefault("deny", {"domains": [], "nodes": [], "rors": []})
+        st.setdefault("block", {"hide": [], "people": []})
+        st.setdefault("rules", {})
+        st.setdefault("mode", "manual")
+        st.setdefault("excluded_lines", [])
         return st
 
     def _save(self, st: JsonObject) -> None:
@@ -308,9 +450,197 @@ class EnclaveMatching:
         pack_lines(draft)  # the same checks as at approval
         st = self._load()
         kept: JsonObject = {"offers": draft.get("offers") or [], "wants": draft.get("wants") or []}
+        typed = {
+            " ".join(str(ln.get("text", "")).split())
+            for side in ("offers", "wants")
+            for ln in kept[side]
+        }
+        st["excluded_lines"] = sorted(set(st.get("excluded_lines") or ()) - typed)
         st["draft"] = kept
         self._save(st)
         return kept
+
+    def ambient_active(self) -> bool:
+        """True only after explicit ambient consent AND matching is currently on."""
+        st = self._load()
+        approved = st.get("approved")
+        return bool(
+            st["on"]
+            and st.get("mode") == "ambient"
+            and isinstance(approved, dict)
+            and approved.get("ambient") is True
+        )
+
+    def ambient_fingerprint(self) -> str | None:
+        """Return the last processed indexed-items fingerprint to skip redundant runs."""
+        st = self._load()
+        last = st.get("last_ambient_fp")
+        return last if isinstance(last, str) else None
+
+    def update_ambient_lines(
+        self, draft: JsonObject, *, fingerprint: str | None = None
+    ) -> JsonObject | None:
+        """Background ambient update: once the person has given ambient consent
+        and matching is on, update the active matching lines directly while
+        respecting `excluded_lines` and `MAX_LINES` without requiring a new
+        approval click per index change."""
+        st = self._load()
+        approved = st.get("approved")
+        if not (
+            st["on"]
+            and st.get("mode") == "ambient"
+            and isinstance(approved, dict)
+            and approved.get("ambient") is True
+        ):
+            return None
+        excluded = set(st.get("excluded_lines") or ())
+        filtered: JsonObject = {
+            side: [
+                ln
+                for ln in (draft.get(side) or [])
+                if " ".join(str(ln.get("text", "")).split()) not in excluded
+            ][:MAX_LINES]
+            for side in ("offers", "wants")
+        }
+        if fingerprint is not None:
+            st["last_ambient_fp"] = fingerprint
+        if not filtered["offers"] and not filtered["wants"]:
+            self._save(st)
+            return None
+        try:
+            packed = pack_lines(filtered)
+        except ClientError:
+            self._save(st)
+            return None
+        if packed == approved.get("lines") and st.get("draft") == filtered:
+            self._save(st)
+            return None
+        st["draft"] = filtered
+        approved["lines"] = packed
+        self._save(st)
+        return filtered
+
+    def switch_to_manual(self) -> JsonObject:
+        """Stop automatic background updates and switch back to manual lines."""
+        st = self._load()
+        st["mode"] = "manual"
+        approved = st.get("approved")
+        if isinstance(approved, dict):
+            approved["ambient"] = False
+        self._save(st)
+        return self.status()
+
+    def remove_draft_line(self, text: str) -> JsonObject:
+        """Remove a line matching `text` and record it in `excluded_lines` so
+        ambient indexing never silently re-adds it. Does not contact the enclave."""
+        target = " ".join(text.split())
+        if not target:
+            raise ClientError("give the line text to remove")
+        st = self._load()
+        st["excluded_lines"] = sorted(set(st.get("excluded_lines") or ()) | {target})
+        draft = st.get("draft")
+        if not isinstance(draft, dict):
+            self._save(st)
+            return self.status()
+        offers = [
+            ln
+            for ln in (draft.get("offers") or [])
+            if " ".join(str(ln.get("text", "")).split()) != target
+        ]
+        wants = [
+            ln
+            for ln in (draft.get("wants") or [])
+            if " ".join(str(ln.get("text", "")).split()) != target
+        ]
+        st["draft"] = {"offers": offers, "wants": wants}
+        approved = st.get("approved")
+        if (
+            st.get("mode") == "ambient"
+            and isinstance(approved, dict)
+            and approved.get("ambient") is True
+        ):
+            if offers or wants:
+                approved["lines"] = pack_lines(st["draft"])
+            else:
+                st["approved"] = None
+        self._save(st)
+        return self.status()
+
+    # ---- pack.v1 controls: deny, block, charter rules ------------------------
+
+    def _validate_combined_controls(
+        self,
+        st: JsonObject,
+        *,
+        deny: JsonObject | None = None,
+        block: JsonObject | None = None,
+        policy_deny: JsonObject | None = None,
+        policy_block: JsonObject | None = None,
+    ) -> None:
+        base_deny = deny if deny is not None else (st.get("deny") or {})
+        base_block = block if block is not None else (st.get("block") or {})
+        p_deny = policy_deny if policy_deny is not None else (st.get("policy_deny") or {})
+        p_block = policy_block if policy_block is not None else (st.get("policy_block") or {})
+        merged_deny = _merge_deny(base_deny, p_deny)
+        merged_block = _merge_block(base_block, p_block, line_ids=None)
+        if self.trust_deny is not None:
+            live_deny, live_block = trust_policy_controls(self.trust_deny())
+            _merge_deny(merged_deny, live_deny)
+            _merge_block(merged_block, live_block, line_ids=None)
+
+    def set_deny(
+        self,
+        *,
+        domains: Iterable[str] = (),
+        nodes: Iterable[str] = (),
+        rors: Iterable[str] = (),
+    ) -> JsonObject:
+        """Set the `pack.v1` deny lists (domains, nodes, ROR IDs)."""
+        st = self._load()
+        clean = normalize_deny(domains=domains, nodes=nodes, rors=rors)
+        self._validate_combined_controls(st, deny=clean)
+        st["deny"] = clean
+        self._save(st)
+        return self.status()
+
+    def set_block(
+        self,
+        *,
+        people: Iterable[str] = (),
+        hide: Iterable[JsonObject] = (),
+    ) -> JsonObject:
+        """Set the `pack.v1` block lists (people and per-line hides)."""
+        st = self._load()
+        clean = normalize_block(people=people, hide=hide)
+        self._validate_combined_controls(st, block=clean)
+        st["block"] = clean
+        self._save(st)
+        return self.status()
+
+    def set_rules(self, rules: dict[str, str]) -> JsonObject:
+        """Set per-match-type charter rules (`any`, `inside`, `outside`)."""
+        clean: dict[str, str] = {}
+        for kind, rule in rules.items():
+            if kind not in packs.TYPES:
+                raise ClientError(f"unknown match type: {kind!r}")
+            if rule not in packs.RULES:
+                raise ClientError(f"charter rule for {kind}: must be one of {packs.RULES}")
+            clean[kind] = rule
+        st = self._load()
+        st["rules"] = clean
+        self._save(st)
+        return self.status()
+
+    def sync_trust_policy(self, deny_subjects: JsonObject) -> JsonObject:
+        """Persist `TrustPolicy` deny entries so future uploads include them,
+        failing closed if combined deny or block lists exceed network limits."""
+        deny, block = trust_policy_controls(deny_subjects)
+        st = self._load()
+        self._validate_combined_controls(st, policy_deny=deny, policy_block=block)
+        st["policy_deny"] = deny
+        st["policy_block"] = block
+        self._save(st)
+        return self.status()
 
     @contextmanager
     def _remote(self) -> Iterator[tuple[JsonObject, EnclaveClient]]:
@@ -355,9 +685,11 @@ class EnclaveMatching:
         self._save(st)
         return self.status()
 
-    def approve(self, statement_hash: str) -> JsonObject:
+    def approve(self, statement_hash: str, *, ambient: bool = False) -> JsonObject:
         """The person approves the draft lines and the statement whose hash
-        the UI showed. A changed release needs a new approval."""
+        the UI showed. When `ambient=True`, the person consents once to keep
+        the active matching lines updated in the background from indexed work.
+        A changed release always needs a new approval."""
         st = self._load()
         if not st.get("draft"):
             raise ClientError("make or type a draft first")
@@ -367,12 +699,14 @@ class EnclaveMatching:
         lines = pack_lines(st["draft"])
         st = self._load()
         approved: JsonObject = {
+            "ambient": bool(ambient),
             "at": self.now(),
             "descriptor_set": consent["descriptor_set"],
             "lines": lines,
             "statement_hash": statement_hash,
         }
         st["approved"] = approved
+        st["mode"] = "ambient" if ambient else "manual"
         self._save(st)
         return approved
 
@@ -421,6 +755,24 @@ class EnclaveMatching:
             raise ClientError("the credential is not in a cosigned checkpoint yet; try again")
         return {**got["credential"], "log": proof.json()["log"]}
 
+    def _effective_controls(
+        self, st: JsonObject, lines: dict[str, list[JsonObject]]
+    ) -> tuple[JsonObject, JsonObject]:
+        line_ids = {str(ln["id"]) for side in lines.values() for ln in side}
+        deny: JsonObject = st.get("deny") or {"domains": [], "nodes": [], "rors": []}
+        block: JsonObject = st.get("block") or {"hide": [], "people": []}
+        if st.get("policy_deny"):
+            deny = _merge_deny(deny, st["policy_deny"])
+        if st.get("policy_block"):
+            block = _merge_block(block, st["policy_block"], line_ids)
+        if self.trust_deny is not None:
+            p_deny, p_block = trust_policy_controls(self.trust_deny())
+            deny = _merge_deny(deny, p_deny)
+            block = _merge_block(block, p_block, line_ids)
+        else:
+            block = _merge_block(block, {"hide": [], "people": []}, line_ids)
+        return deny, block
+
     def _upload(self, st: JsonObject, c: EnclaveClient) -> None:
         cred = self._credential(c)
         target = c.refresh()
@@ -440,6 +792,7 @@ class EnclaveMatching:
             st["on"], st["approved"] = False, None
             c.cover(cred)
             return
+        deny, block = self._effective_controls(st, approved["lines"])
         st["version"] = self._version(st)
         cap = min(st["weekly_cap"], target.matching["weekly_cap_max"])
         doc = pack_doc(
@@ -448,10 +801,12 @@ class EnclaveMatching:
             cred,
             target,
             approved["lines"],
-            charter(approved["lines"], cap),
+            charter(approved["lines"], cap, st.get("rules")),
             st["version"],
             self.now(),
             approved["at"],
+            deny=deny,
+            block=block,
         )
         st["packs"][str(st["version"])] = approved["lines"]
         c.upload_pack(doc)
@@ -542,17 +897,22 @@ class EnclaveMatching:
         approved, draft = st.get("approved"), st.get("draft")
         return {
             "approved": bool(approved),
+            "block": st["block"],
             # The draft is the approved text: an edit after the approval
             # needs a new approval before it can go out.
             "draft_approved": bool(approved and draft and _same_lines(draft, approved)),
             "cards": self.cards(st),
+            "deny": st["deny"],
             "draft": st.get("draft"),
             "enrolled": st["enrolled"],
+            "excluded_lines": list(st.get("excluded_lines") or []),
+            "mode": st.get("mode", "manual"),
             "on": st["on"],
             "open_requests": len(st["unconfirmed"]),
             "receipts": sorted(
                 st["receipts"].values(), key=lambda r: (r["status"], r["reason"] or "")
             ),
+            "rules": st["rules"],
             "set_up": self.settings() is not None,
             "uploaded_day": st.get("uploaded_day"),
             "weekly_cap": st["weekly_cap"],

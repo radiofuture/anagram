@@ -175,7 +175,7 @@ def test_bad_lines_and_too_many_proposals(tmp_path):
         {"offers": [""]},
         {"offers": "one"},
         {"offers": ["x" * 141]},
-        {"wants": ["y"] * 6},
+        {"wants": ["y"] * 11},
         {"offers": [1]},
     ):
         text, error = agent.call("propose_lines", **args)

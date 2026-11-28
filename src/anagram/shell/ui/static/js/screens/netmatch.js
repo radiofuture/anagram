@@ -13,6 +13,7 @@ import { store } from '../core/store.js';
 import {
   ActionButton,
   Card,
+  Check,
   Disclosure,
   ErrorLine,
   Facts,
@@ -108,7 +109,7 @@ function LineFields({ lines, setLines }) {
           }
         </div>`,
       )}
-      ${lines[name].length < 5 && html`<button type="button" class="rf-ui-button rf-ui-button--quiet" onClick=${() => add(name)}>${t('netmatch.add')}</button>`}
+      ${lines[name].length < 10 && html`<button type="button" class="rf-ui-button rf-ui-button--quiet" onClick=${() => add(name)}>${t('netmatch.add')}</button>`}
     </div>`;
   };
   return html`<div class="ag-nm-lines">${side('offers')}${side('wants')}</div>`;
@@ -152,13 +153,17 @@ function Start({ s }) {
       wants: d.wants.length ? d.wants : [blank()],
     };
   });
+  const [ambient, setAmbient] = useState(() => s.mode === 'ambient' && Boolean(s.can_ambient));
   const [error, setError] = useState('');
   const c = consent.data.value;
   const ready = filled(lines).offers.length + filled(lines).wants.length > 0;
   const start = async () => {
     try {
       await mutate('PUT', '/api/enclave/draft', filled(lines));
-      await mutate('POST', '/api/enclave/approve', { statement_hash: c.statement_hash });
+      await mutate('POST', '/api/enclave/approve', {
+        statement_hash: c.statement_hash,
+        ambient: Boolean(s.can_ambient && ambient),
+      });
       await call('POST', '/api/enclave/on', { on: true });
     } catch (err) {
       // The statement may have changed: show the current one and the current state.
@@ -184,6 +189,13 @@ function Start({ s }) {
     <//>
     <${Section} title=${t('netmatch.consent_title')}>
       ${c && html`<${Pledge} c=${c} />`}
+      ${
+        s.can_ambient &&
+        html`
+          <${Check} id="nm-ambient" label=${t('netmatch.ambient_opt_in')} checked=${ambient} onChange=${setAmbient} />
+          <p class="rf-ui-help">${t('netmatch.ambient_opt_in_help')}</p>
+        `
+      }
       <${ErrorLine} text=${error || (consent.error.value ? consent.error.value.message : '')} />
       <div class="rf-ui-actions">
         <${ActionButton} label=${t('netmatch.start')} busyLabel=${t('netmatch.starting')} run=${start} errorTo=${setError}
@@ -230,15 +242,56 @@ function Change({ s }) {
     </div>`;
 }
 
+/** Calm view of lines Anagram is using from indexed work, with direct removal. */
+function AmbientLineList({ draft, setError }) {
+  const remove = (text) => async () => {
+    await call('POST', '/api/enclave/draft/archive-line', { text });
+    announce(t('netmatch.ambient_removed'));
+  };
+  const side = (name) =>
+    draft[name].length
+      ? html`
+      <div class="ag-nm-side">
+        <h3 class="ag-subtitle">${t(`netmatch.${name}`)}</h3>
+        <ul class="ag-nm-list">${draft[name].map(
+          (l) => html`
+            <li key=${l.text}>
+              <span>${l.text}</span>
+              <${ActionButton} kind="quiet" label=${t('netmatch.remove_line')} busyLabel=${t('netmatch.ambient_removing')}
+                run=${remove(l.text)} errorTo=${setError} />
+            </li>`,
+        )}</ul>
+      </div>`
+      : null;
+  return html`
+    <p class="rf-ui-help">${t('netmatch.ambient_lines_help')}</p>
+    <div class="ag-nm-lines">${side('offers')}${side('wants')}</div>`;
+}
+
 /** Stage 2: matching is on. The approved lines, and the quiet controls. */
 function On({ s }) {
   const [error, setError] = useState('');
+  const isAmbient = s.mode === 'ambient';
+  const switchManual = async () => {
+    await call('POST', '/api/enclave/mode/manual');
+    announce(t('netmatch.switched_manual'));
+  };
   return html`
     <${Section} title=${t('netmatch.on_title')}>
-      <${StatusLine} state="active" text=${t('netmatch.on_status')} />
-      ${!s.draft_approved && html`<${StatusLine} state="pending" text=${t('netmatch.draft_not_approved')} />`}
-      <${LineList} draft=${s.draft} />
-      <${Disclosure} kind="add" summary=${t('netmatch.change')}><${Change} s=${s} /><//>
+      <${StatusLine} state="active" text=${t(isAmbient ? 'netmatch.ambient_on_status' : 'netmatch.on_status')} />
+      ${!isAmbient && !s.draft_approved && html`<${StatusLine} state="pending" text=${t('netmatch.draft_not_approved')} />`}
+      ${
+        isAmbient
+          ? html`
+            <${AmbientLineList} draft=${s.draft} setError=${setError} />
+            <div class="rf-ui-actions">
+              <${ActionButton} kind="quiet" label=${t('netmatch.switch_manual')} busyLabel=${t('netmatch.switching_manual')}
+                run=${switchManual} errorTo=${setError} />
+            </div>`
+          : html`
+            <${LineList} draft=${s.draft} />
+            <${Disclosure} kind="add" summary=${t('netmatch.change')}><${Change} s=${s} /><//>`
+      }
       <${Disclosure} kind="add" summary=${t('netmatch.settings')}>
         <${WeeklyCap} value=${s.weekly_cap} />
         <div class="rf-ui-actions">
@@ -312,6 +365,35 @@ function Answer({ item }) {
     </div>`;
 }
 
+function DeclineArchive({ reasons }) {
+  const [archived, setArchived] = useState(() => new Set());
+  const [error, setError] = useState('');
+  if (!reasons?.length) return null;
+  const archive = (text) => async () => {
+    await call('POST', '/api/enclave/draft/archive-line', { text });
+    setArchived((prev) => new Set([...prev, text]));
+    announce(t('netmatch.decline_archived'));
+  };
+  return html`
+    <div class="ag-nm-card">
+      <p class="rf-ui-help">${t('netmatch.decline_archive_help')}</p>
+      <ul class="ag-nm-list">
+        ${reasons.map(
+          (r) => html`
+            <li key=${r}>
+              <span>${r}</span>
+              ${
+                archived.has(r)
+                  ? html`<${StatusLine} state="done" text=${t('netmatch.decline_archived')} />`
+                  : html`<${ActionButton} kind="quiet" label=${t('netmatch.decline_archive_action')} busyLabel=${t('netmatch.decline_archive_removing')} run=${archive(r)} errorTo=${setError} />`
+              }
+            </li>`,
+        )}
+      </ul>
+      <${ErrorLine} text=${error} />
+    </div>`;
+}
+
 function Proposal({ item }) {
   const out = item.next_checkpoint && fmtTime(item.next_checkpoint);
   const chosen = item.choice !== 'unset' && item.choice !== 'sent';
@@ -328,7 +410,8 @@ function Proposal({ item }) {
               ? html`<${StatusLine} state="pending" text=${t(`netmatch.chose_${item.choice}`, { date: out || '' })} />`
               : html`<p class="rf-ui-help">${t('netmatch.unset')}</p>`
           }
-          <${Answer} item=${item} />`
+          <${Answer} item=${item} />
+          ${item.choice === 'no' && html`<${DeclineArchive} reasons=${item.reasons} />`}`
       }
     <//>`;
 }

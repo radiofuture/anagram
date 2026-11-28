@@ -320,6 +320,7 @@ class AppRuntime:
             ready=service.joined,
             embedder=service.embedder if self.embed else None,
             ignore=(self.home.resolve(),),
+            on_indexed=service.enclave.refresh_ambient,
         )
 
     def _start_helper(self) -> None:

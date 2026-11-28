@@ -154,6 +154,11 @@ class Embedder(ABC):
     def embed(self, text: str) -> list[int]:
         """Return a vector of int8 values (-127 to 127)."""
 
+    def embed_line(self, line: JsonObject) -> list[int]:
+        """Embed one pack line. Subclasses may incorporate `line['class']` context."""
+        text: str = line["text"]
+        return self.embed(text)
+
 
 def cosine(u: list[int], v: list[int]) -> float:
     if len(u) != len(v):
@@ -165,8 +170,8 @@ def cosine(u: list[int], v: list[int]) -> float:
 
 
 class Vectors:
-    """Line vectors made inside the enclave, cached by text. Not state: a
-    restart makes them again from the packs."""
+    """Line vectors made inside the enclave, cached by text or class+text. Not
+    state: a restart makes them again from the packs."""
 
     def __init__(self, embedder: Embedder) -> None:
         self.embedder = embedder
@@ -177,8 +182,16 @@ class Vectors:
             self._cache[text] = self.embedder.embed(text)
         return self._cache[text]
 
+    def of_line(self, line: JsonObject) -> list[int]:
+        cls = line.get("class")
+        text: str = line["text"]
+        key = f"[{cls}] {text}" if isinstance(cls, str) and cls else text
+        if key not in self._cache:
+            self._cache[key] = self.embedder.embed_line(line)
+        return self._cache[key]
+
     def score(self, a: JsonObject, b: JsonObject) -> float:
-        return cosine(self.of(a["text"]), self.of(b["text"]))
+        return cosine(self.of_line(a), self.of_line(b))
 
 
 @dataclass(frozen=True)
@@ -211,6 +224,7 @@ class Engines:
 
     vectors: Vectors
     judge: JointJudge
+    min_score: float = 0.0
 
 
 # The port: the `model` descriptors of a release -> its engines.
@@ -279,10 +293,17 @@ class PackMatch:
     id = PROTOCOL_ID
     input_key = INPUT_KEY
 
-    def __init__(self, engines: Engines, rules: Rules, k: int = STAGE1_K) -> None:
+    def __init__(
+        self,
+        engines: Engines,
+        rules: Rules,
+        k: int = STAGE1_K,
+        min_score: float | None = None,
+    ) -> None:
         self.engines = engines
         self.rules = rules
         self.k = k
+        self.min_score = engines.min_score if min_score is None else min_score
 
     # Stage 1.
 
@@ -313,7 +334,10 @@ class PackMatch:
                 if line not in visible(me, p, side, kind):
                     continue
                 for o in visible(p, me, other, kind):
-                    found.append((self.engines.vectors.score(line, o), p.subject, o["id"]))
+                    score = self.engines.vectors.score(line, o)
+                    if self.min_score > 0.0 and score < self.min_score:
+                        continue
+                    found.append((score, p.subject, o["id"]))
             for score, peer, peer_line in sorted(found, reverse=True)[: self.k]:
                 a, b = sorted((me.subject, peer))
                 bucket = hits.setdefault((a, b, kind), [])

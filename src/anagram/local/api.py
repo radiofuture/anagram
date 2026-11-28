@@ -88,7 +88,7 @@ from anagram.local.understanding.kinds import label as kind_name
 from anagram.local.understanding.kinds import set_override as set_kind_override
 from anagram.local.understanding.links import BUILDS_ON, RELATED, SUPPORTS
 from anagram.local.understanding.profile.items import from_index as lens_items
-from anagram.local.understanding.profile.lens import ProfileLens
+from anagram.local.understanding.profile.lens import ProfileLens, SqliteLensCache
 from anagram.local.understanding.titles import humanize as humanize_title
 from anagram.local.understanding.understand_schema import ensure as ensure_understanding_schema
 from anagram.local.understanding.vocabulary import default_vocabulary
@@ -169,6 +169,7 @@ __all__ = [
     "SEED_KINDS",
     "SUPPORTS",
     "ProfileLens",
+    "SqliteLensCache",
     "answer_question",
     "lens_items",
     "approve_finding",

@@ -76,5 +76,18 @@
   "peer_lab": "Lab",
   "peer_email": "Email",
   "peer_orcid": "ORCID iD",
-  "sent_count": "Answers that went out ({n})"
+  "sent_count": "Answers that went out ({n})",
+  "ambient_opt_in": "Keep these lines updated from my indexed work",
+  "ambient_opt_in_help": "After you approve once, Anagram updates your lines on this computer as you index new work. You can remove any line at any time.",
+  "ambient_on_status": "Anagram updates your matching lines from your indexed work on this computer and checks each day.",
+  "ambient_lines_help": "Lines Anagram is using from your indexed work. Remove any line to keep it out of matching.",
+  "ambient_removing": "Removing…",
+  "ambient_removed": "Line removed from matching.",
+  "switch_manual": "Switch to manual lines",
+  "switching_manual": "Switching…",
+  "switched_manual": "Switched to manual lines.",
+  "decline_archive_help": "Not working on this anymore? Remove a matched line from your local draft:",
+  "decline_archive_action": "Remove from my draft",
+  "decline_archive_removing": "Removing…",
+  "decline_archived": "Removed from your local draft."
 }

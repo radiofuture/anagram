@@ -16,33 +16,33 @@ cluster.
 ```mermaid
 flowchart LR
     subgraph Laptop["Researcher's computer (plaintext stays here)"]
-        App["Anagram local app\nSQLCipher index · local LLM / OCR\nprofile lens · priority proofs"]
+        App["Anagram local app<br/>SQLCipher index · local LLM / OCR<br/>profile lens · priority proofs"]
     end
 
     subgraph Nodes["Community nodes (self-hosted, 1 container + SQLite)"]
-        NodeA["Community node A\n(lab, university, or organizer)\nencrypted backups · labs · blind relay"]
-        NodeB["Community node B\n(another lab or university)"]
+        NodeA["Community node A<br/>(lab, university, or organizer)<br/>encrypted backups · labs · blind relay"]
+        NodeB["Community node B<br/>(another lab or university)"]
     end
 
     subgraph Anchors["Public time anchors"]
-        TSA["FreeTSA · DigiCert · OpenTimestamps\n(checkpoint SHA-256 hashes only)"]
+        TSA["FreeTSA · DigiCert · OpenTimestamps<br/>(checkpoint SHA-256 hashes only)"]
     end
 
     subgraph Network["Shared network services (SQLite per service)"]
-        Log["Transparency log\nreleases · keys · epochs · roster"]
-        Roster["Node roster\nadmitted & removed nodes"]
-        W1["Witness 1\n(network operator)"]
-        W2["Witness 2\n(partner university)"]
-        W3["Witness 3\n(public witness network)"]
+        Log["Transparency log<br/>releases · keys · epochs · roster"]
+        Roster["Node roster<br/>admitted & removed nodes"]
+        W1["Witness 1<br/>(network operator)"]
+        W2["Witness 2<br/>(partner university)"]
+        W3["Witness 3<br/>(public witness network)"]
     end
 
     subgraph Enclave["Matching enclave (attested confidential VMs)"]
-        Writer["Enclave writer\nin-enclave ONNX embedder\n+ in-enclave LLM judge"]
-        Standby["Enclave standby\n(failover holder)"]
-        Snaps["Encrypted snapshots\n(shared untrusted storage)"]
+        Writer["Enclave writer<br/>in-enclave ONNX embedder<br/>+ in-enclave LLM judge"]
+        Standby["Enclave standby<br/>(failover holder)"]
+        Snaps["Encrypted snapshots<br/>(shared untrusted storage)"]
     end
 
-    App <-->|"Encrypted backups, labs, proofs,\nHPKE-sealed matching messages"| NodeA
+    App <-->|"Encrypted backups, labs, proofs,<br/>HPKE-sealed matching messages"| NodeA
     NodeA -->|"Checkpoint hashes"| TSA
     NodeA <-->|"Fixed-size sealed relay"| Writer
     NodeB <-->|"Fixed-size sealed relay"| Writer
@@ -54,7 +54,7 @@ flowchart LR
     Log <-->|"Cosign checkpoints"| W1
     Log <-->|"Cosign checkpoints"| W2
     Log <-->|"Cosign checkpoints"| W3
-    App -.->|"Verify cosigned checkpoints\n& enclave attestation"| Log
+    App -.->|"Verify cosigned checkpoints<br/>& enclave attestation"| Log
 ```
 
 ### Standalone community node vs. network matching
@@ -77,7 +77,7 @@ sequenceDiagram
     participant Enc as Matching enclave (sealed)
     participant Log as Transparency log + 3 witnesses
 
-    Note over App: Indexes files locally (private items excluded); user approves once
+    Note over App: Indexes files locally (private items excluded) and user approves once
     App->>Log: Fetch cosigned checkpoint & verify enclave attestation
     App->>Node: Send HPKE-sealed pack (or fixed-size cover if matching is off)
     Node->>Enc: Relay sealed bytes (cannot read contents)
@@ -88,7 +88,7 @@ sequenceDiagram
     Note over App: Proposal shows match type & own lines only (never peer identity or lines)
     App->>Node: Send sealed answer (yes / not now / no) at fixed checkpoints
     Node->>Enc: Relay sealed answer
-    Note over Enc: Both answered yes -> release contact cards only; else nobody learns anything
+    Note over Enc: Both answered yes releases contact cards only, else nobody learns anything
 ```
 
 ## 3. Processes, storage, and operators

@@ -353,12 +353,15 @@ class TrustPolicy:
 
     def item_tier(self, sid: str, key: str, *, third_party: bool) -> str:
         """The tier of one item: the narrowest of its source, each folder
-        that holds it (key prefix), and its own mark. An item that another
-        person wrote is `private`."""
+        that holds it (key prefix on a `/` path boundary), and its own mark.
+        An item that another person wrote is `private`."""
         if third_party:
             return PRIVATE
         tiers = [self.source_tier(sid)]
-        tiers += [t for prefix, t in self.folders.get(sid, {}).items() if key.startswith(prefix)]
+        for prefix, t in self.folders.get(sid, {}).items():
+            clean = prefix.rstrip("/")
+            if not clean or key == clean or key.startswith(clean + "/"):
+                tiers.append(t)
         mark = self.items.get(sid, {}).get(key)
         if mark is not None:
             tiers.append(mark)

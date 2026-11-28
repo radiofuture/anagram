@@ -135,18 +135,48 @@ def note_tags(front: Mapping, body: str) -> list[str]:
     return out
 
 
+_BAD_YAML_PRIVATE = re.compile(
+    r"(?im)^[ \t]*(?:anagram\s*:|tags?\s*:[^\n]*\bprivate\b|-\s*#?private\b)"
+)
+_PRIVATE_TAG_RE = re.compile(r"(?<![\w/#])#private(?![\w/-])", re.I)
+
+
 def is_private(text: str) -> bool:
     """True for a note that the person keeps out of Anagram: frontmatter
-    `anagram: false`, or the tag `#private`. Frontmatter that does not parse
-    hides nothing."""
+    `anagram: false`, or the tag `#private`. Unparseable frontmatter that
+    mentions `anagram:` or `private` fails closed."""
     raw, body = split_frontmatter(text)
     try:
         front = parse_frontmatter(raw)
     except (yaml.YAMLError, ValueError):
+        if raw is not None and _BAD_YAML_PRIVATE.search(raw):
+            return True
         front = {}
-    if PRIVATE_KEY in front and front[PRIVATE_KEY] in (False, "false", "no", "off"):
-        return True
+    if PRIVATE_KEY in front:
+        val = front[PRIVATE_KEY]
+        if val is False or (isinstance(val, str) and val.strip().lower() in ("false", "no", "off")):
+            return True
     return any(t.lower() == PRIVATE_TAG for t in note_tags(front, body))
+
+
+def _file_is_private(path: Path, size: int) -> bool:
+    """Check `is_private` for any note size, including notes over `MAX_NOTE_BYTES`."""
+    if size <= MAX_NOTE_BYTES:
+        return is_private(extract.decode_text(path.read_bytes()))
+    chunk_size = 1024 * 1024
+    with path.open("rb") as fh:
+        head = fh.read(MAX_NOTE_BYTES)
+        if is_private(extract.decode_text(head)):
+            return True
+        tail = head[-64:]
+        while True:
+            buf = fh.read(chunk_size)
+            if not buf:
+                return False
+            window = extract.decode_text(tail + buf)
+            if _PRIVATE_TAG_RE.search(window):
+                return True
+            tail = buf[-64:]
 
 
 def note_links(body: str) -> list[tuple[str, dict]]:
@@ -226,9 +256,9 @@ class ObsidianConnector(FolderConnector):
             prev = known.get(rel)
             same = prev is not None and prev.size == st.st_size and prev.mtime_ns == st.st_mtime_ns
             suffix = p.suffix.lower()
-            if suffix in NOTE_SUFFIXES and not same and st.st_size <= MAX_NOTE_BYTES:
+            if suffix in NOTE_SUFFIXES and not same:
                 try:
-                    if is_private(extract.decode_text(p.read_bytes())):
+                    if _file_is_private(p, st.st_size):
                         continue
                 except OSError:
                     continue  # the file was gone before the read

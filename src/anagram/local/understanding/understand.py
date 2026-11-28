@@ -157,7 +157,13 @@ def run(
                 if job is None:
                     break
                 claimed += 1
-                item = runner.prepare(job)
+                try:
+                    item = runner.prepare(job)
+                except BaseException:
+                    jobs.release(index.store, job, clock())
+                    for prev in group:
+                        jobs.release(index.store, prev.job, clock())
+                    raise
                 if item is not None:
                     group.append(item)
             if group:

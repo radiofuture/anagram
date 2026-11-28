@@ -193,3 +193,28 @@ def test_an_injected_passage_is_data(tmp_path):
         assert done["text"] == "Nothing." and done["grounded"] is False
     finally:
         idx.close()
+
+
+def test_ask_logs_disclosure_on_midflight_external_failure_only(lib):
+    idx, a, _ = lib
+    ext = FakeTextModel(
+        [ModelError("unreachable", retryable=True)],
+        external=True,
+        profile_id="cloud-12345678",
+        recipient="Cloud",
+    )
+    idx.set_source_prefs(a, allow_external=[ext.recipient_id])
+    got = _events(ask_mod.ask(idx, WORD, scope=PRIVATE_SCOPE, model=ext))
+    assert got["error"][0]["code"] == "unreachable"
+    assert len(idx.disclosures()) == 1
+
+    # Pre-send failure (no_key) must not log disclosure.
+    no_key = FakeTextModel(
+        [ModelError("no_key")],
+        external=True,
+        profile_id="cloud-99999999",
+        recipient="Cloud2",
+    )
+    idx.set_source_prefs(a, allow_external=[ext.recipient_id, no_key.recipient_id])
+    _events(ask_mod.ask(idx, WORD, scope=PRIVATE_SCOPE, model=no_key))
+    assert not any(d["adapter"] == no_key.recipient_id for d in idx.disclosures())

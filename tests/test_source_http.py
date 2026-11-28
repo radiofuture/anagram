@@ -399,3 +399,34 @@ def test_redirect_to_the_same_host_is_followed():
     assert _redirect("https://api.example.org/v2/things").full_url == (
         "https://api.example.org/v2/things"
     )
+
+
+def test_v1_urllib_transport_refuses_cross_host_redirect_and_oversize_body(monkeypatch, tmp_path):
+    from anagram.local.index.local import LocalIndex
+    from anagram.local.sources import base as src_base
+    from anagram.shell.client import Client
+
+    req = urllib.request.Request(URL, headers={"Authorization": "Bearer secret"})  # noqa: S310
+    for bad in ("https://evil.example.com/v1", "http://api.example.org/v1"):
+        with pytest.raises(ConnectorError):
+            src_base._SameHostRedirect().redirect_request(
+                req, io.BytesIO(b""), 302, "Found", {}, bad
+            )
+
+    monkeypatch.setattr(
+        urllib.request, "build_opener", lambda *a: _Opener(_Resp(200, {}, b"x" * 20))
+    )
+    with pytest.raises(ConnectorError, match="limit"):
+        src_base.urllib_transport(max_bytes=10)("GET", URL, {}, None)
+
+    # LocalIndex.for_client wires transport from http via as_v1.
+    client = Client.init(tmp_path / "home")
+    script = Script(HttpResponse(200, {}, b'{"ok": true}'))
+    idx = LocalIndex.for_client(client, http=script)
+    try:
+        assert idx.transport is not None
+        status, parsed = idx.transport("GET", URL, {}, None)
+        assert status == 200 and parsed == {"ok": True}
+    finally:
+        idx.close()
+        client.vault.close()

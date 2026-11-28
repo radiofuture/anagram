@@ -263,3 +263,74 @@ def test_the_person_sets_class_end_date_and_proposals(tmp_path):
     assert bearer not in json.dumps(view)  # the key shows one time only
     with ui.svc.session(index=True) as (_, idx):
         assert access.find_by_key(idx, bearer).id == row["id"]
+
+
+def test_propose_lines_over_daily_limit_rolls_back_proposal(tmp_path):
+    from contextlib import contextmanager
+
+    from indexkit import KEY
+
+    from anagram.gateway.server import LIMIT
+    from anagram.local.index.local import LocalIndex
+    from anagram.local.trust.policy import TrustPolicy
+
+    idx = LocalIndex(tmp_path / "index.sqlite", KEY)
+    try:
+        now = "2026-11-16T12:00:00Z"
+        who = access.add(
+            idx, "Claude Desktop", ["private"], now, tools=list(access.TOOLS), daily_chars=10
+        )
+
+        @contextmanager
+        def session():
+            yield None, idx
+
+        srv = Server(
+            session,
+            who.id,
+            policy=lambda _c, _i: TrustPolicy.default("pid:" + "aa" * 16),
+            clock=lambda: 1_794_830_400.0,
+        )
+        got = srv.handle(
+            {
+                "id": 1,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "arguments": {"offers": ["Offer one"], "wants": ["Want one"]},
+                    "name": "propose_lines",
+                },
+            }
+        )["result"]
+        assert got["isError"] is True and got["content"][0]["text"] == LIMIT
+        assert acts.entries(idx) == []
+    finally:
+        idx.close()
+
+
+def test_decide_is_atomic_and_rejects_second_decision(tmp_path):
+    from indexkit import KEY
+
+    from anagram.local.index.local import LocalIndex
+
+    idx = LocalIndex(tmp_path / "index.sqlite", KEY)
+    try:
+        now = "2026-11-16T12:00:00Z"
+        who = access.add(idx, "Claude Desktop", ["private"], now, tools=list(access.TOOLS))
+        entry = acts.propose(
+            idx,
+            who,
+            tool="propose_lines",
+            kind=acts.LINES,
+            payload={"offers": ["w"], "wants": ["y"]},
+            disclosure="Nothing leaves this computer now.",
+            now=now,
+        )
+        applied = []
+        decided = acts.decide(idx, entry.id, True, now, applied.append)
+        assert decided.state == "approved"
+        with pytest.raises(KeyError):
+            acts.decide(idx, entry.id, True, now, applied.append)
+        assert len(applied) == 1
+    finally:
+        idx.close()

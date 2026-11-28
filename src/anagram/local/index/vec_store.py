@@ -114,12 +114,15 @@ class SqliteVecStore:
             return self._knn(blob, k)
         where, args = _where(filter)
         total = self.count()
+        if total <= 0:
+            return []
         pool = max(10 * k, MIN_POOL)
         while True:
-            near = self._knn(blob, min(pool, total))
+            want = min(pool, total)
+            near = self._knn(blob, want)
             keep = self._matching(near, where, args)
             out = [cid for cid in near if cid in keep]
-            if len(out) >= k or len(near) >= total:
+            if len(out) >= k or want >= total or len(near) < want:
                 return out[:k]
             pool *= 2
 

@@ -132,7 +132,7 @@ def test_private_rules():
     assert is_private("---\ntags: [work, Private]\n---\nText\n")
     assert not is_private("---\nanagram: true\n---\nText about #privateer ships\n")
     assert not is_private("```\n#private\n```\n")
-    assert not is_private("---\nanagram: [bad\n---\nText\n")  # bad YAML hides nothing
+    assert is_private("---\nanagram: [bad\n---\nText\n")  # bad YAML mentioning anagram fails closed
 
 
 def test_fact_kinds_are_registered():
@@ -306,9 +306,7 @@ def test_the_enricher_runs_only_for_an_obsidian_source(index, vault):
 
 
 def test_links_resolve_as_obsidian_does(index, sid):
-    assert relations(index, sid) == set()  # the facts were made after the first scan
-    n = resolve_links(index, sid)
-    got = relations(index, sid)
+    got = relations(index, sid)  # after_scan runs after the first scan's jobs make the link facts
     assert got == {
         ("links_to", "Home.md", "Projects/Grid robot.md"),  # exact path
         ("links_to", "Home.md", "Methods.md"),  # exact path wins over Archive/2024/Methods.md
@@ -322,7 +320,7 @@ def test_links_resolve_as_obsidian_does(index, sid):
         ("links_to", "Methods.md", "Home.md"),
         ("links_to", "Board.canvas", "Projects/Grid robot.md"),
     }
-    assert n == len(got)
+    assert resolve_links(index, sid) == len(got)
     # "Missing note" has no target: it stays a fact only.
     assert "Missing note" in [f.value for f in facts(index, sid, "Projects/Grid robot.md", "link")]
 
@@ -379,3 +377,17 @@ def test_folder_source_exclude(index, vault):
     got = keys(index, sid)
     assert "Private/Diary.md" not in got and "Archive/2024/Notes.md" not in got
     assert "Home.md" in got and ".obsidian/app.json" in got  # a folder source has no vault rules
+
+
+def test_private_checks_large_notes_case_insensitive_and_bad_yaml_tags(index, vault):
+    assert is_private("---\nanagram: 'FALSE'\n---\nText\n")
+    assert is_private("---\nanagram: No\n---\nText\n")
+    assert is_private("---\ntags: [work, private\n---\nText\n")
+
+    # A note larger than 4 MiB that is marked private must still be excluded.
+    big = vault / "HugePrivate.md"
+    big.write_text("---\nanagram: false\n---\n" + ("word " * 1_000_000))
+    assert big.stat().st_size > 4_000_000
+    sid = index.add_source(ObsidianConnector(vault))
+    index.scan([sid], process=False)
+    assert "HugePrivate.md" not in keys(index, sid)

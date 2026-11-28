@@ -97,12 +97,17 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 class UrllibTransport:
     def __init__(self) -> None:
         self._opener = urllib.request.build_opener(_NoRedirect)
+        self._loopback_opener = urllib.request.build_opener(
+            urllib.request.ProxyHandler({}), _NoRedirect
+        )
 
     def _open(self, method: str, url: str, headers: dict, body: bytes | None, timeout: float):
+        checked = check_url(url)
         req = urllib.request.Request(  # noqa: S310 - scheme checked by check_url
-            check_url(url), data=body, headers=headers, method=method
+            checked, data=body, headers=headers, method=method
         )
-        return self._opener.open(req, timeout=timeout)
+        opener = self._loopback_opener if is_loopback(checked) else self._opener
+        return opener.open(req, timeout=timeout)
 
     def request(
         self, method: str, url: str, headers: dict, body: bytes | None, timeout: float
@@ -111,7 +116,8 @@ class UrllibTransport:
             with self._open(method, url, headers, body, timeout) as resp:
                 return resp.status, dict(resp.headers), resp.read()
         except urllib.error.HTTPError as exc:
-            return exc.code, dict(exc.headers or {}), exc.read() or b""
+            with exc:
+                return exc.code, dict(exc.headers or {}), exc.read() or b""
         except urllib.error.URLError as exc:
             raise OSError(type(exc.reason).__name__) from None
 
@@ -121,7 +127,8 @@ class UrllibTransport:
         try:
             resp = self._open(method, url, headers, body, timeout)
         except urllib.error.HTTPError as exc:
-            raise http_error(exc.code, dict(exc.headers or {})) from None
+            with exc:
+                raise http_error(exc.code, dict(exc.headers or {})) from None
         except urllib.error.URLError as exc:
             raise OSError(type(exc.reason).__name__) from None
         with resp:

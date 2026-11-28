@@ -300,3 +300,48 @@ def test_one_bad_source_does_not_stop_a_scan(tmp_path):
     report = index.scan()
     assert len(report.new) == 1
     assert len(report.errors) == 1
+
+
+@needs_git
+def test_git_rev_validation_and_record_separator_in_commit_message(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    (repo / "a.txt").write_text("hello\n")
+    _git(repo, "add", "a.txt")
+    _git(
+        repo,
+        "-c",
+        "user.name=T",
+        "-c",
+        "user.email=t@example.invalid",
+        "commit",
+        "-q",
+        "-m",
+        "Msg with \x1e record sep\x1f unit sep",
+    )
+    for bad_rev in ("--all", "-n1", "--output=/tmp/x", "HEAD --all", "HEAD\nfoo", ""):
+        with pytest.raises(ConnectorError):
+            GitConnector(repo, rev=bad_rev)
+    items = list(GitConnector(repo).scan({}))
+    assert len(items) == 1
+    import json
+
+    body = json.loads(items[0].data)
+    assert "\x1e" in body["record"]["message"]
+
+    # Missing blob object in cat-file --batch fails cleanly with ConnectorError.
+    with pytest.raises(ConnectorError, match="missing"):
+        GitConnector(repo)._blob_hashes(["0" * 40], {})
+
+
+def test_v1_connectors_validate_repo_user_id_and_orcid():
+    for bad_repo in ("../evil", "owner/repo?x=1", "owner/repo#frag", "onlyone", "a/b/c", ""):
+        with pytest.raises(ConnectorError):
+            GitHubConnector("tok", [bad_repo])
+    for bad_uid in ("../123", "123?foo=bar", "abc", ""):
+        with pytest.raises(ConnectorError):
+            ZoteroWebConnector(bad_uid, "key")
+    for bad_orcid in ("../0000-0000-0000-0000", "0000-0001-0000-0001?x=1", "not-an-orcid", ""):
+        with pytest.raises(ConnectorError):
+            OrcidWorksConnector(bad_orcid)

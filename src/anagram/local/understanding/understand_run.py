@@ -223,7 +223,12 @@ class Runner:
             return f"this source does not allow {who}"
         space = spaces.space_of(self.index, sid)
         if space != spaces.PRIVATE:
-            policy = self.lab(space.split(":", 1)[1]) if self.lab else None
+            policy = None
+            if self.lab:
+                try:
+                    policy = self.lab(space.split(":", 1)[1])
+                except Exception:  # fail closed if lab policy cannot be loaded
+                    policy = None
             if policy is None or not policy.allows_recipient(model.recipient_id):
                 return f"the lab does not allow {who}"
         return None
@@ -499,33 +504,40 @@ class Runner:
         else:
             self.report.retry += 1
 
+    def _release_all(self, items: Iterable[Item]) -> None:
+        now = self.clock()
+        for it in items:
+            jobs.release(self.index.store, it.job, now)
+
+    def _finish_item(self, it: Item) -> None:
+        if it.answer is None or it.answer.get("kind") not in kinds.KINDS:
+            raise ModelError("bad_output")
+        if it.answer["kind"] == "finding":
+            self.verify(it)
+        elif it.answer["kind"] == "result" and it.answer.get("polarity") == kinds.NEGATIVE:
+            self.verify(it, promote=True)
+        extracted = self.extract(it) if it.answer["kind"] in kinds.EXTRACT_KINDS else None
+        self.write(it, self.facts(it, extracted))
+
     def group(self, group: list[Item]) -> None:
         try:
             self.triage(group)
-        except Stop:
-            for it in group:
-                jobs.release(self.index.store, it.job, self.clock())
-            raise
         except ModelError as exc:
             for it in group:
                 self.fail(it.job, exc)
             if exc.retryable or exc.code in ("unreachable", "no_key"):
                 raise Stop("unreachable") from None
             return
-        for it in group:
+        except BaseException:
+            self._release_all(group)
+            raise
+        for i, it in enumerate(group):
             try:
-                if it.answer is None or it.answer.get("kind") not in kinds.KINDS:
-                    raise ModelError("bad_output")
-                if it.answer["kind"] == "finding":
-                    self.verify(it)
-                elif it.answer["kind"] == "result" and it.answer.get("polarity") == kinds.NEGATIVE:
-                    self.verify(it, promote=True)
-                extracted = self.extract(it) if it.answer["kind"] in kinds.EXTRACT_KINDS else None
-                self.write(it, self.facts(it, extracted))
-            except Stop:
-                jobs.release(self.index.store, it.job, self.clock())
-                raise
+                self._finish_item(it)
             except ModelError as exc:
                 self.fail(it.job, exc)
                 continue
+            except BaseException:
+                self._release_all(group[i:])
+                raise
             self.finish(it.job, jobs.DONE)

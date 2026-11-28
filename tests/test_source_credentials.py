@@ -222,3 +222,22 @@ def test_api_key_account(env):
         creds.auth_headers(acct.id, "https://www.googleapis.com/drive/v3/files")
     assert creds.revoke(acct.id) is False  # Zotero has no revoke call; the key is deleted
     assert creds.accounts() == []
+
+
+def test_save_preserves_existing_refresh_token_when_regrant_omits_it(env):
+    fake, creds, _, _, clock, _ = env
+    initial = grant(fake, creds, clock)
+    assert initial.refresh_token is not None
+    acct = creds.save("google", fake.sub, fake.email, fake.client_id, initial)
+    new_access = grant(fake, creds, clock, (DRIVE_SCOPE, GMAIL_SCOPE)).access_token
+    regrant = TokenSet(
+        access_token=new_access,
+        refresh_token=None,
+        expires_at=clock() + 3600,
+        scopes=(DRIVE_SCOPE, GMAIL_SCOPE),
+    )
+    again = creds.save("google", fake.sub, fake.email, fake.client_id, regrant)
+    assert again.id == acct.id
+    stored = creds.tokens(acct.id)
+    assert stored.access_token == new_access
+    assert stored.refresh_token == initial.refresh_token

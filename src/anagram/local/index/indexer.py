@@ -121,12 +121,15 @@ class Indexer:
 
     # ------------------------------------------------------------- errors
 
-    def _error(self, where: str, exc: BaseException, *, log_kind: str | None = None) -> None:
+    def _error(self, where: str, exc: BaseException, *, detail_kind: str | None = None) -> None:
         msg = f"{type(exc).__name__}: {exc}"
         # The log line has the error class and an id, not the message: a
         # message can hold a path or a file name. The status keeps the message.
         step, _, ident = where.partition(" ")  # "scan src-1": the step and the source id
-        log.error("indexer %s %s: %s", step, ident, log_kind or type(exc).__name__)
+        if detail_kind and detail_kind.isidentifier() and detail_kind != type(exc).__name__:
+            log.error("indexer %s %s: %s (%s)", step, ident, type(exc).__name__, detail_kind)
+        else:
+            log.error("indexer %s %s: %s", step, ident, type(exc).__name__)
         self.state.errors.append({"at": iso_or_none(self.clock()), "message": msg, "where": where})
         del self.state.errors[:-MAX_ERRORS]
 
@@ -153,8 +156,8 @@ class Indexer:
                 new=len(report.new), changed=len(report.changed), removed=len(report.removed)
             )
             for sid, msg in report.errors:
-                err_kind = msg.split(":", 1)[0].strip() or "ScanError"
-                self._error(f"scan {sid}", RuntimeError(msg), log_kind=err_kind)
+                err_kind = msg.split(":", 1)[0].strip()
+                self._error(f"scan {sid}", RuntimeError(msg), detail_kind=err_kind)
             for sid in report.more:
                 # A contract v2 source stopped at its time limit. Scan it
                 # again after `DEBOUNCE_S`; the job batch runs between.

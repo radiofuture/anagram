@@ -209,14 +209,15 @@ class LocalIndex:
             return value.decode()
 
         kwargs.setdefault("secret", secret)
+        explicit_http = kwargs.get("http")
         if "http" not in kwargs:
             from anagram.local.sources import http as http_mod
 
             kwargs["http"] = http_mod.default_http()
-        if "transport" not in kwargs and kwargs.get("http") is not None:
+        if "transport" not in kwargs and explicit_http is not None:
             from anagram.local.sources import http as http_mod
 
-            kwargs["transport"] = http_mod.as_v1(kwargs["http"])
+            kwargs["transport"] = http_mod.as_v1(explicit_http)
         given = kwargs.pop("credentials", None)
         idx = cls(Path(client.home) / INDEX_DB, key, **kwargs)
         if given is None:

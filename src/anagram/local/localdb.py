@@ -78,9 +78,11 @@ def erase_plain_leftovers(path: str | Path) -> None:
     the store at `path` opened with its key."""
     path = Path(path)
     if not is_plain_sqlite(path):
-        erase_file(path.with_name(path.name + OLD_SUFFIX))
-        for extra in ("-journal", "-wal", "-shm"):
-            erase_file(path.with_name(path.name + extra))
+        old = path.with_name(path.name + OLD_SUFFIX)
+        if old.exists():
+            erase_file(old)
+            for extra in ("-journal", "-wal", "-shm"):
+                erase_file(path.with_name(path.name + extra))
 
 
 def _counts(db: sqlcipher3.Connection, schema: str) -> dict[str, int]:

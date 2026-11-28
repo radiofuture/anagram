@@ -155,6 +155,9 @@ def test_both_or_neither_reveal(story: dict) -> None:
     assert revealed["Alice"][0] == revealed["Bob"][0]  # the same day
     assert revealed["Alice"][1]["card_of_peer"]["name"] == "Bob"
     assert revealed["Bob"][1]["card_of_peer"]["name"] == "Alice"
+    # Each reveal has an ID (the screen keys it and plays its motion once).
+    ids = {revealed[n][1]["id"] for n in ("Alice", "Bob")}
+    assert None not in ids and len(ids) == 2
 
 
 def test_a_withdrawal_after_a_yes_gives_no_reveal(story: dict) -> None:

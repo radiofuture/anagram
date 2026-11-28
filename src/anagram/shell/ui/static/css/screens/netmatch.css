@@ -1,0 +1,73 @@
+/* Network matching: the lines side by side on a wide screen, the card that
+   goes out after two yes answers, and the meeting (a reveal). */
+.ag-nm-lines {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 8px 32px;
+}
+.ag-nm-side {
+  min-width: 0;
+}
+.ag-nm-list {
+  margin: 0 0 16px;
+  padding-left: 1.1em;
+}
+.ag-nm-list li + li {
+  margin-top: 4px;
+}
+
+/* The card that the other person gets: one line, with a quiet change. */
+.ag-nm-card {
+  margin: 16px 0 8px;
+  padding: 12px 16px;
+  background: var(--ag-stock);
+}
+.ag-nm-card .rf-ui-help {
+  margin: 0 0 4px;
+}
+.ag-nm-card-line {
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
+
+/* The meeting: the one offset panel of the screen. The name is large, and
+   its letters sort themselves once (netmatch.js, MetName). */
+.rf-ui .ag-nm-met {
+  background: var(--ag-surface);
+  border: 1px solid var(--ag-text);
+  box-shadow: var(--rf-layer-offset) var(--rf-layer-offset) 0 var(--ag-offset);
+  margin: 0 var(--rf-layer-offset) calc(24px + var(--rf-layer-offset)) 0;
+  padding: 24px;
+}
+.ag-nm-met-lead {
+  margin: 0;
+  color: var(--ag-muted);
+  font-size: 0.875rem;
+}
+.ag-nm-met-name {
+  margin: 8px 0 4px;
+  font-size: clamp(2rem, 7vw, 3.25rem);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+.ag-nm-name {
+  display: inline-block;
+}
+.ag-nm-word {
+  white-space: nowrap;
+}
+.ag-nm-word > span {
+  display: inline-block;
+  will-change: transform;
+}
+/* The plain name for screen readers while the letters move. */
+.ag-nm-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

@@ -35,6 +35,7 @@ DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 EPUB = "application/epub+zip"
+IPYNB = "application/x-ipynb+json"
 ZIP = "application/zip"
 OCTET = "application/octet-stream"
 
@@ -72,7 +73,7 @@ MEDIA_TYPES = {
     ".json": "application/json",
     ".py": "text/x-python",
     ".r": "text/x-r",
-    ".ipynb": "application/x-ipynb+json",
+    ".ipynb": IPYNB,
     ".sh": "text/x-shellscript",
     ".yaml": "text/yaml",
     ".yml": "text/yaml",

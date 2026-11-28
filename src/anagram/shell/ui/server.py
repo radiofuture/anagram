@@ -288,12 +288,19 @@ class UIServer:
         self.live.start()
         return self
 
-    def stop(self) -> None:
-        self.live.stop()  # ends the open event streams
+    def begin_stop(self) -> None:
+        self.live.begin_stop()  # ends the open event streams and cancels tasks
         self.server.should_exit = True
+
+    def finish_stop(self) -> None:
+        self.live.finish_stop()
         if self.thread.is_alive():
             self.thread.join(timeout=10)
         self.sock.close()
+
+    def stop(self) -> None:
+        self.begin_stop()
+        self.finish_stop()
 
 
 def _watch(service: UIService, interval: float, stop: threading.Event) -> None:

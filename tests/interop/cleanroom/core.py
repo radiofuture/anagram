@@ -15,6 +15,7 @@ import os
 import struct
 import time as _time
 import unicodedata
+from json.encoder import encode_basestring
 
 from cryptography.exceptions import InvalidSignature, InvalidTag
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
@@ -37,22 +38,9 @@ class Refused(Exception):
 
 # ---- canonical JSON (formats.md 2.1) -------------------------------------------
 
-_ESC = {'"': '\\"', "\\": "\\\\", "\b": "\\b", "\f": "\\f", "\n": "\\n", "\r": "\\r", "\t": "\\t"}
-
 
 def _string(s: str) -> str:
-    out = ['"']
-    for ch in s:
-        if ch in _ESC:
-            out.append(_ESC[ch])
-        elif ord(ch) < 0x20:
-            out.append(f"\\u{ord(ch):04x}")
-        elif 0xD800 <= ord(ch) <= 0xDFFF:
-            raise ValueError("lone surrogate")
-        else:
-            out.append(ch)
-    out.append('"')
-    return "".join(out)
+    return encode_basestring(s)
 
 
 def _encode(v: object) -> str:
@@ -79,7 +67,10 @@ def _encode(v: object) -> str:
 
 
 def cjson(v: object) -> bytes:
-    return _encode(v).encode("utf-8")
+    try:
+        return _encode(v).encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ValueError("lone surrogate") from exc
 
 
 def _pairs(pairs: list[tuple[str, object]]) -> dict:

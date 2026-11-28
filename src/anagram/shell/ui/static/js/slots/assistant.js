@@ -162,12 +162,7 @@ function Extend({ row }) {
   const [error, setError] = useState('');
   if (row.state !== 'expired') return null;
   const save = async () => {
-    await mutate(
-      'PUT',
-      `${PATH}/${encodeURIComponent(row.id)}`,
-      { expires: expires || null },
-      { invalidate: [PATH] },
-    );
+    await mutate('PUT', `${PATH}/${encodeURIComponent(row.id)}`, { expires: expires || null }, { invalidate: [PATH] });
     setExpires('');
   };
   return html`

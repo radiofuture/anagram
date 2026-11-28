@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import itertools
+import json
 import os
 import socket
 from dataclasses import dataclass, field
@@ -10,6 +12,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from filelock import FileLock
 
 from anagram.admission.app.join import join
 from anagram.core.nodeapi import NodeHTTPError
@@ -19,7 +22,7 @@ from anagram.identity.node.mailer import FakeMailer
 from anagram.shell.app.autostart import base as _autostart_base
 from anagram.shell.client import Client
 from anagram.shell.node.home import NodeHome
-from anagram.sim import generate_community
+from anagram.sim import SimResult, generate_community
 
 # Tests never use the real keychain of this computer. The default keystore of
 # the suite is the file keystore. `ANAGRAM_TEST_KEYSTORE=os-memory` runs the
@@ -92,6 +95,38 @@ class Net:
     labs: object = None
     homes: list = field(default_factory=list)
     admission: object = None
+    enclave_parts: object = None
+
+    def close(self) -> None:
+        """Close the TestClient and every SQLite connection owned by this Net
+        so parallel xdist workers do not exhaust file descriptors."""
+        with contextlib.suppress(Exception):
+            self.tc.close()
+        if self.labs is not None:
+            with contextlib.suppress(Exception):
+                self.labs.stop()
+            with contextlib.suppress(Exception):
+                self.labs._db.close()
+            with contextlib.suppress(Exception):
+                self.labs.directory._db.close()
+        if self.store is not None:
+            with contextlib.suppress(Exception):
+                self.store._db.close()
+        if self.vault is not None:
+            with contextlib.suppress(Exception):
+                self.vault._db.close()
+        if self.identity is not None:
+            with contextlib.suppress(Exception):
+                self.identity.db.close()
+        if self.service is not None:
+            with contextlib.suppress(Exception):
+                self.service.store.close()
+            for w in getattr(self.service, "witnesses", ()):
+                with contextlib.suppress(Exception):
+                    w._db.close()
+        if self.enclave_parts is not None:
+            with contextlib.suppress(Exception):
+                self.enclave_parts.close()
 
     def transport(self, method, path, body, headers=None):
         if isinstance(body, bytes):
@@ -169,6 +204,7 @@ def make_net(tmp_path: Path, enclave=None, enclave_parts=None, **create) -> Net:
     store = nh.store(identity)
     labs = nh.labs(identity, vault)
     admission = nh.admission(identity, labs, nh.reader_invites(identity))
+    built_enclave = enclave_parts(nh, clock) if enclave_parts else None
     app = create_app(
         service,
         nh.trust_info(),
@@ -178,23 +214,53 @@ def make_net(tmp_path: Path, enclave=None, enclave_parts=None, **create) -> Net:
         labs=labs,
         admission=admission,
         enclave=enclave,
-        enclave_parts=enclave_parts(nh, clock) if enclave_parts else None,
+        enclave_parts=built_enclave,
     )
     tc = TestClient(app, base_url=NODE_URL)
-    net = Net(nh, tc, clock, mailer, identity, service, vault, store, labs)
+    net = Net(
+        nh,
+        tc,
+        clock,
+        mailer,
+        identity,
+        service,
+        vault,
+        store,
+        labs,
+        enclave_parts=built_enclave,
+    )
     net.admission = admission
     return net
 
 
 @pytest.fixture
 def net(tmp_path):
-    return make_net(tmp_path)
+    n = make_net(tmp_path)
+    try:
+        yield n
+    finally:
+        n.close()
 
 
 @pytest.fixture(scope="session")
 def sim_community(tmp_path_factory):
     """The synthetic community with a small large file (4 KiB). Read-only:
-    copy a lab before a test changes its files."""
+    copy a lab before a test changes its files. Shared across xdist workers
+    within one test run via a file lock."""
+    if os.environ.get("PYTEST_XDIST_WORKER"):
+        shared = tmp_path_factory.getbasetemp().parent / "sim_community_shared"
+        shared.mkdir(parents=True, exist_ok=True)
+        out = shared / "out"
+        ready = shared / ".ready"
+        with FileLock(str(shared / ".lock")):
+            if not ready.exists():
+                generate_community(out, seed=0, large_bytes=4096)
+                ready.write_text("ok")
+        return SimResult(
+            out_dir=out,
+            ground_truth=json.loads((out / "ground_truth.json").read_text()),
+            canaries=json.loads((out / "canaries.json").read_text())["canaries"],
+        )
     out = tmp_path_factory.mktemp("sim") / "out"
     return generate_community(out, seed=0, large_bytes=4096)
 
@@ -210,10 +276,10 @@ def no_network(monkeypatch):
     monkeypatch.setattr(socket, "create_connection", refuse)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def browser():
-    """A headless Chromium for the browser tests, one for each module. Skip
-    when Playwright or its Chromium is not installed (`uv run playwright
+    """A headless Chromium for the browser tests, one for the test session.
+    Skip when Playwright or its Chromium is not installed (`uv run playwright
     install chromium`)."""
     sync_api = pytest.importorskip("playwright.sync_api")
     try:
@@ -239,6 +305,20 @@ def browser():
 # its tests keep their file order. Each other test has no order.
 _COLLECTED = pytest.StashKey[int]()
 _count = itertools.count()
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """macOS defaults `RLIMIT_NOFILE` to 256; raise the soft limit so parallel
+    workers with SQLite connections and TestClients do not hit EMFILE."""
+    try:
+        import resource
+
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        target = min(hard, 4096) if hard != resource.RLIM_INFINITY else 4096
+        if soft < target:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (target, hard))
+    except (ImportError, OSError, ValueError):
+        pass
 
 
 def pytest_itemcollected(item: pytest.Item) -> None:

@@ -429,6 +429,7 @@ class NodeHome:
         app.state.enclave = enclave
         app.state.anchoring = anchoring  # `node serve` starts its thread
         app.state.admission = admission
+        app.state.labs = labs
         return app, identity
 
     def anchor(self, spec: str) -> Anchor:

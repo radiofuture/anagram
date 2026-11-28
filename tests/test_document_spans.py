@@ -422,3 +422,23 @@ def test_same_text_gives_distinct_anchors():
     anchors = [b.anchor for b in blocks]
     assert len(set(anchors)) == 4
     assert anchors[1] == anchors[0] + ".2" and anchors[3] == anchors[0] + ".3"
+
+
+def test_tempscan_catches_planted_plaintext_temp_files():
+    """`no_plaintext_temp` still fails when a temp file holding the canary is
+    written into `TMPDIR` or directly into `/tmp`."""
+    import tempfile
+
+    tag = canary("leak")
+    with pytest.raises(AssertionError, match="plaintext temp files hold a canary"):
+        with no_plaintext_temp(tag):
+            Path(tempfile.gettempdir(), "leaked.txt").write_text(f"secret {tag}")
+
+    tag2 = canary("fixed")
+    planted = Path("/tmp") / f"anagram-tempscan-{tag2}.txt"  # noqa: S108
+    try:
+        with pytest.raises(AssertionError, match="plaintext temp files hold a canary"):
+            with no_plaintext_temp(tag2):
+                planted.write_text(f"secret {tag2}")
+    finally:
+        planted.unlink(missing_ok=True)

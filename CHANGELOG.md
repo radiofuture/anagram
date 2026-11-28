@@ -65,6 +65,9 @@ The first release for labs, and private matching through a network enclave.
 
 - The vector makers took `--help` as an output folder and wrote vector
   files into `./--help/`. They now print help.
+- Stopping the local app or demo no longer waits 5 seconds for an in-flight
+  `lab.watch` `/labs/changes` long-poll to time out; shutdown cancels the
+  poll immediately.
 - Production nodes (`anagram node start` and `anagram node init`) now allow
   starting without ORCID credentials (omitting both client ID and secret
   disables ORCID sign-in cleanly and hides the ORCID form on `/admin`),

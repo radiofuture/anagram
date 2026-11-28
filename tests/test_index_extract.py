@@ -11,9 +11,13 @@ import zlib
 import pytest
 from indexkit import lab
 
+from anagram.local.index.convert import BasicConverter, Blob
 from anagram.local.index.extract import (
+    MAX_IPYNB_CELLS,
     extract_bytes,
     extract_file,
+    extract_ipynb,
+    extract_tex,
     media_type_for,
     repo_summary,
     split_quoted,
@@ -214,6 +218,170 @@ def test_extraction_is_deterministic(sim_community):
     p = _sim_file(sim_community, "helix", "slides")
     a, b = extract_file(p), extract_file(p)
     assert json.dumps(a.to_json(), sort_keys=True) == json.dumps(b.to_json(), sort_keys=True)
+
+
+def test_ipynb_extracts_markdown_code_and_concise_outputs():
+    big_b64 = "A" * 4000
+    nb = {
+        "nbformat": 4,
+        "nbformat_minor": 5,
+        "metadata": {"kernelspec": {"language": "Python"}},
+        "cells": [
+            {
+                "cell_type": "markdown",
+                "source": ["# NbT7 Affinity Analysis\n", "\nWe need GPU hours for docking."],
+            },
+            {
+                "cell_type": "code",
+                "source": ["import numpy as np\n", "print('Kd = 12 nM')\n"],
+                "outputs": [
+                    {"output_type": "stream", "name": "stdout", "text": ["Kd = 12 nM\n"]},
+                    {
+                        "output_type": "display_data",
+                        "data": {
+                            "image/png": big_b64,
+                            "text/html": "<div>" + big_b64 + "</div>",
+                            "text/plain": ["<Figure size 640x480>", "\n" + big_b64],
+                        },
+                    },
+                    {
+                        "output_type": "execute_result",
+                        "data": {"text/plain": "r2 = 0.94"},
+                    },
+                ],
+            },
+            {
+                "cell_type": "code",
+                "source": "doc = '''```triple```'''\n",
+                "outputs": [{"output_type": "error", "ename": "ValueError", "evalue": "bad input"}],
+            },
+        ],
+    }
+    raw = json.dumps(nb).encode("utf-8")
+    ex = extract_ipynb(raw)
+    assert ex.kind == "notebook" and ex.prose is True
+    assert ex.title == "NbT7 Affinity Analysis"
+    assert ex.meta["language"] == "python"
+    assert ex.meta["cells"] == 3 and ex.meta["markdown_cells"] == 1 and ex.meta["code_cells"] == 2
+    assert "# NbT7 Affinity Analysis" in ex.text
+    assert "```python\nimport numpy as np\nprint('Kd = 12 nM')\n```" in ex.text
+    assert "Kd = 12 nM" in ex.text
+    assert "r2 = 0.94" in ex.text
+    assert "ValueError: bad input" in ex.text
+    assert big_b64 not in ex.text
+    assert "<div>" not in ex.text
+    # Code cell containing triple backticks gets a 4-backtick fence.
+    assert "````python" in ex.text
+
+    # Wired into BasicConverter and chips extraction.
+    mt = media_type_for("analysis.ipynb")
+    assert mt == "application/x-ipynb+json"
+    assert mt in BasicConverter.accepts
+    doc = BasicConverter().convert(Blob(data=raw, name="analysis.ipynb", media_type=mt))
+    assert doc.kind == "notebook" and doc.prose is True
+    assert any(b.kind == "heading" for b in doc.blocks)
+    assert any(b.kind == "code" for b in doc.blocks)
+    chips = extract_chips(doc.markdown, default_vocabulary())
+    assert chips.needs == {"anagram:gpu-compute": 1}
+
+
+def test_ipynb_handles_malformed_and_oversized_inputs():
+    bad = extract_ipynb(b"{not valid json")
+    assert bad.kind == "notebook" and bad.text == "" and "does not parse" in (bad.note or "")
+
+    no_cells = extract_ipynb(b'{"nbformat": 4}')
+    assert no_cells.kind == "notebook" and "missing cells" in (no_cells.note or "")
+
+    many_cells = {
+        "cells": [
+            {"cell_type": "markdown", "source": f"Cell {i}"} for i in range(MAX_IPYNB_CELLS + 5)
+        ]
+    }
+    capped = extract_ipynb(json.dumps(many_cells).encode("utf-8"))
+    assert capped.meta["truncated"] is True
+    assert f"Cell {MAX_IPYNB_CELLS - 1}" in capped.text
+    assert f"Cell {MAX_IPYNB_CELLS + 1}" not in capped.text
+
+
+def test_tex_extracts_metadata_sections_prose_and_compact_math():
+    tex = rb"""
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\usepackage{graphicx}
+% Secret preamble comment that must not leak
+\title{Structure of the {NbT7} \emph{Transporter} at 2.8~\AA}
+\author{Mei Chen\thanks{Northbridge} \and Tomas Reyes}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+We resolved three states with 95\% completeness. % inline comment
+We need \textbf{GPU hours} for \emph{binding-affinity} simulations.
+\end{abstract}
+
+\section{Introduction}\label{sec:intro}
+\noindent The pocket binds with $K_d = 12\text{ nM}$ and 15\% variance.
+See \href{https://example.org/data}{our dataset} for details.
+\vspace{1cm}
+
+\subsection{Methods}
+\begin{itemize}
+\item[Cryo-EM] Grids frozen at \texttt{300 kV}.
+\item \textbf{\textit{Docking}} scored \underline{1,200 ligands}.
+\end{itemize}
+
+\subsubsection{Energy Model}
+\paragraph{Calibration}
+\begin{equation}\label{eq:kd}
+\Delta G = R T \ln K_d
+\end{equation}
+
+\end{document}
+Trailing notes after end document must not appear.
+"""
+
+    ex = extract_tex(tex, "paper.tex")
+    assert ex.kind == "document" and ex.prose is True
+    assert ex.title is not None and "NbT7 Transporter" in ex.title
+    assert ex.meta["authors"] == "Mei Chen, Tomas Reyes"
+    assert "95% completeness" in ex.meta["abstract"]
+    assert "Secret preamble comment" not in ex.text
+    assert "inline comment" not in ex.text
+    assert "\\usepackage" not in ex.text
+    assert "\\documentclass" not in ex.text
+    assert "\\label" not in ex.text
+    assert "\\vspace" not in ex.text
+    assert "\\noindent" not in ex.text
+    assert "Trailing notes after end document" not in ex.text
+    assert "## Abstract" in ex.text
+    assert "# Introduction" in ex.text
+    assert "## Methods" in ex.text
+    assert "### Energy Model" in ex.text
+    assert "#### Calibration" in ex.text
+    assert "95% completeness" in ex.text
+    assert "15% variance" in ex.text
+    assert "our dataset" in ex.text and "https://example.org/data" not in ex.text
+    assert "- Cryo-EM: Grids frozen at 300 kV." in ex.text
+    assert "- Docking scored 1,200 ligands." in ex.text
+    assert "$K_d = 12 nM$" in ex.text
+    assert "\\Delta G = R T \\ln K_d" in ex.text
+    chips = extract_chips(ex.text, default_vocabulary())
+    assert chips.needs == {"anagram:gpu-compute": 1}
+
+
+def test_tex_fragment_and_unclosed_braces_are_bounded():
+    fragment = (
+        b"% Fragment comment\n"
+        b"\\section*{Supplementary Methods}\n"
+        b"Yield improved by 12\\% with \\textbf{nested {braces} and \\emph{italics}}.\n"
+        b"\\textbf{unclosed brace " + b"{" * 200 + b" tail\n"
+    )
+    ex = extract_tex(fragment, "supp.tex")
+    assert ex.kind == "document" and ex.prose is True
+    assert "# Supplementary Methods" in ex.text
+    assert "12% with nested {braces} and italics." in ex.text
+    assert "Fragment comment" not in ex.text
+    assert "tail" in ex.text
 
 
 def test_decompression_bombs_and_pdf_octal_and_readme_symlink(tmp_path):

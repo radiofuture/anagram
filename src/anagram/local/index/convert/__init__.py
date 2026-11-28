@@ -1,12 +1,13 @@
 """Converters: evidence bytes -> `Document`. See `base.py` and spec/index.md.
 
 `CONVERTERS` is the registry (`anagram.converters` entry points plus the
-built-ins `markitdown`, `basic`, `datalab`). `Router` picks the converter for
-one blob:
+built-ins `markitdown`, `basic`, `datalab`, `indra`). `Router` picks the
+converter for one blob:
 
 1. the converters that the user prefers for the source (in order),
-2. then the local converters, in registry order (`markitdown` before `basic`,
-   so markitdown is the default for the formats that it reads),
+2. then the local converters (`indra` ahead of `markitdown` and `basic` when
+   the optional `indra-ocr` package is installed, so local OCR handles scans
+   and falls back automatically on error),
 3. then the remote converters, only if the user opted in for the source.
 
 The first converter that accepts the media type and gives a document wins. If
@@ -34,6 +35,7 @@ from anagram.local.index.convert.base import (
 from anagram.local.index.convert.builtin import (
     BasicConverter,
     DatalabConverter,
+    IndraConverter,
     MarkItDownConverter,
 )
 from anagram.local.index.convert.document import (
@@ -49,8 +51,13 @@ from anagram.local.index.registry import GROUP_CONVERTERS, Registry
 log = logging.getLogger("anagram.local.index")
 
 CONVERTERS: Registry[type[Converter]] = Registry(GROUP_CONVERTERS)
-for _cls in (MarkItDownConverter, BasicConverter, DatalabConverter):
+for _cls in (MarkItDownConverter, BasicConverter, DatalabConverter, IndraConverter):
     CONVERTERS.register(_cls.name, _cls, builtin=True)
+
+# Preferred local order when a user has not set explicit source preferences:
+# optional local OCR (`indra`) tries before `markitdown` and `basic` and falls
+# through automatically if unavailable or on error.
+_LOCAL_PRIORITY = {"indra": 0}
 
 
 def all_converters() -> list[Converter]:
@@ -101,7 +108,9 @@ class Router:
         ok = [c for c in self.converters if c.available() and c.accepts_type(media_type)]
         by_name = {c.name: c for c in ok}
         out = [by_name[n] for n in self.prefer if n in by_name]
-        out += [c for c in ok if not c.external and c not in out]
+        local = [c for c in ok if not c.external and c not in out]
+        local.sort(key=lambda c: _LOCAL_PRIORITY.get(c.name, 1))
+        out += local
         out += [c for c in ok if c.external and c.name in self.allow_external and c not in out]
         return [c for c in out if not c.external or c.name in self.allow_external]
 
@@ -173,6 +182,7 @@ __all__ = [
     "ConverterRefused",
     "DatalabConverter",
     "Document",
+    "IndraConverter",
     "MarkItDownConverter",
     "Router",
     "Skip",

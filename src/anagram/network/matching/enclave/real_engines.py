@@ -2,20 +2,23 @@
 
 - `fingerprint_model_path`: deterministic SHA-256 over a local model weight file
   or directory manifest inside the sealed image (rejecting missing/empty paths
-  and symlinks escaping the root).
+  and symlinks escaping the root). Matches `spec/enclave-trust.md` section 3.6
+  (`model.digest` is the `sha256:` of the weights).
 - `check_local_judge_url`: strictly enforces loopback-only `http://127.0.0.1`,
   `http://[::1]`, or `http://localhost` (no external hosts, no `https://`, no
   URL credentials) so enclave lines can never leave the sealed machine.
 - `OnnxEmbedder`: semantic stage-1 embeddings via offline `FastEmbedder`
-  (`local_files_only=True`, `HF_HUB_OFFLINE=1`, SHA-256 weight fingerprinting),
-  incorporating `[line["class"]]` context and peak-normalized `int8`
-  quantization (`-127..127`).
+  (`local_files_only=True`, `HF_HUB_OFFLINE=1`), always loading from the exact
+  fingerprinted `model_path` directory, incorporating `[line["class"]]` context
+  and peak-normalized `int8` quantization (`-127..127`).
 - `LlmJointJudge`: stage-2 binary `"20-minute coffeehouse"` joint judge running
-  either in-process (injectable `complete_fn` or local `llama_cpp` weights) or
-  against a loopback-only local OpenAI-compatible daemon inside the same
-  confidential VM (`follow_redirects=False`, `trust_env=False`, no API keys),
-  with greedy decoding (`temperature=0`), strict enum-only JSON parsing,
-  SHA-256 weight fingerprinting, and fail-closed error handling.
+  either in-process (injectable `complete_fn` or local `llama_cpp` directly
+  loading the fingerprinted `model_path` — failing fast at startup if
+  `llama_cpp` is not installed) or against a loopback-only local
+  OpenAI-compatible daemon inside the same attested confidential VM
+  (`follow_redirects=False`, `trust_env=False`, no API keys), with greedy
+  decoding (`temperature=0`), strict enum-only JSON parsing, fail-closed error
+  handling, and privacy-safe failure counters/warnings (`stats()`).
 - `real_engines(...)`: `EngineFactory` returning `(Vectors(OnnxEmbedder), LlmJointJudge)`
   with stage-1 `min_score` noise filtering and strict release descriptor checks.
 - `engines_from_env(...)`: host helper that keeps `simulated_engines` as the
@@ -26,7 +29,9 @@ from __future__ import annotations
 
 import hashlib
 import importlib
+import importlib.util
 import json
+import logging
 import math
 import os
 import re
@@ -51,6 +56,8 @@ from anagram.network.matching.enclave.funnel import (
 )
 from anagram.network.matching.enclave.simulated_engines import simulated_engines
 from anagram.network.matching.trust import descriptor as dsc
+
+log = logging.getLogger(__name__)
 
 DEFAULT_EMBED_MODEL = FASTEMBED_MODEL
 DEFAULT_EMBED_DIM = FASTEMBED_DIM
@@ -216,12 +223,16 @@ def format_line_for_embedding(line: JsonObject) -> str:
 @dataclass
 class OnnxEmbedder(Embedder):
     """Semantic stage-1 embedder backed by offline `FastEmbedder` (ONNX Runtime)
-    or an injectable `embed_fn` for offline tests."""
+    or an injectable `embed_fn` for offline tests.
+
+    Always loads weights from the exact `model_path` directory that was
+    fingerprinted (`digest == weights_sha256` per `spec/enclave-trust.md`
+    section 3.6).
+    """
 
     model: str = DEFAULT_EMBED_MODEL
     dim: int = DEFAULT_EMBED_DIM
     model_path: Path | None = None
-    cache_dir: Path | None = None
     embed_fn: EmbedFn | None = None
     name: str = field(init=False)
     weights_sha256: str | None = field(init=False)
@@ -229,21 +240,25 @@ class OnnxEmbedder(Embedder):
     _backend: FastEmbedder | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
-        if self.embed_fn is None and self.model_path is None:
-            raise ValueError("OnnxEmbedder requires model_path pointing to local model weights")
+        if self.embed_fn is None:
+            if self.model_path is None:
+                raise ValueError(
+                    "OnnxEmbedder requires model_path pointing to a local model directory"
+                )
+            if not self.model_path.is_dir():
+                raise ValueError(
+                    "OnnxEmbedder requires model_path to be a directory so the fingerprinted "
+                    "and loaded model directories are identical"
+                )
         self.name = self.model
         self.weights_sha256 = (
             fingerprint_model_path(self.model_path) if self.model_path is not None else None
         )
-        meta = canonical_json(
-            {
-                "dim": self.dim,
-                "model": self.model,
-                "quant": "int8-peak",
-                "weights_sha256": self.weights_sha256,
-            }
-        )
-        self.digest = "sha256:" + hashlib.sha256(meta).hexdigest()
+        if self.weights_sha256 is not None:
+            self.digest = self.weights_sha256
+        else:
+            meta = canonical_json({"dim": self.dim, "model": self.model, "quant": "int8-peak"})
+            self.digest = "sha256:" + hashlib.sha256(meta).hexdigest()
 
     def _raw_embed(self, texts: Sequence[str]) -> list[list[float]]:
         if self.embed_fn is not None:
@@ -255,15 +270,14 @@ class OnnxEmbedder(Embedder):
                     "enclave embedder requires offline mode (HF_HUB_OFFLINE=1); downloads disabled"
                 )
             os.environ.setdefault("HF_HUB_OFFLINE", "1")
-            resolved_cache = self.cache_dir
-            if resolved_cache is None and self.model_path is not None:
-                resolved_cache = (
-                    self.model_path if self.model_path.is_dir() else self.model_path.parent
+            if self.model_path is None or not self.model_path.is_dir():
+                raise ValueError(
+                    "OnnxEmbedder requires model_path pointing to a local model directory"
                 )
             self._backend = FastEmbedder(
                 model=self.model,
                 dim=self.dim,
-                cache_dir=resolved_cache,
+                cache_dir=self.model_path,
                 local_files_only=True,
             )
         return self._backend.embed(texts)
@@ -316,10 +330,11 @@ def _fail_closed(kinds: Sequence[str]) -> JsonObject:
     return {"fit_a": "pass", "fit_b": "pass", "type": fallback}
 
 
-def parse_judge_reply(content: object, kinds: Sequence[str]) -> JsonObject:
-    """Strictly parse and validate judge JSON output; fail closed on any error."""
+def _parse_judge_reply_checked(content: object, kinds: Sequence[str]) -> tuple[JsonObject, bool]:
+    """Parse and validate judge JSON output. Returns `(result, ok)` where
+    `ok=False` means the reply was malformed and failed closed."""
     if not isinstance(content, str):
-        return _fail_closed(kinds)
+        return _fail_closed(kinds), False
     text = content.strip()
     fence = _FENCE.match(text)
     if fence is not None:
@@ -327,9 +342,9 @@ def parse_judge_reply(content: object, kinds: Sequence[str]) -> JsonObject:
     try:
         parsed = json.loads(text)
     except ValueError:
-        return _fail_closed(kinds)
+        return _fail_closed(kinds), False
     if not isinstance(parsed, dict) or set(parsed.keys()) != {"fit_a", "fit_b", "type"}:
-        return _fail_closed(kinds)
+        return _fail_closed(kinds), False
     fit_a, fit_b, kind = parsed["fit_a"], parsed["fit_b"], parsed["type"]
     if (
         not isinstance(fit_a, str)
@@ -339,8 +354,14 @@ def parse_judge_reply(content: object, kinds: Sequence[str]) -> JsonObject:
         or fit_b not in _FIT_VALUES
         or kind not in kinds
     ):
-        return _fail_closed(kinds)
-    return {"fit_a": fit_a, "fit_b": fit_b, "type": kind}
+        return _fail_closed(kinds), False
+    return {"fit_a": fit_a, "fit_b": fit_b, "type": kind}, True
+
+
+def parse_judge_reply(content: object, kinds: Sequence[str]) -> JsonObject:
+    """Strictly parse and validate judge JSON output; fail closed on any error."""
+    result, _ = _parse_judge_reply_checked(content, kinds)
+    return result
 
 
 def _extract_choice_content(body: object) -> object:
@@ -352,16 +373,33 @@ def _extract_choice_content(body: object) -> object:
     return message.get("content") if isinstance(message, dict) else None
 
 
+def _require_in_process_runtime(model_path: Path | None) -> None:
+    if model_path is None or not model_path.is_file():
+        raise ValueError("in-process judge requires model_path pointing to a local GGUF model file")
+    if importlib.util.find_spec("llama_cpp") is None:
+        raise RuntimeError(
+            "in-process judge requires llama_cpp (llama-cpp-python); install it in the "
+            "enclave image or configure loopback ANAGRAM_ENCLAVE_JUDGE_URL"
+        )
+
+
 @dataclass
 class LlmJointJudge(JointJudge):
     """Deterministic in-enclave joint judge.
 
-    Runs either in-process (via `complete_fn` or a local `llama_cpp` model file)
-    or against a loopback-only local OpenAI-compatible daemon inside the same
-    confidential VM (`http://127.0.0.1`, `http://[::1]`, or `http://localhost`,
-    with `follow_redirects=False`, `trust_env=False`, and zero external API
-    keys). Uses greedy decoding (`temperature=0`), strict JSON enum validation,
-    and fails closed (`pass`/`pass`) on any error.
+    Runs either in-process (via `complete_fn` for tests, or `llama_cpp` loading
+    the fingerprinted `model_path` GGUF directly — failing fast at startup if
+    `llama_cpp` is not installed) or against a loopback-only local
+    OpenAI-compatible daemon inside the same attested confidential VM
+    (`http://127.0.0.1`, `http://[::1]`, or `http://localhost`, with
+    `follow_redirects=False`, `trust_env=False`, and zero external API keys;
+    sound when the measured image launches the local daemon from the same
+    `model_path`).
+
+    `digest` equals `weights_sha256` (`spec/enclave-trust.md` section 3.6)
+    whenever `model_path` is provided. Every fail-closed error increments
+    `errors` / `error_reasons` and logs a privacy-safe warning so a broken
+    judge never looks silently like "no matches".
     """
 
     model: str
@@ -373,6 +411,9 @@ class LlmJointJudge(JointJudge):
     name: str = ""
     weights_sha256: str | None = field(default=None, init=False)
     digest: str = ""
+    decisions: int = field(default=0, init=False)
+    errors: int = field(default=0, init=False)
+    error_reasons: dict[str, int] = field(default_factory=dict, init=False)
     _client: httpx.Client | None = field(default=None, init=False, repr=False)
     _local_llm: object | None = field(default=None, init=False, repr=False)
 
@@ -383,21 +424,43 @@ class LlmJointJudge(JointJudge):
             self.base_url = check_local_judge_url(self.base_url)
         if self.model_path is None and self.complete_fn is None and self.transport is None:
             raise ValueError("LlmJointJudge requires model_path pointing to local model weights")
+        if self.base_url is None and self.complete_fn is None:
+            _require_in_process_runtime(self.model_path)
         if self.model_path is not None:
             self.weights_sha256 = fingerprint_model_path(self.model_path)
         if not self.name:
             self.name = f"anagram-llm-judge-v1:{self.model}"
         if not self.digest:
-            meta = canonical_json(
-                {
-                    "model": self.model,
-                    "name": self.name,
-                    "prompt": JUDGE_SYSTEM_PROMPT,
-                    "prompt_version": JUDGE_PROMPT_VERSION,
-                    "weights_sha256": self.weights_sha256,
-                }
-            )
-            self.digest = "sha256:" + hashlib.sha256(meta).hexdigest()
+            if self.weights_sha256 is not None:
+                self.digest = self.weights_sha256
+            else:
+                meta = canonical_json(
+                    {
+                        "model": self.model,
+                        "name": self.name,
+                        "prompt_version": JUDGE_PROMPT_VERSION,
+                    }
+                )
+                self.digest = "sha256:" + hashlib.sha256(meta).hexdigest()
+
+    def stats(self) -> dict[str, object]:
+        """Privacy-safe health counters distinguishing broken judge from no matches."""
+        return {
+            "decisions": self.decisions,
+            "error_reasons": dict(self.error_reasons),
+            "errors": self.errors,
+        }
+
+    def _record_error(self, reason: str, kinds: Sequence[str]) -> JsonObject:
+        self.errors += 1
+        self.error_reasons[reason] = self.error_reasons.get(reason, 0) + 1
+        log.warning(
+            "enclave judge failed closed (%s; %d/%d errors)",
+            reason,
+            self.errors,
+            self.decisions,
+        )
+        return _fail_closed(kinds)
 
     def _endpoint(self) -> str:
         if self.base_url is None:
@@ -442,21 +505,24 @@ class LlmJointJudge(JointJudge):
         return _extract_choice_content(body)
 
     def decide(self, first: Side, second: Side, kinds: list[str]) -> JsonObject:
+        self.decisions += 1
         if not kinds:
-            return _fail_closed(kinds)
+            return self._record_error("empty_kinds", kinds)
         user_prompt = build_judge_prompt(first, second, kinds)
         if self.complete_fn is not None:
             try:
                 content: object = self.complete_fn(JUDGE_SYSTEM_PROMPT, user_prompt)
             except (RuntimeError, ValueError, OSError, TypeError, KeyError):
-                return _fail_closed(kinds)
-            return parse_judge_reply(content, kinds)
+                return self._record_error("runtime_error", kinds)
+            result, ok = _parse_judge_reply_checked(content, kinds)
+            return result if ok else self._record_error("invalid_reply", kinds)
         if self.base_url is None:
             try:
                 content = self._decide_local_runtime(user_prompt)
-            except (ImportError, RuntimeError, ValueError, OSError, TypeError, KeyError):
-                return _fail_closed(kinds)
-            return parse_judge_reply(content, kinds)
+            except (RuntimeError, ValueError, OSError, TypeError, KeyError):
+                return self._record_error("runtime_error", kinds)
+            result, ok = _parse_judge_reply_checked(content, kinds)
+            return result if ok else self._record_error("invalid_reply", kinds)
         payload: JsonObject = {
             "messages": [
                 {"content": JUDGE_SYSTEM_PROMPT, "role": "system"},
@@ -471,8 +537,9 @@ class LlmJointJudge(JointJudge):
             response.raise_for_status()
             content = _extract_choice_content(response.json())
         except (httpx.HTTPError, ValueError, KeyError, TypeError):
-            return _fail_closed(kinds)
-        return parse_judge_reply(content, kinds)
+            return self._record_error("http_error", kinds)
+        result, ok = _parse_judge_reply_checked(content, kinds)
+        return result if ok else self._record_error("invalid_reply", kinds)
 
 
 def real_model_descriptors(embedder: OnnxEmbedder, judge: LlmJointJudge) -> list[JsonObject]:
@@ -500,7 +567,6 @@ def real_engines(  # noqa: PLR0913 - explicit configuration of real embedder and
     embed_model: str = DEFAULT_EMBED_MODEL,
     embed_dim: int = DEFAULT_EMBED_DIM,
     embed_model_path: Path | None = None,
-    embed_cache_dir: Path | None = None,
     embed_fn: EmbedFn | None = None,
     judge_transport: httpx.BaseTransport | None = None,
     judge_timeout: float = DEFAULT_TIMEOUT,
@@ -509,17 +575,26 @@ def real_engines(  # noqa: PLR0913 - explicit configuration of real embedder and
 ) -> EngineFactory:
     """Build an `EngineFactory` backed by `OnnxEmbedder` and `LlmJointJudge`."""
     validated_url = check_local_judge_url(judge_url) if judge_url is not None else None
-    if embed_fn is None and embed_model_path is None:
-        raise ValueError("real_engines requires embed_model_path pointing to local model weights")
+    if embed_fn is None:
+        if embed_model_path is None:
+            raise ValueError(
+                "real_engines requires embed_model_path pointing to a local model directory"
+            )
+        if not embed_model_path.is_dir():
+            raise ValueError(
+                "real_engines requires embed_model_path to be a directory so the fingerprinted "
+                "and loaded model directories are identical"
+            )
     if judge_complete_fn is None and judge_transport is None and judge_model_path is None:
         raise ValueError("real_engines requires judge_model_path pointing to local model weights")
+    if validated_url is None and judge_complete_fn is None:
+        _require_in_process_runtime(judge_model_path)
 
     def factory(models: Iterable[JsonObject]) -> Engines:
         embedder = OnnxEmbedder(
             model=embed_model,
             dim=embed_dim,
             model_path=embed_model_path,
-            cache_dir=embed_cache_dir,
             embed_fn=embed_fn,
         )
         judge = LlmJointJudge(
@@ -552,9 +627,11 @@ def engines_from_env(env: Mapping[str, str] | None = None) -> EngineFactory:
 
     Defaults to `simulated_engines`. Opt in to real in-enclave semantic/LLM
     engines with `ANAGRAM_ENCLAVE_ENGINE=real`, `ANAGRAM_ENCLAVE_JUDGE_MODEL`,
-    `ANAGRAM_ENCLAVE_EMBED_MODEL_PATH`, and `ANAGRAM_ENCLAVE_JUDGE_MODEL_PATH`
-    (plus optional loopback-only `ANAGRAM_ENCLAVE_JUDGE_URL`; omit to run the
-    local judge weights in-process).
+    `ANAGRAM_ENCLAVE_EMBED_MODEL_PATH` (directory fingerprinted and loaded by
+    `FastEmbedder`), and `ANAGRAM_ENCLAVE_JUDGE_MODEL_PATH` (plus optional
+    loopback-only `ANAGRAM_ENCLAVE_JUDGE_URL`; omit to run the local GGUF
+    weights directly in-process via `llama_cpp`, which refuses to start if
+    `llama_cpp` is not installed).
     """
     source = os.environ if env is None else env
     mode = source.get("ANAGRAM_ENCLAVE_ENGINE", "simulated").strip().lower()
@@ -578,7 +655,6 @@ def engines_from_env(env: Mapping[str, str] | None = None) -> EngineFactory:
     judge_url_raw = source.get("ANAGRAM_ENCLAVE_JUDGE_URL", "").strip()
     judge_url = check_local_judge_url(judge_url_raw) if judge_url_raw else None
     embed_model = source.get("ANAGRAM_ENCLAVE_EMBED_MODEL", DEFAULT_EMBED_MODEL).strip()
-    cache_raw = source.get("ANAGRAM_ENCLAVE_EMBED_CACHE_DIR", "").strip()
     min_raw = source.get("ANAGRAM_ENCLAVE_MIN_SCORE", "").strip()
     min_score = float(min_raw) if min_raw else DEFAULT_MIN_SCORE
     return real_engines(
@@ -587,6 +663,5 @@ def engines_from_env(env: Mapping[str, str] | None = None) -> EngineFactory:
         judge_model_path=judge_model_path,
         embed_model=embed_model or DEFAULT_EMBED_MODEL,
         embed_model_path=embed_model_path,
-        embed_cache_dir=Path(cache_raw) if cache_raw else None,
         min_score=min_score,
     )

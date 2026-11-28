@@ -261,9 +261,13 @@ def test_weight_file_tampering_changes_digest_and_fails_descriptor_check(tmp_pat
         model_path=judge_file,
         complete_fn=lambda _sys, _usr: '{"fit_a": "pass", "fit_b": "pass", "type": "research_fit"}',
     )
-    assert emb.weights_sha256 is not None and emb.weights_sha256.startswith("sha256:")
-    assert judge.weights_sha256 is not None and judge.weights_sha256.startswith("sha256:")
+    assert emb.weights_sha256 == fingerprint_model_path(embed_dir)
+    assert emb.digest == emb.weights_sha256
+    assert judge.weights_sha256 == fingerprint_model_path(judge_file)
+    assert judge.digest == judge.weights_sha256
     descs = real_model_descriptors(emb, judge)
+    assert descs[0]["body"]["digest"] == fingerprint_model_path(embed_dir)
+    assert descs[1]["body"]["digest"] == fingerprint_model_path(judge_file)
     factory = real_engines(
         "qwen2.5:14b",
         judge_model_path=judge_file,
@@ -295,17 +299,84 @@ def test_weight_file_tampering_changes_digest_and_fails_descriptor_check(tmp_pat
         factory(descs)
 
 
-def test_onnx_embedder_requires_model_path_and_offline_mode(
+def test_onnx_embedder_requires_model_dir_and_offline_mode(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     with pytest.raises(ValueError, match="model_path"):
         OnnxEmbedder(dim=8)
 
-    embed_dir, _ = _make_weights(tmp_path)
+    embed_dir, judge_file = _make_weights(tmp_path)
+    # Non-directory file path is rejected so fingerprinted & loaded directories cannot diverge.
+    with pytest.raises(ValueError, match="directory"):
+        OnnxEmbedder(dim=8, model_path=judge_file)
+
     emb = OnnxEmbedder(dim=8, model_path=embed_dir)
     monkeypatch.setenv("HF_HUB_OFFLINE", "0")
     with pytest.raises(ValueError, match="HF_HUB_OFFLINE=1"):
         emb.embed("Cryo-EM sample prep")
+
+    # Verify FastEmbedder always receives the exact fingerprinted model_path as cache_dir.
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    captured_kwargs: dict[str, object] = {}
+
+    class _FakeFastEmbedder:
+        def __init__(self, **kwargs: object) -> None:
+            captured_kwargs.update(kwargs)
+
+        def embed(self, texts: Sequence[str]) -> list[list[float]]:
+            return [[1.0] * 8 for _ in texts]
+
+    monkeypatch.setattr(
+        "anagram.network.matching.enclave.real_engines.FastEmbedder", _FakeFastEmbedder
+    )
+    emb.embed("Cryo-EM sample prep")
+    assert captured_kwargs["cache_dir"] == embed_dir
+    assert captured_kwargs["local_files_only"] is True
+
+
+def test_in_process_judge_refuses_to_start_without_llama_cpp_and_runs_when_present(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, judge_file = _make_weights(tmp_path)
+    monkeypatch.setattr("importlib.util.find_spec", lambda _name: None)
+    with pytest.raises(RuntimeError, match="llama_cpp"):
+        LlmJointJudge(model="local-qwen", model_path=judge_file)
+
+    # When llama_cpp is available, in-process judge directly loads the fingerprinted GGUF file.
+    loaded_paths: list[str] = []
+
+    class _FakeLlama:
+        def __init__(self, *, model_path: str, verbose: bool) -> None:
+            loaded_paths.append(model_path)
+
+        def create_chat_completion(self, **_kwargs: object) -> dict:
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": '{"fit_a": "fit", "fit_b": "fit", "type": "research_fit"}'
+                        }
+                    }
+                ]
+            }
+
+    fake_mod = type("FakeLlamaMod", (), {"Llama": _FakeLlama})()
+    monkeypatch.setattr(
+        "importlib.util.find_spec", lambda name: object() if name == "llama_cpp" else None
+    )
+    monkeypatch.setattr(
+        "importlib.import_module", lambda name: fake_mod if name == "llama_cpp" else None
+    )
+    judge = LlmJointJudge(model="local-qwen", model_path=judge_file)
+    sa = Side(wants=(_line("w01", "Need cryo-EM"),), offers=())
+    sb = Side(wants=(), offers=(_line("o01", "Offer cryo-EM"),))
+    assert judge.decide(sa, sb, ["research_fit"]) == {
+        "fit_a": "fit",
+        "fit_b": "fit",
+        "type": "research_fit",
+    }
+    assert loaded_paths == [str(judge_file)]
+    assert judge.stats() == {"decisions": 1, "error_reasons": {}, "errors": 0}
 
 
 # ---- quantize_int8 & OnnxEmbedder ------------------------------------------
@@ -499,8 +570,11 @@ def test_parse_judge_reply_accepts_fenced_json() -> None:
     }
 
 
-def test_llm_joint_judge_fails_closed_on_timeout_or_http_error(tmp_path: Path) -> None:
+def test_llm_joint_judge_fails_closed_and_counts_errors_without_leaking_text(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     _, judge_file = _make_weights(tmp_path)
+    canary_line = "PRIVATE_PROTEIN_CANARY_99123"
 
     def boom(req: httpx.Request) -> httpx.Response:
         raise httpx.ReadTimeout("timed out", request=req)
@@ -511,15 +585,39 @@ def test_llm_joint_judge_fails_closed_on_timeout_or_http_error(tmp_path: Path) -
         base_url="http://127.0.0.1:8000/v1",
         transport=httpx.MockTransport(boom),
     )
-    side = Side(wants=(_line("w01", "Need cryo-EM"),), offers=())
-    try:
-        assert judge.decide(side, side, ["method_help", "research_fit"]) == {
-            "fit_a": "pass",
-            "fit_b": "pass",
-            "type": "method_help",
-        }
-    finally:
-        judge.close()
+    side = Side(wants=(_line("w01", canary_line),), offers=())
+    with caplog.at_level("WARNING"):
+        try:
+            assert judge.decide(side, side, ["method_help", "research_fit"]) == {
+                "fit_a": "pass",
+                "fit_b": "pass",
+                "type": "method_help",
+            }
+        finally:
+            judge.close()
+    assert judge.stats() == {
+        "decisions": 1,
+        "error_reasons": {"http_error": 1},
+        "errors": 1,
+    }
+    assert canary_line not in caplog.text
+
+    # Malformed reply is also counted as invalid_reply (distinct from genuine pass).
+    bad_reply = LlmJointJudge(
+        model="local-qwen",
+        model_path=judge_file,
+        complete_fn=lambda _s, _u: "not valid json",
+    )
+    assert bad_reply.decide(side, side, ["research_fit"]) == {
+        "fit_a": "pass",
+        "fit_b": "pass",
+        "type": "research_fit",
+    }
+    assert bad_reply.stats() == {
+        "decisions": 1,
+        "error_reasons": {"invalid_reply": 1},
+        "errors": 1,
+    }
 
 
 def test_order_swap_disagreement_drops_pair(tmp_path: Path) -> None:
@@ -557,7 +655,9 @@ def test_order_swap_disagreement_drops_pair(tmp_path: Path) -> None:
 # ---- real_engines factory & engines_from_env --------------------------------
 
 
-def test_real_engines_descriptor_checks_and_env_opt_in(tmp_path: Path) -> None:
+def test_real_engines_descriptor_checks_and_env_opt_in(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     embed_dir, judge_file = _make_weights(tmp_path)
     emb = OnnxEmbedder(dim=8, model_path=embed_dir, embed_fn=_semantic_embed)
     judge = LlmJointJudge(
@@ -622,7 +722,20 @@ def test_real_engines_descriptor_checks_and_env_opt_in(tmp_path: Path) -> None:
         }
     )
     assert env_factory is not simulated_engines
-    # In-process mode (no URL needed)
+    # In-process mode refuses to start when llama_cpp is missing, and succeeds when present.
+    monkeypatch.setattr("importlib.util.find_spec", lambda _name: None)
+    with pytest.raises(RuntimeError, match="llama_cpp"):
+        engines_from_env(
+            {
+                "ANAGRAM_ENCLAVE_ENGINE": "real",
+                "ANAGRAM_ENCLAVE_JUDGE_MODEL": "qwen2.5:14b",
+                "ANAGRAM_ENCLAVE_EMBED_MODEL_PATH": str(embed_dir),
+                "ANAGRAM_ENCLAVE_JUDGE_MODEL_PATH": str(judge_file),
+            }
+        )
+    monkeypatch.setattr(
+        "importlib.util.find_spec", lambda name: object() if name == "llama_cpp" else None
+    )
     inproc_factory = engines_from_env(
         {
             "ANAGRAM_ENCLAVE_ENGINE": "real",

@@ -83,10 +83,10 @@ LINK_INCLUDES = "includes"
 LINK_TYPES = (LINK_SUPERSEDES, LINK_BUILDS_ON, LINK_INCLUDES)
 
 OWNER_ALG = "ed25519"
-_FIELD_NAME = re.compile(r"^[a-z][a-z0-9_]*(\.(0|[1-9][0-9]*))?$")
+_FIELD_NAME = re.compile(r"\A[a-z][a-z0-9_]*(\.(0|[1-9][0-9]*))?\Z")
 MAX_FIELDS = 1 << 16
-_HEX32 = re.compile(r"^[0-9a-f]{64}$")
-_HEX16 = re.compile(r"^[0-9a-f]{32}$")
+_HEX32 = re.compile(r"\A[0-9a-f]{64}\Z")
+_HEX16 = re.compile(r"\A[0-9a-f]{32}\Z")
 
 
 # --------------------------------------------------------------------------- time

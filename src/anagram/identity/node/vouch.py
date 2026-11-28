@@ -6,7 +6,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from anagram.core.errors import NodeError
+from anagram.identity.formats.documents import verify_invite_rejoin
+from anagram.identity.node.checks import validate_email
 from anagram.identity.node.schema import one
 
 if TYPE_CHECKING:
@@ -17,16 +18,7 @@ def stated_email(email: str | None) -> str | None:
     """The address that a person stated (not proved), in lower case, or None."""
     if email is None or (isinstance(email, str) and not email.strip()):
         return None
-    email = str(email).strip().lower()
-    if (
-        "@" not in email
-        or len(email) > 254
-        or any(c.isspace() for c in email)
-        or email.startswith("@")
-        or email.endswith("@")
-    ):
-        raise NodeError("Type an email address, for example name@lab.org.")
-    return email
+    return validate_email(email, message="Type an email address, for example name@lab.org.")
 
 
 class VouchSignIn:
@@ -35,35 +27,84 @@ class VouchSignIn:
     def __init__(self, identity: IdentityService) -> None:
         self.identity = identity
 
-    def rejoin_ok(self, pid: str | None, invite_ref: str, device_key: str) -> bool:
-        """The same person runs the join again with the same invite (for
-        example after a stop before the device was bound, or after another
-        device approved this one). True only for the account that this invite
-        made, and only for an active device of it, or when it has no device
-        yet. A new device of a person with devices needs the approval of an
-        active device in any case (key-binding rules)."""
-        if pid is None:
+    def rejoin_ok(
+        self,
+        pid: str | None,
+        invite_ref: str,
+        device_key: str,
+        *,
+        invite: str = "",
+        nonce: str = "",
+        device_signature: str | None = None,
+    ) -> bool:
+        """Pre-binding retry only: the same device retries a join before seq 0
+        is bound. Already-bound devices MUST use `DeviceSignIn`."""
+        if pid is None or not device_signature:
             return False
-        row = one(self.identity.db, "SELECT invite FROM invite_accounts WHERE subject = ?", pid)
-        if row is None or row[0] != invite_ref:
+        row = one(
+            self.identity.db,
+            "SELECT invite, device_key FROM invite_accounts WHERE subject = ?",
+            pid,
+        )
+        if row is None or row[0] != invite_ref or row[1] != device_key:
             return False
         state = self.identity.key_state(pid)
-        return device_key in state.devices or not state.history
+        if state.history:
+            return False
+        return verify_invite_rejoin(invite, pid, device_key, nonce, device_signature)
 
-    def new_account(self, pid: str | None, email: str | None, invite_ref: str) -> str:
+    def new_account(
+        self,
+        pid: str | None,
+        email: str | None,
+        invite_ref: str,
+        *,
+        device_key: str | None = None,
+        admit_email: bool = True,
+    ) -> str:
         """A new account with no proof of a third party: an invite vouches for
-        the person. `email` is the address that the person stated."""
+        the person. `email` is the address that the person stated. When
+        `admit_email` is False, the address is kept pending until admission."""
         idt = self.identity
         subject = idt.new_subject(pid)
-        if email is not None and one(
-            idt.db, "SELECT 1 FROM invite_accounts WHERE email = ?", email
-        ):
-            email = None  # the first person who stated an address keeps it
+        claimed_email: str | None = None
+        pending_email: str | None = None
+        if email is not None:
+            if admit_email:
+                if not one(idt.db, "SELECT 1 FROM invite_accounts WHERE email = ?", email):
+                    claimed_email = email  # the first person who stated an address keeps it
+            else:
+                pending_email = email
         idt.db.execute(
-            "INSERT INTO invite_accounts (subject, email, created_at, invite) VALUES (?, ?, ?, ?)",
-            (subject, email, idt.now(), invite_ref),
+            "INSERT INTO invite_accounts"
+            " (subject, email, created_at, invite, device_key, pending_email)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (subject, claimed_email, idt.now(), invite_ref, device_key, pending_email),
         )
         return subject
+
+    def claim_pending_email(self, subject: str) -> None:
+        """Promote a pending stated email on admission (uniqueness claimed only
+        once admitted as a member)."""
+        idt = self.identity
+        row = one(
+            idt.db,
+            "SELECT email, pending_email FROM invite_accounts WHERE subject = ?",
+            subject,
+        )
+        if row is None or row[0] is not None or row[1] is None:
+            return
+        pending = row[1]
+        if one(idt.db, "SELECT 1 FROM invite_accounts WHERE email = ?", pending):
+            idt.db.execute(
+                "UPDATE invite_accounts SET pending_email = NULL WHERE subject = ?",
+                (subject,),
+            )
+            return
+        idt.db.execute(
+            "UPDATE invite_accounts SET email = ?, pending_email = NULL WHERE subject = ?",
+            (pending, subject),
+        )
 
     def sign_in(self, subject: str, device: str, nonce: str, receipt: dict | None) -> dict:
         """The answer of a sign-in by vouch: an assertion with method `invite`

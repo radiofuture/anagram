@@ -193,3 +193,34 @@ def test_recovery_requests_expire(net, world, tmp_path):
     # A guardian also refuses an old request when a node still shows it.
     with pytest.raises(ClientError, match="too old"):
         okafor.guardians._check_request(rid, item["request"])
+
+
+def test_finish_recovery_handles_duplicate_indices_and_missing_xkey(net, world, tmp_path):
+    from anagram.identity.app.keychain import open_keystore
+
+    people, _ = world
+    new_home = tmp_path / "chen-dup"
+    rid = start(net, new_home)
+    people["okafor"].guardians.guardian_approve(rid)
+    # Duplicate okafor's approval in the node response -> must raise ClientError, not ValueError.
+    orig = net.transport
+
+    def dup_transport(method, path, body=None, headers=None):
+        res = orig(method, path, body, headers)
+        if method == "GET" and path == f"/recovery/requests/{rid}":
+            res = {**res, "approvals": [res["approvals"][0], res["approvals"][0]]}
+        return res
+
+    net.transport = dup_transport
+    try:
+        with pytest.raises(ClientError, match="valid shares"):
+            finish(net, new_home)
+    finally:
+        net.transport = orig
+
+    # Missing temp-x25519 must raise ClientError cleanly.
+    people["varga"].guardians.guardian_approve(rid)
+    ks = open_keystore(new_home / "guardian-recovery")
+    ks.delete("temp-x25519")
+    with pytest.raises(ClientError, match="temporary key"):
+        finish(net, new_home)

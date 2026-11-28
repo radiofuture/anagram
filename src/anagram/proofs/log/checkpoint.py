@@ -25,7 +25,7 @@ from anagram.proofs.log.note import (
     verify_note_signature,
 )
 
-_SIZE = re.compile(r"^(0|[1-9][0-9]*)$")
+_SIZE = re.compile(r"\A(0|[1-9][0-9]*)\Z")
 
 
 @dataclass(frozen=True)
@@ -53,7 +53,7 @@ class Checkpoint:
             root = base64.b64decode(lines[2], validate=True)
         except binascii.Error as exc:
             raise NoteError("malformed checkpoint root") from exc
-        if len(root) != 32 or not lines[0]:
+        if len(root) != 32 or base64.b64encode(root).decode("ascii") != lines[2] or not lines[0]:
             raise NoteError("malformed checkpoint")
         return cls(lines[0], int(lines[1]), root, tuple(lines[3:-1]))
 

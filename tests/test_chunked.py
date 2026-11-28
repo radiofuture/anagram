@@ -66,3 +66,36 @@ def test_large_file_streams(tmp_path, monkeypatch):
 def test_json_round_trip():
     d = chunked.hash_bytes(b"hello")
     assert chunked.ContentDigest.from_json(d.to_json()) == d
+
+
+def test_core_validators_reject_trailing_newline_and_bad_dates(tmp_path, monkeypatch):
+    import sys
+
+    from anagram.core.errors import FormatError
+    from anagram.core.files import fsync_dir
+    from anagram.core.jsontable import JsonTable
+    from anagram.core.shared_db import SharedDB
+    from anagram.core.timefmt import parse_time
+    from anagram.core.validate import HEX16, HEX32, HEX64
+
+    assert not HEX16.match("a" * 32 + "\n")
+    assert not HEX32.match("a" * 64 + "\n")
+    assert not HEX64.match("a" * 128 + "\n")
+    with pytest.raises(FormatError):
+        parse_time("2026-10-15T12:00:00Z\n")
+    with pytest.raises(FormatError):
+        parse_time("2026-02-30T12:00:00Z")
+    db = SharedDB(tmp_path / "t.sqlite")
+    with pytest.raises(ValueError, match="bad table name"):
+        JsonTable(db, "good_name\n")
+    db.close()
+
+    # L1: ContentDigest.from_json requires 64 lowercase hex chars.
+    d = chunked.hash_bytes(b"hello").to_json()
+    for bad in ("A" * 64, "z" * 64, d["digest"] + "\n"):
+        with pytest.raises(ValueError, match="bad content digest"):
+            chunked.ContentDigest.from_json({**d, "digest": bad})
+
+    # L1: fsync_dir is a no-op on Windows.
+    monkeypatch.setattr(sys, "platform", "win32")
+    fsync_dir(tmp_path / "does-not-even-open-on-win32")

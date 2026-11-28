@@ -7,6 +7,7 @@ from typing import Any
 
 from anagram.core.canonical import canonical_json, loads
 from anagram.core.errors import FormatError
+from anagram.core.validate import HEX32, hex_field, int_at_least
 from anagram.proofs.records import FieldProof, SignedSubject
 
 BUNDLE_SCHEMA = "anagram.proof_bundle.v1"
@@ -31,12 +32,21 @@ class LogProof:
 
     @classmethod
     def from_json(cls, obj: dict) -> LogProof:
+        if not isinstance(obj, dict) or not isinstance(obj.get("entry"), dict):
+            raise FormatError("log proof: bad entry")
+        if not isinstance(obj.get("checkpoint"), str):
+            raise FormatError("log proof: bad checkpoint")
+        inclusion = obj.get("inclusion")
+        if not isinstance(inclusion, list):
+            raise FormatError("log proof: inclusion must be a list")
         return cls(
             entry=dict(obj["entry"]),
-            leaf_index=int(obj["leaf_index"]),
-            tree_size=int(obj["tree_size"]),
-            inclusion=tuple(bytes.fromhex(h) for h in obj["inclusion"]),
-            checkpoint=str(obj["checkpoint"]),
+            leaf_index=int_at_least(obj.get("leaf_index"), "log proof leaf_index", 0),
+            tree_size=int_at_least(obj.get("tree_size"), "log proof tree_size", 0),
+            inclusion=tuple(
+                bytes.fromhex(hex_field(h, HEX32, "log proof inclusion")) for h in inclusion
+            ),
+            checkpoint=obj["checkpoint"],
         )
 
 

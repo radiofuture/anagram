@@ -192,3 +192,161 @@ def test_link_orcid_after_join(net):
 
 def test_mask_email():
     assert mask_email("ada@lab.org") == "a…@lab.org"
+
+
+def test_rejoin_ok_blocked_for_bound_devices_and_requires_pop(net):
+    from anagram.identity.formats.documents import sign_invite_rejoin
+
+    # Pre-binding retry requires proof of possession for the same initial device_key.
+    token = _token(net)
+    key, dev = _dev()
+    first = _signin(net, token, key, pid="pid:" + "aa" * 16)
+    assert first.status_code == 200
+    subject = first.json()["session"]["subject"]
+    # Without device_signature -> Conflict (409).
+    assert _signin(net, token, key, pid=subject).status_code == Conflict.status
+    # With wrong key signature -> Conflict (409).
+    other_key, _ = _dev()
+    nonce = secrets.token_hex(16)
+    bad_sig = sign_invite_rejoin(token, subject, nonce, other_key)
+    r_bad = _post(
+        net,
+        "/auth/invite",
+        {
+            "device_key": key.public_bytes().hex(),
+            "device_signature": bad_sig,
+            "invite": token,
+            "nonce": nonce,
+            "pid": subject,
+        },
+    )
+    assert r_bad.status_code == Conflict.status
+    # With valid device_signature before seq 0 binding -> succeeds.
+    good_sig = sign_invite_rejoin(token, subject, nonce, key)
+    r_ok = _post(
+        net,
+        "/auth/invite",
+        {
+            "device_key": key.public_bytes().hex(),
+            "device_signature": good_sig,
+            "invite": token,
+            "nonce": nonce,
+            "pid": subject,
+        },
+    )
+    assert r_ok.status_code == 200 and r_ok.json()["session"]["subject"] == subject
+
+    # After seq 0 is bound, /auth/invite MUST NOT mint a session (use DeviceSignIn).
+    entry = make_binding(
+        subject=subject, op="add", seq=0, prev=None, device=dev,
+        created_at=net.identity.now_dt(), authority={"assertion": first.json()["assertion"]},
+        orcid_commitment=None, pop=sign_possession(subject, dev, key),
+    )  # fmt: skip
+    net.identity.submit(subject, entry)
+    nonce2 = secrets.token_hex(16)
+    sig2 = sign_invite_rejoin(token, subject, nonce2, key)
+    r_bound = _post(
+        net,
+        "/auth/invite",
+        {
+            "device_key": key.public_bytes().hex(),
+            "device_signature": sig2,
+            "invite": token,
+            "nonce": nonce2,
+            "pid": subject,
+        },
+    )
+    assert r_bound.status_code == Conflict.status
+
+
+def test_lab_invite_signin_requires_invite_signature_and_defers_email(net, tmp_path):
+    from anagram.admission.formats import (
+        invite_keys,
+        lab_invite_id,
+        parse_lab_invite_link,
+        sign_lab_invite_signin,
+    )
+
+    pi = net.join_invite(tmp_path / "pi", "Pi").client
+    net.identity.db.execute(
+        "UPDATE members SET role = 'organizer' WHERE subject = ?", (pi.device.subject,)
+    )
+    lab_id = pi.labs.lab_create("Lab")["lab_id"]
+    inv = pi.admission.lab_invite(lab_id)
+    parsed = parse_lab_invite_link(inv["url"])
+    iid = lab_invite_id(parsed["auth"])
+    invite_ref = "lab:" + iid
+    key, _ = _dev()
+    nonce = secrets.token_hex(16)
+
+    # Missing or invalid invite_signature -> 403 Forbidden.
+    r_missing = _signin(net, invite_ref, key)
+    assert r_missing.status_code == Forbidden.status
+    r_forged = _post(
+        net,
+        "/auth/invite",
+        {
+            "device_key": key.public_bytes().hex(),
+            "invite": invite_ref,
+            "invite_signature": "00" * 64,
+            "nonce": nonce,
+        },
+    )
+    assert r_forged.status_code == Forbidden.status
+
+    # Valid invite_signature succeeds, but stated email is NOT claimed until admission.
+    inv_sign, _ = invite_keys(bytes.fromhex(parsed["seed"]))
+    sig = sign_lab_invite_signin(invite_ref, key.public_bytes().hex(), nonce, inv_sign)
+    r_ok = _post(
+        net,
+        "/auth/invite",
+        {
+            "device_key": key.public_bytes().hex(),
+            "email": "shared@lab.org",
+            "invite": invite_ref,
+            "invite_signature": sig,
+            "nonce": nonce,
+        },
+    )
+    assert r_ok.status_code == 200
+    pending_sub = r_ok.json()["session"]["subject"]
+    assert net.identity.email_of(pending_sub) is None
+    # An admitted member can still claim shared@lab.org before pending_sub is admitted.
+    admitted = _signin(net, _token(net), _dev()[0], email="shared@lab.org").json()["session"][
+        "subject"
+    ]
+    assert net.identity.email_of(admitted) == "shared@lab.org"
+
+
+def test_invite_signin_rate_limit_and_open_invites_excludes_revoked_reader(net):
+    from anagram.core.errors import RateLimited
+
+    readers = ReaderInvites(net.identity, AdmissionStore(net.identity.db, net.identity.lock))
+    owner = _signin(net, _token(net), _dev()[0]).json()["session"]["subject"]
+    before = net.admission.open_invites()
+    made = readers.create(owner, {"kind": "email", "value": "r@uni.edu"}, None)
+    assert net.admission.open_invites() == before + 1
+    readers.revoke(owner, made["invite_id"])
+    assert net.admission.open_invites() == before
+
+    net.admission.invite_per_minute = 2
+    for _ in range(2):
+        _signin(net, "00" * 32, _dev()[0])
+    assert _signin(net, "00" * 32, _dev()[0]).status_code == RateLimited.status
+
+
+def test_claim_rolls_back_on_add_member_failure(net, monkeypatch):
+    from anagram.admission.formats import invite_id
+
+    token = _token(net)
+    iid = invite_id(token)
+    subject = "pid:" + "cc" * 16
+
+    def boom(_admission):
+        raise RuntimeError("db error")
+
+    monkeypatch.setattr(net.identity, "add_member", boom)
+    with pytest.raises(RuntimeError, match="db error"):
+        net.admission.claim_invite(subject, token)
+    row = net.identity.db.execute("SELECT claimed_by FROM invites WHERE id = ?", (iid,)).fetchone()
+    assert row is not None and row[0] is None

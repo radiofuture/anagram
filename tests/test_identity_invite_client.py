@@ -140,3 +140,27 @@ def test_orcid_join_still_works(net, tmp_path):
     )
     assert parse_invite_url(net.invite())["token"]
     assert NodeError  # imported for symmetry with the node tests
+
+
+def test_join_subject_mismatch_preserves_existing_session_and_private_modes(net, tmp_path):
+    import os
+    import stat
+
+    from anagram.identity.app.kit import write_kit_file
+
+    home = tmp_path / "ada"
+    r = net.join_invite(home, "Ada")
+    old_session = read_session(r.client.keystore)
+    assert old_session is not None
+    # M12: config.json and kit files are written with 0600 permissions.
+    assert stat.S_IMODE(os.stat(home / "config.json").st_mode) == 0o600
+    kit_file = write_kit_file(home, tmp_path / "kit.md", r.kit_text)
+    assert stat.S_IMODE(os.stat(kit_file).st_mode) == 0o600
+    r.client.vault.close()
+
+    # M11: joining with another person's ORCID on an existing home must not
+    # overwrite the existing session and must log out the mismatched session.
+    with pytest.raises(ClientError, match="another person"):
+        net.join(home, "fake-different-person", "Other")
+    ks = open_keystore(home)
+    assert read_session(ks) == old_session

@@ -409,3 +409,29 @@ def verify_join_request(req: dict, auth: dict) -> dict:
 
 def request_hash(req: dict) -> str:
     return tagged_hash(TAG_LAB_INVITE, b"request", canonical_json(req)).hex()
+
+
+TAG_SIGN_LAB_INVITE_SIGNIN = "anagram/v1/sign/lab-invite-signin"
+
+
+def lab_invite_signin_message(invite: str, device_key: str, nonce: str) -> bytes:
+    return canonical_json({"device_key": device_key, "invite": invite, "nonce": nonce})
+
+
+def sign_lab_invite_signin(invite: str, device_key: str, nonce: str, key: SigningKey) -> str:
+    """Prove possession of the lab invite seed at `POST /auth/invite`."""
+    return key.sign(
+        TAG_SIGN_LAB_INVITE_SIGNIN, lab_invite_signin_message(invite, device_key, nonce)
+    ).hex()
+
+
+def verify_lab_invite_signin(
+    invite: str, device_key: str, nonce: str, invite_pub: str, signature: str
+) -> bool:
+    try:
+        sig = bytes.fromhex(hex_field(signature, HEX64, "invite_signature"))
+        pub = bytes.fromhex(hex_field(invite_pub, HEX32, "invite_pub"))
+        msg = lab_invite_signin_message(invite, device_key, nonce)
+        return verify(pub, TAG_SIGN_LAB_INVITE_SIGNIN, msg, sig)
+    except (FormatError, ValueError):
+        return False

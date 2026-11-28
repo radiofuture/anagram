@@ -17,6 +17,7 @@ from typing import BinaryIO
 from anagram.core.canonical import JsonObject
 from anagram.core.crypto import merkle
 from anagram.core.crypto.hashing import TAG_CONTENT, tagged_hash, u32, u64
+from anagram.core.validate import HEX32
 
 CONTENT_ALG = "anagram-chunked-sha256-v1"
 # Default chunk size: 1 MiB. The chunk size is recorded in each digest, so a
@@ -51,7 +52,7 @@ class ContentDigest:
             raise ValueError("bad content size")
         if type(chunk_size) is not int or not 0 < chunk_size <= MAX_CHUNK_SIZE:
             raise ValueError("bad chunk size")
-        if not isinstance(digest, str) or len(digest) != 64:
+        if not isinstance(digest, str) or not HEX32.match(digest):
             raise ValueError("bad content digest")
         return cls(size=size, chunk_size=chunk_size, digest=bytes.fromhex(digest))
 

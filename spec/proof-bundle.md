@@ -40,7 +40,7 @@ An anchor gives an independent time for the checkpoint digest
 
 | `type` | Fields | Check |
 | --- | --- | --- |
-| `rfc3161` | `token` (base64 DER CMS SignedData), `tsa` (URL) | Message imprint is SHA-256 and equals the digest; signed attributes; signature; ESS certificate hash; critical timeStamping EKU; chain to a pinned TSA root, valid at genTime. Not checked: revocation, RSA-PSS |
+| `rfc3161` | `token` (base64 DER CMS SignedData), `tsa` (URL) | Message imprint is SHA-256 and equals the digest; signed attributes; signature; ESS certificate hash; critical timeStamping EKU; non-CA leaf; RFC 5280 chain to a pinned TSA root (CA BasicConstraints, pathLenConstraint, keyCertSign when KeyUsage is present, timeStamping or anyExtendedKeyUsage on intermediates when EKU is present, cycle-free), valid at genTime. Not checked: revocation, RSA-PSS |
 | `opentimestamps` | `ots` (base64 of a `.ots` detached timestamp) | File digest equals the digest; a Bitcoin attestation whose value equals the merkle root of a block header that the verifier supplies. Pending attestations give no time |
 | `fake` | `digest`, `time`, `key`, `signature` | Ed25519 by a pinned key. For tests only. No independent time |
 
@@ -67,8 +67,8 @@ of anchors, and (optional) files to compare.
 
    | `type` | Source |
    | --- | --- |
-   | `rfc3161` | SHA-256 fingerprint of the TSA signer certificate |
-   | `opentimestamps` | Bitcoin block height of the attestation |
+   | `rfc3161` | SHA-256 fingerprint of the pinned TSA root certificate |
+   | `opentimestamps` | Bitcoin blockchain (`opentimestamps:bitcoin`, independent of block height) |
    | `fake` | the anchor public key |
    | other | SHA-256 of the canonical record bytes |
 

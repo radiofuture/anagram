@@ -41,6 +41,7 @@ SECRET_LEN = 20
 INFO_KEY = b"anagram/v1/recovery/key"
 INFO_ID = b"anagram/v1/recovery/id"
 KDF = "hkdf-sha256"
+MAX_BACKUP_BYTES = 64 << 10
 BACKUP_KEYS = ("device-ed25519", "device-x25519", "index-key", "vault-key")
 BACKUP_KEYS_V1 = ("device-ed25519", "device-x25519", "vault-key")
 # schema -> (payload schema, key names)
@@ -127,9 +128,11 @@ def validate_backup(doc: Any) -> dict:
     try:
         if len(bytes.fromhex(doc["backup_id"])) != 32 or len(bytes.fromhex(doc["nonce"])) != 12:
             raise ValueError("sizes")
-        base64.b64decode(doc["ciphertext"], validate=True)
+        ct = base64.b64decode(doc["ciphertext"], validate=True)
     except (ValueError, TypeError, binascii.Error) as exc:
         raise FormatError("key backup: bad encoding") from exc
+    if len(ct) > MAX_BACKUP_BYTES:
+        raise FormatError("key backup is too large")
     return doc
 
 

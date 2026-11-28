@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from fastapi import APIRouter, Body, Header
+from fastapi import APIRouter, Body, Header, Request
 from fastapi.responses import JSONResponse
 
 from anagram.admission.node.service import AdmissionService
@@ -31,13 +31,16 @@ def admission_router(
     router = APIRouter()
 
     @router.post("/auth/invite")
-    def invite_signin(body: dict = Body(...)) -> dict:  # noqa: B008
+    def invite_signin(request: Request, body: dict = Body(...)) -> dict:  # noqa: B008
         return admission.invite_signin(
             field(body, "invite"),
             field(body, "device_key"),
             field(body, "nonce"),
             body.get("pid"),
             body.get("email"),
+            invite_signature=body.get("invite_signature"),
+            device_signature=body.get("device_signature"),
+            address=request.client.host if request.client else "unknown",
         )
 
     @router.post("/auth/invite/preview")

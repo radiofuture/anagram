@@ -433,3 +433,48 @@ def test_device_sign_in_rules(net, tmp_path):
     assert r.status_code == 401  # used
     bad = net.tc.post("/auth/device/start", json={"device_key": "zz", "subject": "x"})
     assert bad.status_code == 400
+
+
+def test_pull_imports_large_vault_records_and_put_person_keys_verifies_sig(net, tmp_path):
+    from datetime import UTC, datetime
+
+    from anagram.identity.formats.personal_store import MAX_PERSON_KEYS_BYTES, make_person_keys
+
+    a = net.join(tmp_path / "a", "fake-large").client
+    keys = StoreKeys(a.keystore.get("vault-key"))
+    # M12: a vault record >= 1 MiB (SNAPSHOT_CHUNK) must NOT be skipped during _pull().
+    big_val = {"members": [], "name": "big-ring", "position": 99, "pad": "x" * (1 << 20)}
+    doc = seal_record(keys, "ring", "big-ring", big_val, 1)
+    assert len(base64.b64decode(doc["ciphertext"])) >= 1 << 20
+    a.device.http.call("PUT", f"/store/records/{doc['record_id']}", {"record": doc}, auth=True)
+    # Clear local tracking so pull fetches it.
+    pulled = a.personal.pull_store()
+    assert pulled >= 1
+    assert any(r["name"] == "big-ring" for r in a.vault.rings())
+
+    # M13: put_person_keys verifies signature and size cap.
+    dev = a.device.my_device()
+    pkg = make_person_keys(
+        subject=a.device.subject,
+        recipient=dev,
+        keys={"index-key": b"\x01" * 32, "vault-key": b"\x02" * 32},
+        created_at=datetime(2026, 10, 27, tzinfo=UTC),
+        sender=a.device.device_key(),
+    )
+    bad_sig = {**pkg, "signature": "00" * 64}
+    r = net.tc.put(
+        f"/store/person-keys/{dev['ed25519']}",
+        json={"package": bad_sig},
+        headers=auth(a.device.http.token),
+    )
+    assert r.status_code == 400
+    too_big = {
+        **pkg,
+        "ciphertext": base64.b64encode(b"z" * (MAX_PERSON_KEYS_BYTES + 1)).decode("ascii"),
+    }
+    r2 = net.tc.put(
+        f"/store/person-keys/{dev['ed25519']}",
+        json={"package": too_big},
+        headers=auth(a.device.http.token),
+    )
+    assert r2.status_code == 400

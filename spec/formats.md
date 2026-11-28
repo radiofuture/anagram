@@ -91,7 +91,9 @@ Merkle trees use RFC 6962 (also RFC 9162 section 2.1):
   than n.
 
 Inclusion and consistency proofs and their checks are as in RFC 9162 sections
-2.1.3 and 2.1.4.
+2.1.3 and 2.1.4. Every leaf hash, root hash, and proof path element MUST be 32
+bytes. When `old_size == 0`, a consistency proof is valid only if `old_root`
+equals the empty tree hash `SHA-256("")` and the path is empty.
 
 ### 3.4 Chunked content digest
 
@@ -112,8 +114,8 @@ The JSON form (`content`):
 The default chunk size is 1 MiB (1048576). The chunk size is part of the
 digest, so a verifier always uses the recorded value. The maximum is 64 MiB.
 A reader must refuse a `content` object with `chunk_size` not in
-1 to 67108864, `size` not in 0 to 2^64-1, or a `digest` that is not 64 hex
-characters.
+1 to 67108864, `size` not in 0 to 2^64-1, or a `digest` that is not 64
+lowercase hex characters.
 A reader needs only one chunk in memory.
 
 ## 4. Committed objects

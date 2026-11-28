@@ -40,7 +40,7 @@ from anagram.admission.formats import invite_id, invite_url, make_invite
 from anagram.admission.model import READER, Claim, Endorsement, NodePolicy
 from anagram.admission.node.store import AdmissionStore
 from anagram.core.errors import Forbidden, FormatError, NodeError, NotFound, RateLimited
-from anagram.identity.api import validate_orcid
+from anagram.identity.api import validate_email, validate_orcid
 
 OPEN_MAX = 20
 DAY_MAX = 50
@@ -63,12 +63,7 @@ def normalize_contact(contact: object) -> tuple[str, str]:
         raise NodeError("contact must be {kind, value}")
     kind, value = contact["kind"], contact["value"]
     if kind == "email":
-        email = str(value).strip().lower()
-        if "@" not in email or len(email) > 254 or any(c.isspace() for c in email):
-            raise NodeError("bad email address")
-        if email.startswith("@") or email.endswith("@"):
-            raise NodeError("bad email address")
-        return "email", email
+        return "email", validate_email(value)
     if kind == "orcid":
         try:
             return "orcid", validate_orcid(str(value).strip().removeprefix("orcid:"))

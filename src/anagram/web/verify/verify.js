@@ -4,7 +4,10 @@
 // content digest of each other file and compares it with the opened
 // digests; a file never leaves the browser. Content goes into the page as
 // text only.
-import { contentDigest } from './anagram-crypto.js';
+import { CONTENT_ALG, contentDigest } from './anagram-crypto.js';
+
+const MAX_CHUNK_SIZE = 1 << 26;
+const HEX32 = /^[0-9a-f]{64}$/;
 
 const WORDS = {
   checking: 'Checking the proof…',
@@ -132,14 +135,29 @@ async function post(body) {
   return res.json();
 }
 
+function isValidContent(c) {
+  return (
+    c !== null &&
+    typeof c === 'object' &&
+    c.alg === CONTENT_ALG &&
+    Number.isInteger(c.size) &&
+    c.size >= 0 &&
+    Number.isInteger(c.chunk_size) &&
+    c.chunk_size > 0 &&
+    c.chunk_size <= MAX_CHUNK_SIZE &&
+    typeof c.digest === 'string' &&
+    HEX32.test(c.digest)
+  );
+}
+
 /** For each added file: the slot it equals, or null. */
 async function compare(files, evidence) {
   const out = [];
   for (const file of files) {
     let slot = null;
     for (const [s, fields] of Object.entries(evidence)) {
-      const c = fields.content;
-      if (!c || c.size !== file.size) continue;
+      const c = fields && typeof fields === 'object' ? fields.content : null;
+      if (!isValidContent(c) || c.size !== file.size) continue;
       state(say('hashing', { name: file.name }));
       const got = await contentDigest(file, c.chunk_size);
       if (got.digest === c.digest) {
@@ -181,7 +199,9 @@ function render(report, matches) {
         { 'data-slot': slot },
         el('span', { class: 'vf-name' }, name),
         match,
-        f.content ? el('span', { class: 'vf-digest vf-mono' }, groups(f.content.digest, 8)) : null,
+        f?.content && typeof f.content.digest === 'string'
+          ? el('span', { class: 'vf-digest vf-mono' }, groups(f.content.digest, 8))
+          : null,
       );
     });
     const strays = matches
@@ -237,17 +257,19 @@ async function run(body, others) {
   $('result').hidden = true;
   state(WORDS.checking);
   const report = await post(body);
-  if (report.other_node) {
-    state(say('other_node', { origin: report.other_node }), 'error');
+  if ('other_node' in report) {
+    state(say('other_node', { origin: report.other_node || 'unknown' }), 'error');
     return;
   }
   let matches = [];
+  let notice = '';
   if (others.length) {
-    if (!globalThis.crypto?.subtle) state(WORDS.no_crypto, 'error');
+    if (!globalThis.crypto?.subtle) notice = WORDS.no_crypto;
     else matches = await compare(others, report.evidence || {});
   }
   render(report, matches);
-  state('');
+  if (notice) state(notice, 'error');
+  else state('');
 }
 
 async function take(fileList) {

@@ -9,9 +9,9 @@ from typing import Any
 from anagram.core.canonical import JsonObject
 from anagram.core.errors import FormatError
 
-HEX16 = re.compile(r"^[0-9a-f]{32}$")
-HEX32 = re.compile(r"^[0-9a-f]{64}$")
-HEX64 = re.compile(r"^[0-9a-f]{128}$")
+HEX16 = re.compile(r"\A[0-9a-f]{32}\Z")
+HEX32 = re.compile(r"\A[0-9a-f]{64}\Z")
+HEX64 = re.compile(r"\A[0-9a-f]{128}\Z")
 
 
 def exact_fields(obj: Any, names: Iterable[str], what: str) -> JsonObject:

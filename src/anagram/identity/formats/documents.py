@@ -341,6 +341,9 @@ def sign_possession(subject: str, device: dict, key: SigningKey) -> str:
     return key.sign(TAG_SIGN_KEY_POSSESSION, possession_message(subject, device)).hex()
 
 
+TAG_SIGN_INVITE_REJOIN = "anagram/v1/sign/invite-rejoin"
+
+
 def device_signin_message(subject: str, device: str, challenge: str, node_key: str) -> bytes:
     return canonical_json(
         {"challenge": challenge, "device": device, "node_key": node_key, "subject": subject}
@@ -361,6 +364,28 @@ def verify_device_signin(
         sig = bytes.fromhex(hex_field(signature, HEX64, "signature"))
         msg = device_signin_message(subject, device, challenge, node_key)
         return verify(bytes.fromhex(device), TAG_SIGN_DEVICE_SIGNIN, msg, sig)
+    except (FormatError, ValueError):
+        return False
+
+
+def invite_rejoin_message(invite: str, pid: str, device_key: str, nonce: str) -> bytes:
+    return canonical_json({"device_key": device_key, "invite": invite, "nonce": nonce, "pid": pid})
+
+
+def sign_invite_rejoin(invite: str, pid: str, nonce: str, key: SigningKey) -> str:
+    """Pre-binding retry proof of possession of the initial device key."""
+    msg = invite_rejoin_message(invite, pid, key.public_bytes().hex(), nonce)
+    return key.sign(TAG_SIGN_INVITE_REJOIN, msg).hex()
+
+
+def verify_invite_rejoin(
+    invite: str, pid: str, device_key: str, nonce: str, signature: str
+) -> bool:
+    try:
+        sig = bytes.fromhex(hex_field(signature, HEX64, "device_signature"))
+        pub = bytes.fromhex(hex_field(device_key, HEX32, "device_key"))
+        msg = invite_rejoin_message(invite, pid, device_key, nonce)
+        return verify(pub, TAG_SIGN_INVITE_REJOIN, msg, sig)
     except (FormatError, ValueError):
         return False
 

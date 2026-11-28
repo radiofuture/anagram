@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS flows (
     code_challenge TEXT NOT NULL, return_to TEXT NOT NULL, expires_at INTEGER NOT NULL,
     subject TEXT, name TEXT, code_hash TEXT, attempts INTEGER NOT NULL DEFAULT 0,
     used INTEGER NOT NULL DEFAULT 0, purpose TEXT NOT NULL DEFAULT 'join',
-    orcid TEXT, pid TEXT, orcid_salt TEXT);
+    orcid TEXT, pid TEXT, orcid_salt TEXT, callback_attempts INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS challenges (
     id TEXT PRIMARY KEY, purpose TEXT NOT NULL, destination TEXT NOT NULL,
     secret_hash TEXT NOT NULL, data TEXT NOT NULL, created_at INTEGER NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS orcid_accounts (
 -- person stated; it is not proved and is never a sign-in address.
 CREATE TABLE IF NOT EXISTS invite_accounts (
     subject TEXT PRIMARY KEY, email TEXT, findable INTEGER NOT NULL DEFAULT 1,
-    created_at INTEGER NOT NULL, invite TEXT);
+    created_at INTEGER NOT NULL, invite TEXT, device_key TEXT, pending_email TEXT);
 CREATE UNIQUE INDEX IF NOT EXISTS invite_accounts_email ON invite_accounts (email);
 CREATE TABLE IF NOT EXISTS resolve_audit (
     id INTEGER PRIMARY KEY AUTOINCREMENT, viewer TEXT NOT NULL, orcid TEXT NOT NULL,
@@ -64,7 +64,10 @@ _ADDED_COLUMNS = (
     ("flows", "pid", "TEXT"),
     ("flows", "orcid_salt", "TEXT"),
     ("flows", "link_subject", "TEXT"),  # the ORCID link
+    ("flows", "callback_attempts", "INTEGER NOT NULL DEFAULT 0"),
     ("orcid_accounts", "linked", "INTEGER NOT NULL DEFAULT 0"),  # linked after the join
+    ("invite_accounts", "device_key", "TEXT"),
+    ("invite_accounts", "pending_email", "TEXT"),
 )
 
 

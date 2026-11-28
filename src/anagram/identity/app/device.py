@@ -26,6 +26,7 @@ from anagram.core.crypto.hashing import TAG_VAULT_ITEM, lp, tagged_message
 from anagram.core.crypto.signing import SigningKey
 from anagram.core.crypto.x25519 import X25519Key
 from anagram.core.errors import ClientError
+from anagram.core.files import atomic_write
 from anagram.core.keyvalue import JsonKeys, KeyValue, TextKeys
 from anagram.core.nodeapi import HttpNode, NodeAPI
 from anagram.identity.app.keystore import Keystore
@@ -106,7 +107,9 @@ def read_config(home: str | Path) -> dict:
 
 
 def write_config(home: str | Path, cfg: dict) -> None:
-    (Path(home) / CONFIG_FILE).write_text(json.dumps(cfg, indent=2) + "\n")
+    atomic_write(
+        Path(home) / CONFIG_FILE, (json.dumps(cfg, indent=2) + "\n").encode("utf-8"), mode=0o600
+    )
 
 
 def trust_from_config(cfg: dict) -> Trust:

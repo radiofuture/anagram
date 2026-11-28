@@ -14,12 +14,12 @@ clients that check for this witness's cosignature.
 
 from __future__ import annotations
 
-import sqlite3
 import time
 from collections.abc import Callable
 from pathlib import Path
 
 from anagram.core.crypto import merkle
+from anagram.core.shared_db import SharedDB
 from anagram.proofs.log.checkpoint import open_checkpoint
 from anagram.proofs.log.note import NoteSigner, NoteVerifier
 
@@ -51,7 +51,7 @@ class Witness:
         self.signer = signer
         self.trusted_logs = list(trusted_logs)
         self.clock = clock
-        self._db = sqlite3.connect(str(db_path), check_same_thread=False, isolation_level=None)
+        self._db = SharedDB(db_path)
         self._db.execute(
             "CREATE TABLE IF NOT EXISTS state (origin TEXT PRIMARY KEY, size INTEGER NOT NULL,"
             " root BLOB NOT NULL)"
@@ -71,21 +71,26 @@ class Witness:
         """Check and cosign a checkpoint. Return the cosignature line."""
         vc = open_checkpoint(note_text, self.trusted_logs)
         cp = vc.checkpoint
-        state = self.known(cp.origin)
-        known_size, known_root = state if state else (0, merkle.EMPTY_ROOT)
-        if old_size != known_size:
-            raise WitnessConflict(known_size)
-        if cp.size < known_size:
-            raise WitnessRefused("checkpoint is older than the last cosigned checkpoint")
-        if cp.size == known_size:
-            if cp.root != known_root:
-                raise ForkDetected("same size, different root")
-        elif known_size > 0 and not merkle.verify_consistency(
-            known_size, cp.size, proof, known_root, cp.root
-        ):
-            raise ForkDetected("consistency proof failed")
-        self._db.execute(
-            "INSERT OR REPLACE INTO state (origin, size, root) VALUES (?, ?, ?)",
-            (cp.origin, cp.size, cp.root),
-        )
+        with self._db.lock:
+            self._db.execute("BEGIN IMMEDIATE")
+            try:
+                state = self.known(cp.origin)
+                known_size, known_root = state if state else (0, merkle.EMPTY_ROOT)
+                if old_size != known_size:
+                    raise WitnessConflict(known_size)
+                if cp.size < known_size:
+                    raise WitnessRefused("checkpoint is older than the last cosigned checkpoint")
+                if cp.size == known_size:
+                    if cp.root != known_root:
+                        raise ForkDetected("same size, different root")
+                elif not merkle.verify_consistency(known_size, cp.size, proof, known_root, cp.root):
+                    raise ForkDetected("consistency proof failed")
+                self._db.execute(
+                    "INSERT OR REPLACE INTO state (origin, size, root) VALUES (?, ?, ?)",
+                    (cp.origin, cp.size, cp.root),
+                )
+                self._db.execute("COMMIT")
+            except BaseException:
+                self._db.execute("ROLLBACK")
+                raise
         return self.signer.cosign(cp.text(), int(self.clock()))

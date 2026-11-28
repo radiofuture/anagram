@@ -12,11 +12,14 @@ from __future__ import annotations
 import contextlib
 import os
 import secrets
+import sys
 from pathlib import Path
 
 
 def fsync_dir(directory: str | Path) -> None:
     """Sync a directory, so that a new or replaced name in it is on disk."""
+    if sys.platform == "win32":
+        return
     fd = os.open(directory, os.O_RDONLY)
     try:
         os.fsync(fd)

@@ -13,15 +13,37 @@ GET  /tile/entries/{path}             C2SP tlog-tiles entry bundle
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Callable
 
-from fastapi import APIRouter, Body, Header, HTTPException, Response
+from fastapi import APIRouter, Header, HTTPException, Request, Response
 
 from anagram.proofs.log.store import TILE_WIDTH, LogError
 from anagram.proofs.node.service import EntryRejected, NodeService
 
-_TILE_PATH = re.compile(r"^((?:x\d{3}/)*\d{3})(?:\.p/(\d+))?$")
+_TILE_PATH = re.compile(r"\A((?:x\d{3}/)*\d{3})(?:\.p/(\d+))?\Z")
+MAX_ENTRY_BODY = 64 << 10
+
+
+async def _read_entry_body(request: Request) -> dict:
+    size = request.headers.get("content-length")
+    if size is not None and (not size.isdigit() or int(size) > MAX_ENTRY_BODY):
+        raise HTTPException(413, "log entry is too large")
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > MAX_ENTRY_BODY:
+            raise HTTPException(413, "log entry is too large")
+        chunks.append(chunk)
+    try:
+        body = json.loads(b"".join(chunks))
+    except ValueError as exc:
+        raise HTTPException(400, "send JSON") from exc
+    if not isinstance(body, dict):
+        raise HTTPException(400, "body must be an object")
+    return body
 
 
 def parse_tile_index(path: str) -> tuple[int, int]:
@@ -48,11 +70,14 @@ def log_router(
     router = APIRouter()
 
     @router.post("/log/entries")
-    def add_entry(
-        body: dict = Body(...),  # noqa: B008
+    async def add_entry(
+        request: Request,
         authorization: str | None = Header(default=None),
     ) -> dict:
         subject = subject_of(authorization)
+        if submit is None:
+            raise HTTPException(403, "log is read-only")
+        body = await _read_entry_body(request)
         try:
             return submit(subject, body.get("entry"))
         except EntryRejected as exc:

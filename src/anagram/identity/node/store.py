@@ -13,8 +13,10 @@ import threading
 from pathlib import Path
 
 from anagram.core.canonical import canonical_json
+from anagram.core.crypto.hashing import TAG_SIGN_PERSON_KEYS
 from anagram.core.errors import Conflict, Forbidden, FormatError, NodeError, NotFound
 from anagram.core.shared_db import SharedDB
+from anagram.core.signed import doc_signature_ok
 from anagram.identity.formats.personal_store import (
     record_size,
     validate_person_keys,
@@ -114,9 +116,10 @@ class NodePersonalStore:
 
     def delete(self, subject: str, record_id: str) -> dict:
         self.identity.require_member(subject)
-        cur = self._db.execute(
-            "DELETE FROM records WHERE subject = ? AND record_id = ?", (subject, record_id)
-        )
+        with self._lock:
+            cur = self._db.execute(
+                "DELETE FROM records WHERE subject = ? AND record_id = ?", (subject, record_id)
+            )
         if cur.rowcount != 1:
             raise NotFound("no such record")
         return {"deleted": record_id}
@@ -136,11 +139,14 @@ class NodePersonalStore:
             raise Forbidden("person keys are for another person or device")
         if device not in active or doc["sender"] not in active:
             raise Forbidden("sender and recipient must be active devices of this person")
-        self._db.execute(
-            "INSERT OR REPLACE INTO person_keys (subject, device, doc, updated_at)"
-            " VALUES (?, ?, ?, ?)",
-            (subject, device, json.dumps(doc), self.identity.now()),
-        )
+        if not doc_signature_ok(doc, TAG_SIGN_PERSON_KEYS, bytes.fromhex(doc["sender"])):
+            raise NodeError("person keys have a bad signature")
+        with self._lock:
+            self._db.execute(
+                "INSERT OR REPLACE INTO person_keys (subject, device, doc, updated_at)"
+                " VALUES (?, ?, ?, ?)",
+                (subject, device, json.dumps(doc), self.identity.now()),
+            )
         return {"device": device}
 
     def get_person_keys(self, subject: str, device: str) -> dict:

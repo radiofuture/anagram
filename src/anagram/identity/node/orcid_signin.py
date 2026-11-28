@@ -128,23 +128,51 @@ class OrcidSignIn:
         loopback URL, or None for out of band (show the code on a page)."""
         db = self.identity.db
         with self.identity.lock:
-            row = one(db, "SELECT return_to, expires_at, orcid FROM flows WHERE id = ?", state)
-            if row is None or row[1] < self.identity.now() or row[2] is not None:
-                raise NodeError("sign-in flow is unknown, used, or expired")
-            try:
-                user = self.orcid.exchange(code, self.identity.cfg.callback_url)
-                orcid = validate_orcid(user.orcid)
-            except (OrcidError, FormatError) as exc:
-                raise Unauthorized(str(exc)) from exc
-            one_time = secrets.token_urlsafe(24)
-            db.execute(
-                "UPDATE flows SET orcid = ?, name = ?, code_hash = ? WHERE id = ?",
-                (orcid, user.name, secret_hash("flow", state, one_time), state),
+            row = one(
+                db,
+                "SELECT return_to, expires_at, orcid, callback_attempts FROM flows WHERE id = ?",
+                state,
             )
-        if row[0] == OOB:
+            if (
+                row is None
+                or row[1] < self.identity.now()
+                or row[2] is not None
+                or row[3] >= MAX_ATTEMPTS
+            ):
+                raise NodeError("sign-in flow is unknown, used, or expired")
+            return_to = row[0]
+            callback_url = self.identity.cfg.callback_url
+        try:
+            user = self.orcid.exchange(code, callback_url)
+            orcid = validate_orcid(user.orcid)
+        except (OrcidError, FormatError) as exc:
+            with self.identity.lock:
+                db.execute(
+                    "UPDATE flows SET callback_attempts = callback_attempts + 1"
+                    " WHERE id = ? AND orcid IS NULL",
+                    (state,),
+                )
+            raise Unauthorized(str(exc)) from exc
+        one_time = secrets.token_urlsafe(24)
+        with self.identity.lock:
+            cur = db.execute(
+                "UPDATE flows SET orcid = ?, name = ?, code_hash = ?"
+                " WHERE id = ? AND orcid IS NULL AND expires_at >= ? AND callback_attempts < ?",
+                (
+                    orcid,
+                    user.name,
+                    secret_hash("flow", state, one_time),
+                    state,
+                    self.identity.now(),
+                    MAX_ATTEMPTS,
+                ),
+            )
+            if cur.rowcount != 1:
+                raise NodeError("sign-in flow is unknown, used, or expired")
+        if return_to == OOB:
             return "", one_time
         q = urllib.parse.urlencode({"code": one_time, "state": state})
-        return f"{row[0]}?{q}", one_time
+        return f"{return_to}?{q}", one_time
 
     def exchange(self, flow_id: str, code: str, code_verifier: str) -> dict:
         idt = self.identity

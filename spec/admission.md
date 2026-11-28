@@ -103,7 +103,12 @@ Join request:
 ```
 
 The device key and the invite key each sign the request without its two
-signature fields (tag `anagram/v1/sign/lab-join`). The node puts the request
+signature fields (tag `anagram/v1/sign/lab-join`). When signing in at
+`POST /auth/invite` with `invite = "lab:<invite id>"`, the client MUST also
+include `invite_signature`: an Ed25519 signature by the invite signing key
+(`invite_pub`) over `canonical_json({"device_key", "invite", "nonce"})` with
+tag `anagram/v1/sign/lab-invite-signin`, proving possession of the invite
+seed. The node puts the request
 into a `join` entry. A `join` entry is valid when: the invite is in the
 roster and not revoked; the uses are below `max_uses`; `at` of the request is
 not after `expires_at`; the creator still has the role to make the invite;

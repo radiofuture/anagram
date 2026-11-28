@@ -149,7 +149,10 @@ def build_parser() -> argparse.ArgumentParser:
     from anagram.shell.cli.mcp import register as register_mcp
     from anagram.shell.cli.share import register as register_share
 
-    parser = argparse.ArgumentParser(prog="anagram", description="Private priority proofs.")
+    parser = argparse.ArgumentParser(
+        prog="anagram",
+        description="Local research library, priority proofs, encrypted sharing, and private matching.",
+    )
     parser.add_argument("--home", default=str(default_home()), help="data directory")
     parser.add_argument(
         "--plain-key-files",

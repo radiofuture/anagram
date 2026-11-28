@@ -82,3 +82,32 @@ def test_frontier_matches_root():
         assert frontier_root(f) == merkle.root(leaves[:n])
         f = frontier_append(f, n, leaf)
     assert frontier_root(f) == merkle.root(leaves)
+
+
+def test_inclusion_rejects_non_32_byte_hashes_and_split_attack():
+    # C3: 64-byte split attack — splitting a 64-byte concatenation (L0 || L1) into
+    # unequal-length leaf and sibling must not verify against node_hash(L0, L1).
+    l0 = merkle.leaf_hash(b"left")
+    l1 = merkle.leaf_hash(b"right")
+    expected_root = merkle.node_hash(l0, l1)
+    combined = l0 + l1
+    assert merkle.root_from_inclusion(combined[:16], 0, 2, [combined[16:]]) is None
+    assert not merkle.verify_inclusion(combined[:16], 0, 2, [combined[16:]], expected_root)
+    assert not merkle.verify_inclusion(combined, 0, 2, [b""], expected_root)
+    assert not merkle.verify_inclusion(b"", 0, 2, [combined], expected_root)
+    assert not merkle.verify_inclusion(l0, 0, 2, [l1], expected_root + b"\x00")
+    assert merkle.verify_inclusion(l0, 0, 2, [l1], expected_root)
+
+
+def test_consistency_rejects_bad_lengths_and_non_empty_zero_root():
+    hs = leaves(4)
+    r4 = merkle.root(hs)
+    sub = merkle.list_subtree(hs)
+    p24 = merkle.consistency_path(sub, 2, 4)
+    r2 = merkle.root(hs[:2])
+    assert merkle.verify_consistency(0, 4, [], merkle.EMPTY_ROOT, r4)
+    assert not merkle.verify_consistency(0, 4, [], b"\xaa" * 32, r4)
+    assert not merkle.verify_consistency(0, 0, [], b"\xaa" * 32, b"\xaa" * 32)
+    assert not merkle.verify_consistency(2, 4, p24, r2[:16], r4)
+    assert not merkle.verify_consistency(2, 4, p24, r2, r4 + b"\x00")
+    assert not merkle.verify_consistency(2, 4, [p24[0] + b"\x00"], r2, r4)

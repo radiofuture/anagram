@@ -6,7 +6,7 @@ import { search } from '../core/api.js';
 import { store } from '../core/store.js';
 import { mutate, useDraft, useResource } from '../core/resource.js';
 import { openHeight } from '../core/motion.js';
-import { ActionButton, ChoiceGroup, ErrorLine, Field, SearchSelect, TextInput } from '../components/index.js';
+import { ActionButton, Button, ChoiceGroup, ErrorLine, Field, SearchSelect, TextInput } from '../components/index.js';
 
 // A field that a choice reveals opens from height 0 (motion recipe D1).
 function Reveal({ show, children }) {
@@ -50,8 +50,11 @@ export function IdentityForm({ saveLabel, done, start, askName = true }) {
   const choice = lab || (ov.lab ? ov.lab.id : mine.length ? mine[0].id : start || 'new');
 
   const save = async () => {
-    if (!institution) throw new Error(t('details.need_institution'));
-    const body = { name, ror: institution.id, institution_name: institution.label };
+    const body = {
+      name,
+      ror: institution ? institution.id : null,
+      institution_name: institution ? institution.label : null,
+    };
     if (choice === 'new') {
       if (!newLab.trim()) throw new Error(t('details.need_lab'));
       body.new_lab = newLab;
@@ -71,6 +74,18 @@ export function IdentityForm({ saveLabel, done, start, askName = true }) {
       <//>`
     }
     <div class="ag-group">
+      ${
+        institution &&
+        !picked &&
+        html`
+        <p class="rf-ui-help">${t('details.institution_now', { name: institution.label })}
+          ${' '}
+          <${Button} kind="quiet" onClick=${() => {
+            setInstitution(null);
+            setPicked(true);
+          }}>${t('details.institution_clear')}<//>
+        </p>`
+      }
       <${SearchSelect} id="institution" label=${t('details.institution')}
         placeholder=${t('details.institution_placeholder')}
         search=${(q, signal) => search(`/api/institutions?q=${encodeURIComponent(q)}`, signal)}
@@ -80,7 +95,7 @@ export function IdentityForm({ saveLabel, done, start, askName = true }) {
             setPicked(true);
           }
         }} />
-      ${institution && !picked && html`<p class="rf-ui-help">${t('details.institution_now', { name: institution.label })}</p>`}
+      <p class="rf-ui-help">${t('details.institution_help')}</p>
     </div>
     <${ChoiceGroup} legend=${t('details.lab_legend')} name="lab" value=${choice} options=${options} onChange=${setLab} />
     <${Reveal} show=${choice === 'new'}>

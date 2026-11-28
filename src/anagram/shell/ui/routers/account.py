@@ -21,7 +21,7 @@ from fastapi import Body, FastAPI
 from fastapi.responses import Response
 
 from anagram.shell.ui.errors import UIError
-from anagram.shell.ui.flows import FLOWS
+from anagram.shell.ui.flows import live_flows
 from anagram.shell.ui.routers import UIContext, body_text
 
 
@@ -36,7 +36,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
     def identity(body: dict = Body(...)) -> dict:  # noqa: B008
         return account.set_identity(
             body_text(body, "name"),
-            body_text(body, "ror"),
+            body_text(body, "ror", required=False),
             body_text(body, "institution_name", required=False),
             lab_id=body_text(body, "lab_id", required=False),
             new_lab=body_text(body, "new_lab", required=False),
@@ -91,4 +91,4 @@ def register(app: FastAPI, ctx: UIContext) -> None:
 
     @app.get("/api/flows")
     def flows() -> list[dict]:
-        return list(FLOWS)
+        return live_flows(ctx.service)

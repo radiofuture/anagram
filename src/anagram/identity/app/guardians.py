@@ -30,6 +30,7 @@ import base64
 import binascii
 import itertools
 import json
+import os
 import secrets
 import shutil
 from collections.abc import Callable
@@ -283,7 +284,8 @@ def start_guardian_recovery(
     node = HttpNode(url, transport)
     trust = fetch_trust(node, fp)
     pending = home / PENDING_DIR
-    pending.mkdir(parents=True, exist_ok=True)
+    pending.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(pending, 0o700)
     ks = open_keystore(pending)
     key = SigningKey.from_seed(ks.get_or_create("temp-ed25519", lambda: secrets.token_bytes(32)))
     xkey = X25519Key.from_private_bytes(
@@ -314,6 +316,50 @@ def start_guardian_recovery(
 def pending_recovery(home: str | Path) -> dict | None:
     p = Path(home) / PENDING_DIR / "state.json"
     return json.loads(p.read_text()) if p.exists() else None
+
+
+def _collect_shares(
+    approvals: list[dict],
+    xkey,
+    rid: bytes,
+    subject: str,
+    backup_id: str,
+    k: int,
+) -> list[tuple[int, bytes]]:
+    shares: list[tuple[int, bytes]] = []
+    seen: set[tuple[int, bytes]] = set()
+    for a in approvals:
+        try:
+            validate_approval(a)
+            ct = base64.b64decode(a["ciphertext"], validate=True)
+            plain = hpke.open_sealed(xkey, ct, recovery_info(rid, a["index"]))
+            share = validate_share(loads_canonical(plain))
+        except (InvalidTag, CanonicalError, FormatError, ValueError, binascii.Error):
+            continue  # a bad approval: skip it
+        if (
+            share["owner"] == subject
+            and share["index"] == a["index"]
+            and share["backup_id"] == backup_id
+            and share["threshold"] == k
+        ):
+            pair = (share["index"], bytes.fromhex(share["share"]))
+            if pair not in seen:
+                seen.add(pair)
+                shares.append(pair)
+    return shares
+
+
+def _combine_shares(shares: list[tuple[int, bytes]], k: int, backup_id: str) -> bytes | None:
+    for combo in itertools.combinations(shares, k):
+        if len({idx for idx, _ in combo}) < k:
+            continue
+        try:
+            candidate = shamir.combine(list(combo), k)
+        except ValueError:
+            continue
+        if derive_backup_id(candidate) == backup_id:
+            return candidate
+    return None
 
 
 def finish_guardian_recovery(
@@ -351,30 +397,14 @@ def finish_guardian_recovery(
     approvals = info["approvals"]
     if len(approvals) < k:
         raise ClientError(f"{len(approvals)} of {k} guardian approvals so far; ask your guardians")
-    xkey = hpke.private_from_bytes(ks.get("temp-x25519"))
-    rid = bytes.fromhex(state["request_id"])
-    shares: list[tuple[int, bytes]] = []
-    for a in approvals:
-        try:
-            validate_approval(a)
-            ct = base64.b64decode(a["ciphertext"], validate=True)
-            plain = hpke.open_sealed(xkey, ct, recovery_info(rid, a["index"]))
-            share = validate_share(loads_canonical(plain))
-        except (InvalidTag, CanonicalError, FormatError, ValueError, binascii.Error):
-            continue  # a bad approval: skip it
-        if (
-            share["owner"] == subject
-            and share["index"] == a["index"]
-            and share["backup_id"] == info["backup_id"]
-            and share["threshold"] == k
-        ):
-            shares.append((share["index"], bytes.fromhex(share["share"])))
-    secret = None
-    for combo in itertools.combinations(shares, k):
-        candidate = shamir.combine(list(combo), k)
-        if derive_backup_id(candidate) == info["backup_id"]:
-            secret = candidate
-            break
+    raw_xkey = ks.get("temp-x25519")
+    if raw_xkey is None:
+        raise ClientError("the recovery request on this device has no temporary key; start again")
+    xkey = hpke.private_from_bytes(raw_xkey)
+    shares = _collect_shares(
+        approvals, xkey, bytes.fromhex(state["request_id"]), subject, info["backup_id"], k
+    )
+    secret = _combine_shares(shares, k, info["backup_id"])
     if secret is None:
         raise ClientError(f"the approvals do not give the secret (need {k} valid shares)")
     doc = node.call("GET", f"/recovery/backup/{info['backup_id']}")

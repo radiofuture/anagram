@@ -5,12 +5,12 @@
 // the lab record: each member types a key for a cloud model.
 // Routes: `GET /api/labs/{id}/settings`, `PUT /api/labs/{id}/models`.
 // Words: `copy/models.json`.
-import { html } from '../core/html.js';
+import { html, useState } from '../core/html.js';
 import { t } from '../core/copy.js';
 import { announce } from '../core/a11y.js';
 import { mutate, optional, useResource } from '../core/resource.js';
 import { provide } from '../core/slots.js';
-import { Facts, Section } from '../components/index.js';
+import { Facts, Section, StatusLine } from '../components/index.js';
 import { ModelForm, whereOf } from '../parts/model_form.js';
 
 const labIdOf = (lab) => (typeof lab === 'string' ? lab : lab && (lab.id || lab.lab_id));
@@ -27,6 +27,7 @@ function LabModels({ lab }) {
   const id = labIdOf(lab);
   const path = settingsPath(id);
   const st = optional(useResource(path, { topics: ['lab'] }));
+  const [saved, setSaved] = useState('');
   if (!st) return null;
   const p = (st.settings.models?.profiles || [])[0] || null;
   const labText = Boolean(p) && (st.settings.disclosure?.allow_external || []).length > 0;
@@ -46,12 +47,14 @@ function LabModels({ lab }) {
       <//>`;
   }
   const save = async ({ profile, lab_text: text }) => {
+    setSaved('');
     await mutate(
       'PUT',
       `/api/labs/${encodeURIComponent(id)}/models`,
       { profile, lab_text: text },
       { invalidate: [path] },
     );
+    setSaved(t('models.lab_saved'));
     announce(t('models.lab_saved'));
   };
   const key = `${JSON.stringify(p)}-${labText}`;
@@ -60,6 +63,7 @@ function LabModels({ lab }) {
       <p class="rf-ui-help">${t('models.lab_help')}</p>
       <${ModelForm} key=${key} lab=${true} start=${p} labText=${labText} onSubmit=${save}
         submitLabel=${t('models.lab_save')} busyLabel=${t('models.saving')} />
+      <${StatusLine} state="saved" text=${saved} />
     <//>`;
 }
 

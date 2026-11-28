@@ -61,12 +61,16 @@ def _call(method: str, url: str, body: dict | None = None, bearer: str | None = 
 
 
 def _pid_alive(pid: int) -> bool:
+    if not isinstance(pid, int) or pid <= 0:
+        return False
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
         return False
     except PermissionError:
         return True
+    except (OSError, SystemError, ValueError):
+        return False
     return True
 
 
@@ -219,7 +223,7 @@ def invite_of(url: str) -> str | None:
     (`admission.formats.parse_lab_invite_link`)."""
     from anagram.admission.api import parse_invite_url, parse_lab_invite_link
 
-    if not url.startswith(urlscheme.JOIN_PREFIX):
+    if not url.lower().startswith(urlscheme.JOIN_PREFIX):
         return None
     fragment = url[len(urlscheme.JOIN_PREFIX) :]
     if not _FRAGMENT.fullmatch(fragment):
@@ -242,9 +246,10 @@ def open_url(home: str | Path, argv: list[str], **kw) -> str:
     `anagram://` and has at most `MAX_URL` characters. An invite link of
     `anagram://join/<fragment>` goes to the app as a pending invite (the app
     chooses the screen). All other input opens the app with no data."""
+    args = [a for a in argv if not a.startswith("-psn_")]
     invite = None
-    if len(argv) == 1 and argv[0].startswith(urlscheme.PREFIX):
-        url = argv[0]
+    if len(args) == 1 and args[0].lower().startswith(urlscheme.PREFIX):
+        url = args[0]
         if len(url) <= urlscheme.MAX_URL:
             invite = invite_of(url)
     return open_app(home, invite=invite, **kw)

@@ -91,7 +91,7 @@ def start_server(app: Any, sock: Any, name: str) -> Any:
     until it serves."""
     import uvicorn
 
-    server = uvicorn.Server(uvicorn.Config(app, log_level="warning"))
+    server = uvicorn.Server(uvicorn.Config(app, log_level="warning", timeout_graceful_shutdown=2))
     thread = threading.Thread(
         target=server.run, kwargs={"sockets": [sock]}, daemon=True, name=f"demo-{name}"
     )
@@ -277,12 +277,12 @@ class DemoNetwork:
         self.tick()
 
     def stop(self) -> None:
+        for c in self.clients:
+            c.close()
         for server in reversed(self.servers):
             server.should_exit = True
         for server in reversed(self.servers):
             server.thread.join(15)
-        for c in self.clients:
-            c.close()
         for sock in self.socks.values():
             sock.close()
         if self._old_env is None:

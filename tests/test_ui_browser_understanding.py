@@ -273,8 +273,12 @@ def test_a_university_model_is_added_and_used(browser, with_ollama):
         # An outside model needs sources: the state says it in one line.
         expect(page.get_by_text(OUT_OF_SOURCES)).to_be_visible()
         expect(page.get_by_text(copy("models.sources", name="llm.example.edu"))).to_be_visible()
-        # Back to the local model: a local choice needs no yes.
+        # Back to the local model on both tasks: a local choice needs no yes.
+        answers = page.get_by_label(copy("models.answers"))
         reads.select_option(label="llama3.2")
+        answers.select_option(label="llama3.2")
+        expect(reads).to_have_value(LOCAL_ID)
+        expect(answers).to_have_value(LOCAL_ID)
         expect(page.get_by_text(OUT_OF_SOURCES)).to_have_count(0)
         # To the outside model again: one yes, next to the line of what leaves.
         reads.select_option(label="llm.example.edu")
@@ -283,6 +287,13 @@ def test_a_university_model_is_added_and_used(browser, with_ollama):
         page.get_by_role("button", name=copy("models.keep")).click()
         expect(use).to_have_count(0)
         expect(reads).to_have_value(LOCAL_ID)
+        # Confirming once for reads deduplicates consent when assigning answers too.
+        reads.select_option(label="llm.example.edu")
+        use.click()
+        expect(reads).to_have_value(re.compile("^llm-example-edu-"))
+        answers.select_option(label="llm.example.edu")
+        expect(use).to_have_count(0)
+        expect(answers).to_have_value(re.compile("^llm-example-edu-"))
         assert faults == []
     finally:
         ctx.close()
@@ -395,6 +406,9 @@ def test_assistant_access_is_added_and_stopped(browser, person):
         assert '"mcpServers"' in setup.input_value()
         shot(page, "assistant-1440-light")
         page.get_by_role("button", name=copy("assistant.stop_name", name=name)).click()
+        sheet = page.get_by_role("dialog")
+        expect(sheet).to_contain_text(copy("assistant.stop_confirm_title", name=name))
+        sheet.get_by_role("button", name=copy("assistant.stop_confirm_action")).click()
         expect(page.get_by_role("button", name=copy("assistant.add", name=name))).to_be_visible()
         assert faults == []
     finally:

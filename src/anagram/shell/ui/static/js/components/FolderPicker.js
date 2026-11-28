@@ -11,7 +11,7 @@ import { ErrorLine } from './Status.js';
  * @param {{onPick: (path: string) => Promise<void>, onCancel: () => void,
  *   pickLabel?: string, pickBusyLabel?: string}} props
  */
-export function FolderPicker({ onPick, onCancel, pickLabel, pickBusyLabel }) {
+export function FolderPicker({ onPick, onCancel, pickLabel, pickBusyLabel, kind }) {
   const [here, setHere] = useState(null);
   const [error, setError] = useState('');
   const title = useRef(null);
@@ -30,11 +30,19 @@ export function FolderPicker({ onPick, onCancel, pickLabel, pickBusyLabel }) {
     if (here && title.current) title.current.focus();
   }, [here?.path]);
   if (!here) return html`<div class="ag-picker"><${ErrorLine} text=${error} /></div>`;
+  const badges = [];
+  if (here.is_git) badges.push(t('common.picker.is_git'));
+  if (here.is_obsidian) badges.push(t('common.picker.is_obsidian'));
+  let kindNote = '';
+  if (kind === 'git' && !here.is_git) kindNote = t('common.picker.not_git');
+  else if (kind === 'obsidian' && !here.is_obsidian) kindNote = t('common.picker.not_obsidian');
   return html`
     <div class="ag-picker">
       <h2 class="ag-subtitle" tabindex="-1" ref=${title}>${t('common.picker.title')}</h2>
       <p class="ag-picker-place">${baseName(here.path) || homePath(here.path)}
         <small class="rf-ui-help">${homePath(here.path)}</small></p>
+      ${badges.length > 0 && html`<p class="rf-ui-help ag-picker-badges">${badges.join(' · ')}</p>`}
+      ${kindNote && html`<p class="rf-ui-help">${kindNote}</p>`}
       <div class="rf-ui-actions">
         <${ActionButton} label=${pickLabel || t('common.picker.pick')} busyLabel=${pickBusyLabel || t('common.picker.pick_busy')}
           run=${() => onPick(here.path)} errorTo=${setError} />

@@ -31,11 +31,12 @@ from typing import Protocol
 
 from anagram.core.canonical import JsonObject, canonical_json
 from anagram.core.crypto import merkle
+from anagram.core.crypto.hashing import tagged_hash
 from anagram.core.crypto.signing import SigningKey
 from anagram.core.shared_db import SharedDB
 from anagram.network.formats.strict import Refused, parse_time
 from anagram.network.matching.trust.attestation import verify_evidence
-from anagram.network.matching.trust.entries import check_entry, entry_digest, sign_entry
+from anagram.network.matching.trust.entries import TAG_ENTRY, check_entry, entry_digest, sign_entry
 from anagram.network.matching.trust.issuance import EXPIRY_WINDOW
 from anagram.network.matching.trust.lines import (
     MAX_LEASE,
@@ -108,18 +109,21 @@ class LogStore:
         )
 
 
-def reader_refuses(entries: list[JsonObject], roots: Roots) -> bool:
-    """An Anagram witness refuses a log that forks a line or logs one line
-    ID twice (section 2.4). Unauthorized `enclave_line` entries are ignored."""
-    view = LogView(entries, [0] * len(entries))
+def _view_refuses(view: LogView, roots: Roots) -> bool:
     lines = [
         e["line_id"]
-        for e in entries
+        for e in view.entries
         if e["kind"] == "enclave_line" and e["signer"] == roots.release_key
     ]
     if len(lines) != len(set(lines)):
         return True
     return any(line_forked(view, line, roots) for line in set(lines))
+
+
+def reader_refuses(entries: list[JsonObject], roots: Roots) -> bool:
+    """An Anagram witness refuses a log that forks a line or logs one line
+    ID twice (section 2.4). Unauthorized `enclave_line` entries are ignored."""
+    return _view_refuses(LogView(entries, [0] * len(entries)), roots)
 
 
 def check_failover(view: LogView, line_id: str, writer: str, roots: Roots, now: int) -> JsonObject:
@@ -188,12 +192,20 @@ class EntryWitness:
     store: LogStore | None = None  # the entries of a reading witness
     entries: list[JsonObject] = field(default_factory=list)
     _witness: LogWitness = field(init=False, repr=False)
+    _frontier: list[bytes] = field(init=False, repr=False)
+    _digests: list[bytes] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         signer = NoteSigner(self.name, self.cosign_key, ALG_COSIGNATURE_V1)
         self._witness = LogWitness(signer, self.state, [self.log_verifier], self.clock)
         if self.store is not None:
             self.entries = self.store.entries()
+        self._frontier = []
+        self._digests = []
+        for i, e in enumerate(self.entries):
+            raw = canonical_json(e)
+            self._frontier = merkle.frontier_append(self._frontier, i, merkle.leaf_hash(raw))
+            self._digests.append(tagged_hash(TAG_ENTRY, raw))
 
     @property
     def signer(self) -> NoteSigner:
@@ -215,20 +227,27 @@ class EntryWitness:
             cp = open_checkpoint(note, [self.log_verifier]).checkpoint
         except ValueError as exc:  # NoteError
             raise WitnessRefused("bad checkpoint note") from exc
-        leaves = [merkle.leaf_hash(canonical_json(e)) for e in candidate]
-        if cp.size != len(candidate) or merkle.root(leaves) != cp.root:
+        raws = [canonical_json(e) for e in new]
+        frontier = self._frontier
+        for offset, raw in enumerate(raws):
+            frontier = merkle.frontier_append(frontier, old + offset, merkle.leaf_hash(raw))
+        if cp.size != len(candidate) or merkle.frontier_root(frontier) != cp.root:
             raise WitnessRefused("the entries do not give the checkpoint root")
         try:
             for e in new:
                 check_entry(e)
         except Refused as exc:
             raise WitnessRefused(f"bad entry: {exc}") from exc
-        if reader_refuses(candidate, self.roots):
+        digests = self._digests + [tagged_hash(TAG_ENTRY, raw) for raw in raws]
+        view = LogView.from_parts(candidate, [0] * len(candidate), digests, frontier)
+        if _view_refuses(view, self.roots):
             raise WitnessRefused("the checkpoint forks a line or logs a line twice")
         line = self._witness.cosign(note, old, proof)
         if self.store is not None:
             self.store.add_entries(old, new)
         self.entries = candidate
+        self._frontier = frontier
+        self._digests = digests
         return line
 
     def sign_entry_cosign(self, entry: JsonObject) -> JsonObject:
@@ -266,6 +285,7 @@ class TransparencyLog:
         self.sizes: list[int] = []  # the tree size of each note
         self.evidence: dict[str, JsonObject] = {}  # evidence digest -> attestation document
         self._leaves: list[bytes] = []
+        self._frontier: list[bytes] = []
         self._view: LogView | None = None
         self._cosigned: dict[str, int] = {c.name: 0 for c in cosigners}
         if store is not None:
@@ -275,7 +295,12 @@ class TransparencyLog:
         """The log trusts its own storage: it rebuilds its view from the
         stored notes without checking each root again."""
         self.entries = store.entries()
-        self._leaves = [merkle.leaf_hash(canonical_json(e)) for e in self.entries]
+        raws = [canonical_json(e) for e in self.entries]
+        self._leaves = [merkle.leaf_hash(r) for r in raws]
+        frontier: list[bytes] = []
+        for i, leaf in enumerate(self._leaves):
+            frontier = merkle.frontier_append(frontier, i, leaf)
+        self._frontier = frontier
         self.evidence = store.evidence()
         notes = store.notes()
         self.sizes = [s for s, _ in notes]
@@ -286,14 +311,25 @@ class TransparencyLog:
         for size, text in notes:
             upper = quorum_times(text, self.roots)[3]
             logged_by += [upper] * (size - len(logged_by))
-        self._view = LogView(self.entries[: self.sizes[-1]], logged_by)
+        n = self.sizes[-1]
+        view_frontier: list[bytes] = []
+        for i, leaf in enumerate(self._leaves[:n]):
+            view_frontier = merkle.frontier_append(view_frontier, i, leaf)
+        self._view = LogView.from_parts(
+            self.entries[:n],
+            logged_by,
+            [tagged_hash(TAG_ENTRY, r) for r in raws[:n]],
+            view_frontier,
+        )
 
     # ---- write ----------------------------------------------------------
 
     def _add(self, entry: JsonObject) -> int:
         index = len(self.entries)
+        leaf = merkle.leaf_hash(canonical_json(entry))
         self.entries.append(entry)
-        self._leaves.append(merkle.leaf_hash(canonical_json(entry)))
+        self._leaves.append(leaf)
+        self._frontier = merkle.frontier_append(self._frontier, index, leaf)
         if self.store is not None:
             self.store.add_entries(index, [entry])
         return index
@@ -435,7 +471,7 @@ class TransparencyLog:
         size = len(self.entries)
         tree = merkle.list_subtree(self._leaves)
         note = sign_checkpoint(
-            Checkpoint(self.origin, size, merkle.root(self._leaves)), self.signer
+            Checkpoint(self.origin, size, merkle.frontier_root(self._frontier)), self.signer
         )
         lines = [line for c in self.cosigners if (line := self._ask(c, note, tree, size))]
         signed = add_signature_lines(note, lines)

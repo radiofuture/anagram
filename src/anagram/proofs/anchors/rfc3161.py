@@ -31,7 +31,7 @@ from collections.abc import Callable
 
 from asn1crypto import cms, tsp
 from cryptography import x509
-from cryptography.exceptions import InvalidSignature
+from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519, padding, rsa
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -132,33 +132,94 @@ def _verify_sig(cert: x509.Certificate, algo: str, hash_name: str, sig: bytes, d
         raise TSAError(f"unsupported signature algorithm: {algo}")
 
 
+def _check_issuer_cert(
+    cand: x509.Certificate,
+    intermediates: int,
+    *,
+    is_root: bool,
+    when,
+) -> bool:
+    """RFC 5280 checks on an issuer certificate (intermediate or pinned root)."""
+    if not cand.not_valid_before_utc <= when <= cand.not_valid_after_utc:
+        return False
+    try:
+        bc = cand.extensions.get_extension_for_class(x509.BasicConstraints).value
+    except x509.ExtensionNotFound:
+        return False
+    if not bc.ca:
+        return False
+    if bc.path_length is not None and intermediates > bc.path_length:
+        return False
+    try:
+        ku = cand.extensions.get_extension_for_class(x509.KeyUsage).value
+    except x509.ExtensionNotFound:
+        ku = None
+    if ku is not None and not ku.key_cert_sign:
+        return False
+    if not is_root:
+        try:
+            eku = cand.extensions.get_extension_for_class(x509.ExtendedKeyUsage).value
+        except x509.ExtensionNotFound:
+            eku = None
+        if eku is not None and (
+            ExtendedKeyUsageOID.TIME_STAMPING not in eku
+            and ExtendedKeyUsageOID.ANY_EXTENDED_KEY_USAGE not in eku
+        ):
+            return False
+    return True
+
+
+def _find_root(
+    current: x509.Certificate,
+    candidates: list[x509.Certificate],
+    root_map: dict[bytes, x509.Certificate],
+    when,
+    intermediates: int,
+    seen: frozenset[bytes],
+) -> x509.Certificate | None:
+    if intermediates >= 8:
+        return None
+    for cand in candidates:
+        if cand.subject != current.issuer:
+            continue
+        cand_fp = cand.fingerprint(hashes.SHA256())
+        if cand_fp in seen:
+            continue
+        is_root = cand_fp in root_map
+        if not _check_issuer_cert(cand, intermediates, is_root=is_root, when=when):
+            continue
+        try:
+            current.verify_directly_issued_by(cand)
+        except (ValueError, TypeError, InvalidSignature, UnsupportedAlgorithm):
+            continue
+        if is_root:
+            return root_map[cand_fp]
+        found = _find_root(cand, candidates, root_map, when, intermediates + 1, seen | {cand_fp})
+        if found is not None:
+            return found
+    return None
+
+
 def _chain_to_root(
     leaf: x509.Certificate,
     pool: list[x509.Certificate],
     roots: list[x509.Certificate],
     when,
-) -> str:
-    root_fps = {r.fingerprint(hashes.SHA256()) for r in roots}
-    candidates = roots + pool
-    current = leaf
-    for _ in range(8):
-        if not current.not_valid_before_utc <= when <= current.not_valid_after_utc:
-            raise TSAError(f"certificate not valid at genTime: {current.subject.rfc4514_string()}")
-        if current.fingerprint(hashes.SHA256()) in root_fps:
-            return current.subject.rfc4514_string()
-        issuer = None
-        for cand in candidates:
-            if cand.subject == current.issuer and cand != current:
-                try:
-                    current.verify_directly_issued_by(cand)
-                except (ValueError, TypeError, InvalidSignature):
-                    continue
-                issuer = cand
-                break
-        if issuer is None:
-            raise TSAError("no chain to a pinned TSA root")
-        current = issuer
-    raise TSAError("certificate chain too long")
+) -> x509.Certificate:
+    if not leaf.not_valid_before_utc <= when <= leaf.not_valid_after_utc:
+        raise TSAError(f"certificate not valid at genTime: {leaf.subject.rfc4514_string()}")
+    try:
+        leaf_bc = leaf.extensions.get_extension_for_class(x509.BasicConstraints).value
+    except x509.ExtensionNotFound:
+        leaf_bc = None
+    if leaf_bc is not None and leaf_bc.ca:
+        raise TSAError("signer certificate must not be a CA")
+    root_map = {r.fingerprint(hashes.SHA256()): r for r in roots}
+    leaf_fp = leaf.fingerprint(hashes.SHA256())
+    found = _find_root(leaf, roots + pool, root_map, when, 0, frozenset({leaf_fp}))
+    if found is None:
+        raise TSAError("no chain to a pinned TSA root")
+    return found
 
 
 def _signer_cert(certs: list[x509.Certificate], sid: cms.SignerIdentifier) -> x509.Certificate:
@@ -248,15 +309,25 @@ def verify_token(token_der: bytes, digest: bytes, roots: list[x509.Certificate])
 
         if not roots:
             raise TSAError("no TSA roots pinned")
-        root_name = _chain_to_root(signer, certs, list(roots), gen_time)
-    except (TSAError, InvalidSignature, ValueError, KeyError, TypeError, AttributeError) as exc:
+        root_cert = _chain_to_root(signer, certs, list(roots), gen_time)
+    except (
+        TSAError,
+        InvalidSignature,
+        UnsupportedAlgorithm,
+        ValueError,
+        KeyError,
+        TypeError,
+        AttributeError,
+        IndexError,
+        OverflowError,
+    ) as exc:
         return AnchorCheck("rfc3161", False, detail=f"{type(exc).__name__}: {exc}")
-    fingerprint = signer.fingerprint(hashes.SHA256()).hex()
+    fingerprint = root_cert.fingerprint(hashes.SHA256()).hex()
     return AnchorCheck(
         "rfc3161",
         True,
         time=gen_time,
-        detail=f"TSA chain to {root_name}",
+        detail=f"TSA chain to {root_cert.subject.rfc4514_string()}",
         source=f"rfc3161:{fingerprint}",
     )
 

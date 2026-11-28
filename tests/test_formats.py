@@ -31,6 +31,11 @@ def test_canonical_rfc8785_escapes_and_unicode():
     s = '€$\u000f\nA\'B"\\\\"/'
     assert canonical.canonical_json(s) == ('"€$\\u000f\\nA\'B\\"\\\\\\\\\\"/"').encode()
     assert canonical.canonical_json("\x7f ") == '"\x7f "'.encode()
+    # Every control character U+0000..U+001F matches RFC 8785 §3.2.2.2.
+    short = {0x08: "\\b", 0x09: "\\t", 0x0A: "\\n", 0x0C: "\\f", 0x0D: "\\r"}
+    for cp in range(0x20):
+        want = f'"{short.get(cp, f"\\u{cp:04x}")}"'.encode()
+        assert canonical.canonical_json(chr(cp)) == want
 
 
 def test_canonical_utf16_key_order():
@@ -41,7 +46,9 @@ def test_canonical_utf16_key_order():
     assert out.index("a") < out.index("\U0001f600") < out.index("דּ")
 
 
-@pytest.mark.parametrize("bad", [1.5, float("nan"), 2**53, -(2**53), {1: 2}, b"x", "\ud800"])
+@pytest.mark.parametrize(
+    "bad", [1.5, float("nan"), 2**53, -(2**53), {1: 2}, b"x", "\ud800", "\udfff", {"\ud800": 1}]
+)
 def test_canonical_rejects(bad):
     with pytest.raises(canonical.CanonicalError):
         canonical.canonical_json(bad)
@@ -51,6 +58,10 @@ def test_loads_strict():
     assert canonical.loads_canonical(b'{"a":1}') == {"a": 1}
     with pytest.raises(canonical.CanonicalError):
         canonical.loads_canonical(b'{"a": 1}')
+    with pytest.raises(canonical.CanonicalError):
+        canonical.loads_canonical(b'{"a":9007199254740992}')
+    with pytest.raises(canonical.CanonicalError):
+        canonical.loads_canonical(b'"\\ud800"')
     with pytest.raises(canonical.CanonicalError):
         canonical.loads(b'{"a":1,"a":2}')
     with pytest.raises(canonical.CanonicalError):

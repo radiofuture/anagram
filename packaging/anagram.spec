@@ -23,15 +23,23 @@ from PyInstaller.utils.hooks import (
 
 HERE = Path(SPECPATH)  # noqa: F821 - set by PyInstaller
 PRODUCT = HERE.parent
+SRC = str(PRODUCT / "src")
+if SRC not in sys.path:
+    sys.path.insert(0, SRC)
 
 datas = []
 binaries = []
 hiddenimports = []
 
 # Our package: the static UI, the brand copy, the node page scripts, the
-# vocabulary, the TSA roots, the spec vectors.
-datas += collect_data_files("anagram", excludes=["**/__pycache__/*"])
-hiddenimports += collect_submodules("anagram")
+# vocabulary, the TSA roots. Exclude test vectors and simulation fixtures.
+datas += collect_data_files(
+    "anagram",
+    excludes=["**/__pycache__/*", "sim/data/kinds_*.json", "vectors/**"],
+)
+hiddenimports += [
+    m for m in collect_submodules("anagram") if m != "anagram.vectors" and not m.startswith("anagram.vectors.")
+]
 
 # Native libraries that are loaded by path (not found by the import graph).
 binaries += collect_dynamic_libs("sqlite_vec")
@@ -59,11 +67,11 @@ hiddenimports += [
 
 a = Analysis(  # noqa: F821
     [str(HERE / "entry.py")],
-    pathex=[str(PRODUCT / "src")],
+    pathex=[SRC],
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
-    excludes=["tkinter", "pytest", "playwright"],
+    excludes=["tkinter", "pytest", "playwright", "anagram.vectors"],
     noarchive=False,
 )
 pyz = PYZ(a.pure)  # noqa: F821
@@ -74,12 +82,15 @@ exe = EXE(  # noqa: F821
     exclude_binaries=True,
     name="Anagram",
     console=False,
-    argv_emulation=sys.platform == "darwin",  # a link click arrives as an argument
+    # H29: argv_emulation forwards macOS OpenURL Apple Events into sys.argv;
+    # keep disabled outside signed bundles where not needed, or migrate to a
+    # native Apple Event handler when macOS signing/notarization is added.
+    argv_emulation=sys.platform == "darwin",
     codesign_identity=os.environ.get("ANAGRAM_CODESIGN_IDENTITY") or None,
 )
 coll = COLLECT(exe, a.binaries, a.datas, name="Anagram")  # noqa: F821
 
-if sys.platform == "darwin" and not os.environ.get("ANAGRAM_NO_BUNDLE"):
+if sys.platform == "darwin" and os.environ.get("ANAGRAM_NO_BUNDLE") in (None, "", "0"):
     with open(HERE / "macos" / "Info.plist", "rb") as f:
         info = plistlib.load(f)
     from anagram.core.version import VERSION  # the one source of the version

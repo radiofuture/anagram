@@ -79,10 +79,10 @@
   "stop_invite_action": "Cancel the invite",
   "stopped_title": "{name} cannot open this finding now",
   "rekey_text": {
-    "one": "You can also make a new version with a new key for the one person who keeps access. Anagram then removes the old encrypted copy from the node.",
-    "other": "You can also make a new version with a new key for the {n} people who keep access. Anagram then removes the old encrypted copy from the node."
+    "one": "You can also make a new version with a new key for the one person who keeps access. Anagram then removes the old encrypted copy from the community server.",
+    "other": "You can also make a new version with a new key for the {n} people who keep access. Anagram then removes the old encrypted copy from the community server."
   },
-  "rekey_none": "You can also make a new version with a new key. Anagram then removes the old encrypted copy from the node.",
+  "rekey_none": "You can also make a new version with a new key. Anagram then removes the old encrypted copy from the community server.",
   "rekey_action": "Make a new version now",
   "rekey_busy": "Making a new version…",
   "rekey_yes": "Make the new version",
@@ -94,7 +94,7 @@
   "about_opened": "A read record shows that the app of the reader opened the finding. It does not show that a person read it.",
   "about_copy": "A reader can copy what they read and show it to another person. No record shows that.",
   "about_changed": "A changed app must sign a read record to get the finding. After that, it can read its copy with no more records.",
-  "about_node": "The node can refuse to send the finding, or hide later records from you. It cannot make a read record for a reader.",
+  "about_node": "The community server can refuse to send the finding, or hide later records from you. It cannot make a read record for a reader.",
   "about_public": "A public finding has no read record.",
   "rings_lead": "Rings go from your closest people outward. When you share with a ring, the rings inside it get the finding too.",
   "ring_lab": "Your lab members.",

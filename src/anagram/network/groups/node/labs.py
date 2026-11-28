@@ -95,6 +95,7 @@ class LabService:
         self.may_create = may_create
         self._lock = threading.RLock()
         self._changed = threading.Condition(self._lock)
+        self._stopping = False
         self._db = SharedDB(db_path)
         self._db.executescript(_SCHEMA)
         self._states: dict[str, labfmt.LabState] = {}
@@ -640,6 +641,12 @@ class LabService:
 
     # ------------------------------------------------------------ changes
 
+    def stop(self) -> None:
+        """Wake any waiting `/labs/changes` long-poll handlers for shutdown."""
+        with self._lock:
+            self._stopping = True
+            self._changed.notify_all()
+
     def changes(self, subject: str, after: int = 0, wait: float = 0) -> dict:
         """Changes of the labs of this person after `after`. With `wait`
         (0 to 25 seconds), hold the request until a change exists or the time
@@ -659,7 +666,7 @@ class LabService:
                     ).fetchall()
                 rows = sorted(rows)[:500]
                 left = deadline - time.monotonic()
-                if rows or left <= 0:
+                if rows or left <= 0 or self._stopping:
                     break
                 self._changed.wait(left)
         return {

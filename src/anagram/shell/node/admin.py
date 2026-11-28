@@ -55,6 +55,9 @@ FLOW_COOKIE = "anagram_admin_flow"
 SESSION_COOKIE = "anagram_admin"
 FLOW_TTL = 600
 SESSION_TTL = 12 * 3600
+MAX_ACTIVE_FLOWS = 500
+RATE_WINDOW_S = 60
+RATE_LIMIT = 30
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS flows (
@@ -66,6 +69,8 @@ CREATE TABLE IF NOT EXISTS sessions (
 -- R8: a one-time link from the app (no ORCID). Only the hash is kept.
 CREATE TABLE IF NOT EXISTS enter_codes (
     code_hash TEXT PRIMARY KEY, subject TEXT NOT NULL, expires_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS meta (
+    key TEXT PRIMARY KEY, value TEXT NOT NULL);
 """
 ENTER_TTL = 120
 
@@ -82,6 +87,10 @@ def _h(*parts: str) -> str:
 
 
 class AdminDenied(Exception):
+    pass
+
+
+class AdminRateLimited(AdminDenied):
     pass
 
 
@@ -107,11 +116,51 @@ class Admin:
         self.log = log
         self.clock = clock
         self._lock = threading.Lock()
+        self._rate: dict[str, list[float]] = {}
         self._db = SharedDB(db_path)
         self._db.executescript(_SCHEMA)
 
     def now(self) -> int:
         return int(self.clock())
+
+    @property
+    def orcid_enabled(self) -> bool:
+        return bool(getattr(self.identity.orcid_signin.orcid, "enabled", True))
+
+    def check_rate(self, bucket: str, client_key: str) -> None:
+        """Per-client sliding window rate limit for unauthenticated admin endpoints."""
+        now = float(self.clock())
+        cutoff = now - RATE_WINDOW_S
+        key = f"{bucket}:{client_key}"
+        with self._lock:
+            hits = [t for t in self._rate.get(key, ()) if t > cutoff]
+            if len(hits) >= RATE_LIMIT:
+                self._rate[key] = hits
+                raise AdminRateLimited("Too many sign-in attempts. Try again in a minute.")
+            hits.append(now)
+            self._rate[key] = hits
+            if len(self._rate) > 1000:
+                self._rate = {
+                    k: [t for t in v if t > cutoff]
+                    for k, v in self._rate.items()
+                    if any(t > cutoff for t in v)
+                }
+
+    def _decoy_secret(self) -> bytes:
+        with self._lock:
+            row = self._db.execute("SELECT value FROM meta WHERE key = 'pk_decoy'").fetchone()
+            if row is not None:
+                return bytes.fromhex(row[0])
+            raw = secrets.token_bytes(32)
+            self._db.execute(
+                "INSERT OR IGNORE INTO meta (key, value) VALUES ('pk_decoy', ?)", (raw.hex(),)
+            )
+            row = self._db.execute("SELECT value FROM meta WHERE key = 'pk_decoy'").fetchone()
+            return bytes.fromhex(row[0]) if row is not None else raw
+
+    def _decoy_credential_id(self, orcid: str) -> str:
+        digest = hmac.new(self._decoy_secret(), orcid.encode(), hashlib.sha256).digest()[:16]
+        return base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
 
     @property
     def public_url(self) -> str:
@@ -132,6 +181,13 @@ class Admin:
         identity service. The page has no device key, so the node makes a
         one-time key and PKCE verifier for this flow and drops them after.
         Return (authorize URL, binder for the flow cookie)."""
+        if not self.orcid_enabled:
+            raise AdminDenied("ORCID is not configured on this node.")
+        with self._lock:
+            self._db.execute("DELETE FROM flows WHERE expires_at < ?", (self.now(),))
+            count = self._db.execute("SELECT COUNT(*) FROM flows").fetchone()[0]
+            if count >= MAX_ACTIVE_FLOWS:
+                raise AdminRateLimited("Too many sign-in attempts. Try again in a minute.")
         binder, verifier = secrets.token_urlsafe(24), secrets.token_urlsafe(48)
         challenge = (
             base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
@@ -148,11 +204,11 @@ class Admin:
             )
         )
         flow_id = started["flow_id"]
-        self._db.execute("DELETE FROM flows WHERE expires_at < ?", (self.now(),))
-        self._db.execute(
-            "INSERT INTO flows (id, binder_hash, verifier, expires_at) VALUES (?, ?, ?, ?)",
-            (flow_id, _h("flow", flow_id, binder), verifier, self.now() + FLOW_TTL),
-        )
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO flows (id, binder_hash, verifier, expires_at) VALUES (?, ?, ?, ?)",
+                (flow_id, _h("flow", flow_id, binder), verifier, self.now() + FLOW_TTL),
+            )
         return started["authorize_url"], binder
 
     def owns(self, state: str) -> bool:
@@ -188,10 +244,18 @@ class Admin:
             orcid = validate_orcid(orcid.strip())
         except FormatError as exc:
             raise AdminDenied("Type a valid ORCID iD.") from exc
-        # An unknown ORCID iD gets options for a random pid (no passkeys), so
-        # the answer does not show who is a member.
-        subject = self.identity.subject_for_orcid(orcid) or new_pid()
-        return self.identity.passkeys.login_options(subject)
+        # Only reveal real credentials for an organizer; unknown or non-organizer
+        # ORCIDs get a deterministic synthetic credential so the response shape
+        # never leaks who is a member or who has registered a passkey.
+        found = self.identity.subject_for_orcid(orcid)
+        subject = found if (found is not None and self._is_organizer(found)) else new_pid()
+        out = self.identity.passkeys.login_options(subject)
+        opts = out.get("options")
+        if isinstance(opts, dict) and not opts.get("allowCredentials"):
+            opts["allowCredentials"] = [
+                {"id": self._decoy_credential_id(orcid), "type": "public-key"}
+            ]
+        return out
 
     def passkey_verify(self, challenge_id: str, credential: dict) -> tuple[str, str]:
         try:
@@ -307,8 +371,15 @@ def _facts(rows) -> str:
     )
 
 
-def login_page(community: str, message: str = "") -> str:
+def login_page(community: str, message: str = "", *, orcid_enabled: bool = True) -> str:
     msg = f"<p class=ag-node-warn role=alert>{html.escape(message)}</p>" if message else ""
+    orcid_form = (
+        "<form class=ag-node-form method=post action=/admin/login>"
+        "<button class='rf-ui-button rf-ui-button--secondary'>Sign in with ORCID</button>"
+        "</form>"
+        if orcid_enabled
+        else ""
+    )
     return _page(
         f"{community}: organizer sign-in",
         "<p class=ag-node-eyebrow>Organizer page</p>"
@@ -316,9 +387,7 @@ def login_page(community: str, message: str = "") -> str:
         "<p class=ag-node-lead>Only an organizer of this community can sign in. "
         "Open this page from Anagram: Account, then Organizer page.</p>"
         f"{msg}"
-        "<form class=ag-node-form method=post action=/admin/login>"
-        "<button class='rf-ui-button rf-ui-button--secondary'>Sign in with ORCID</button>"
-        "</form>"
+        f"{orcid_form}"
         "<form id=pk class='ag-node-form ag-node-or'>"
         "<div class=ag-node-inline><p class=rf-ui-field><label for=pk-orcid>ORCID iD</label>"
         "<input class=rf-ui-input id=pk-orcid name=orcid required autocomplete=username "
@@ -487,9 +556,19 @@ def json_headers(resp: Response) -> Response:
     return _headers(resp)
 
 
-def admin_router(admin: Admin) -> APIRouter:  # noqa: C901  nested route handlers count here
+def _client_key(request: Request) -> str:
+    return request.client.host if request.client and request.client.host else "unknown"
+
+
+def _login_html(admin: Admin, message: str = "", status: int = 200) -> Response:
+    return _html(
+        login_page(admin.identity.cfg.community, message, orcid_enabled=admin.orcid_enabled),
+        status,
+    )
+
+
+def admin_router(admin: Admin) -> APIRouter:  # noqa: C901, PLR0915
     router = APIRouter(prefix="/admin")
-    community = admin.identity.cfg.community
 
     def set_session(resp: Response, token: str) -> None:
         resp.set_cookie(
@@ -506,7 +585,7 @@ def admin_router(admin: Admin) -> APIRouter:  # noqa: C901  nested route handler
     def page(request: Request) -> Response:
         sess = current(admin, request)
         if sess is None:
-            return _html(login_page(community))
+            return _login_html(admin)
         return _html(dashboard(admin.status(), sess[0], sess[1]))
 
     @router.get("/enter")
@@ -514,7 +593,7 @@ def admin_router(admin: Admin) -> APIRouter:  # noqa: C901  nested route handler
         try:
             token, _ = admin.enter(code)
         except AdminDenied as exc:
-            return _html(login_page(community, str(exc)), 403)
+            return _login_html(admin, str(exc), 403)
         resp = RedirectResponse("/admin", status_code=303)
         set_session(resp, token)
         return _headers(resp)
@@ -535,11 +614,17 @@ def admin_router(admin: Admin) -> APIRouter:  # noqa: C901  nested route handler
 
     @router.post("/login")
     def login(request: Request) -> Response:
-        if not same_origin(admin, request):
-            return _html(
-                login_page(community, "This sign-in came from another site. Start again here."), 403
-            )
-        url, binder = admin.start_orcid()
+        if not same_origin(admin, request, required=True):
+            return _login_html(admin, "This sign-in came from another site. Start again here.", 403)
+        if not admin.orcid_enabled:
+            return _login_html(admin, "ORCID is not configured on this node.", 503)
+        try:
+            admin.check_rate("login", _client_key(request))
+            url, binder = admin.start_orcid()
+        except AdminRateLimited as exc:
+            return _login_html(admin, str(exc), 429)
+        except AdminDenied as exc:
+            return _login_html(admin, str(exc), 403)
         resp = RedirectResponse(url, status_code=303)
         resp.set_cookie(
             FLOW_COOKIE,
@@ -557,7 +642,10 @@ def admin_router(admin: Admin) -> APIRouter:  # noqa: C901  nested route handler
         if not same_origin(admin, request, required=True):
             return JSONResponse({"detail": "wrong origin"}, status_code=403)
         try:
+            admin.check_rate("passkey", _client_key(request))
             return JSONResponse(admin.passkey_options(str(body.get("orcid", ""))))
+        except AdminRateLimited as exc:
+            return JSONResponse({"detail": str(exc)}, status_code=429)
         except (AdminDenied, NodeError) as exc:
             return JSONResponse({"detail": str(exc)}, status_code=400)
 
@@ -585,7 +673,7 @@ def admin_router(admin: Admin) -> APIRouter:  # noqa: C901  nested route handler
         fields = await form(request)
         sess = checked(admin, request, fields.get("csrf", ""))
         if sess is None:
-            return _html(login_page(community, "Sign in again."), 403)
+            return _login_html(admin, "Sign in again.", 403)
         try:
             days = min(max(float(fields.get("days", "7")), 1), 30)
         except ValueError:
@@ -595,8 +683,9 @@ def admin_router(admin: Admin) -> APIRouter:  # noqa: C901  nested route handler
 
     @router.post("/logout")
     async def logout(request: Request) -> Response:
-        if checked(admin, request, (await form(request)).get("csrf", "")) is not None:
-            admin.logout(request.cookies.get(SESSION_COOKIE))
+        if checked(admin, request, (await form(request)).get("csrf", "")) is None:
+            return _login_html(admin, "Sign in again.", 403)
+        admin.logout(request.cookies.get(SESSION_COOKIE))
         resp = RedirectResponse("/admin", status_code=303)
         resp.delete_cookie(SESSION_COOKIE, path="/admin")
         return _headers(resp)
@@ -609,7 +698,7 @@ def orcid_callback(admin: Admin, request: Request, state: str, code: str) -> Res
     try:
         token, _ = admin.finish_orcid(state, code, request.cookies.get(FLOW_COOKIE))
     except AdminDenied as exc:
-        resp = _html(login_page(admin.identity.cfg.community, str(exc)), 403)
+        resp = _login_html(admin, str(exc), 403)
     else:
         resp = _headers(RedirectResponse("/admin", status_code=303))
         resp.set_cookie(

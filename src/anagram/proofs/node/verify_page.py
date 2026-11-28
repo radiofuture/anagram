@@ -32,7 +32,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Body, Header, HTTPException, Request
+from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 
 from anagram.core.errors import Forbidden, FormatError, NodeError, NotFound
@@ -45,8 +45,8 @@ from anagram.proofs.log.note import NoteVerifier
 from anagram.proofs.proof import Trust, VerifyReport, verify_bundle
 
 WEB = Path(str(resources.files("anagram").joinpath("web", "verify")))
-_ASSET = re.compile(r"^[a-z0-9][a-z0-9_-]{0,62}\.(js|css)$")
-_ROOT = re.compile(r"^[0-9a-f]{64}$")
+_ASSET = re.compile(r"\A[a-z0-9][a-z0-9_-]{0,62}\.(js|css)\Z")
+_ROOT = re.compile(r"\A[0-9a-f]{64}\Z")
 MAX_BODY = 4 << 20  # a bundle is small; a certificate holds the font
 PER_MINUTE = 30
 
@@ -215,10 +215,21 @@ def _bundle_of(body: Any) -> ProofBundle:
     raise HTTPException(400, "send {bundle} or {text}")
 
 
-def _small(request: Request) -> None:
+async def _read_json_body(request: Request, limit: int = MAX_BODY) -> Any:
     size = request.headers.get("content-length")
-    if size is None or not size.isdigit() or int(size) > MAX_BODY:
+    if size is not None and (not size.isdigit() or int(size) > limit):
         raise HTTPException(413, "this file is too large for a proof")
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > limit:
+            raise HTTPException(413, "this file is too large for a proof")
+        chunks.append(chunk)
+    try:
+        return json.loads(b"".join(chunks))
+    except ValueError as exc:
+        raise HTTPException(400, "send JSON") from exc
 
 
 def verify_router(verify: VerifyPages, subject_of, headers: dict) -> APIRouter:
@@ -250,22 +261,18 @@ def verify_router(verify: VerifyPages, subject_of, headers: dict) -> APIRouter:
 
     @router.post("/verify")
     async def check(request: Request) -> dict:
-        _small(request)
         verify.limit(request.client.host if request.client else "unknown")
-        try:
-            body = json.loads(await request.body())
-        except ValueError as exc:
-            raise HTTPException(400, "send JSON") from exc
+        body = await _read_json_body(request, MAX_BODY)
         return verify.check(_bundle_of(body))
 
     @router.post("/proofs")
-    def publish(
+    async def publish(
         request: Request,
-        body: dict = Body(...),  # noqa: B008
         authorization: str | None = Header(default=None),
     ) -> dict:
-        _small(request)
-        return verify.publish(subject_of(authorization), _bundle_of(body))
+        subject = subject_of(authorization)
+        body = await _read_json_body(request, MAX_BODY)
+        return verify.publish(subject, _bundle_of(body))
 
     @router.get("/proofs/{root}")
     def published(root: str) -> dict:

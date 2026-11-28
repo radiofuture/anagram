@@ -17,11 +17,12 @@ The database is SQLite. There is no other service.
    certificate.
 4. A copy of this repository on the server.
 
-## 2. Register an ORCID client
+## 2. Register an ORCID client (optional)
 
 Entry is invite only: people join with an invite and need no ORCID iD
-(`spec/identity.md`). A member can link an ORCID iD (optional), and the node
-needs its own ORCID client for that.
+(`spec/identity.md`). ORCID is optional for both members and node startup; you
+only need an ORCID client if you want members to link ORCID iDs or organizers
+to sign into `/admin` via ORCID.
 
 1. Sign in at <https://orcid.org/developer-tools> and register a public API
    client. (For a test, use <https://sandbox.orcid.org/developer-tools> and set
@@ -48,23 +49,36 @@ cp anagram.env.example anagram.env
 chmod 600 anagram.env
 ```
 
-Edit `anagram.env`:
+Edit `anagram.env`.
+
+**Required:**
 
 | Variable | Value |
 | --- | --- |
 | `ANAGRAM_DOMAIN` | `anagram.example.org` (no `https://`) |
 | `ANAGRAM_COMMUNITY` | The name that members see |
-| `ANAGRAM_ORCID_CLIENT_ID`, `ANAGRAM_ORCID_CLIENT_SECRET` | From step 2 |
-| `ANAGRAM_ORCID_SANDBOX` | `1` only for the ORCID sandbox |
-| `ANAGRAM_ORGANIZER_ORCIDS` | Optional. These ORCID iDs become organizers when they join |
-| `ANAGRAM_SMTP_HOST`, `_PORT`, `_FROM`, `_USER`, `_PASSWORD` | Mail server for email sign-in (people without ORCID). Port 587 with STARTTLS. Without SMTP, the codes go to the node log only |
-| `ANAGRAM_ENCLAVE_*` | Optional. Matching through the matching enclave of the network (read at each start). See [enclave.md](enclave.md), "Connect a node". The node does no matching itself: it only relays sealed messages |
-| `ANAGRAM_TSA_URLS`, `ANAGRAM_OTS`, `ANAGRAM_ANCHOR_BATCH_SECONDS` | Time anchors (section 6). The defaults are good |
-| `ANAGRAM_DOWNLOAD_URL` | Optional. The `https://` page where a person gets the Anagram app. The join page (`/join`) shows "Get Anagram" with this link. Read at each start |
 
-The node reads the variables at the **first start only** and writes them to
-`/data/node/node.json`. The ORCID client ID, the ORCID client secret, and the
-SMTP variables are read again at each start.
+**Optional:**
+
+| Variable | Value |
+| --- | --- |
+| `ANAGRAM_PUBLIC_URL` | Public URL override (default `https://<ANAGRAM_DOMAIN>`, e.g. when using a non-standard port) |
+| `ANAGRAM_ORCID_CLIENT_ID`, `ANAGRAM_ORCID_CLIENT_SECRET` | From step 2; only needed if you want members to link ORCID iDs or sign into `/admin` via ORCID |
+| `ANAGRAM_ORCID_SANDBOX` | `1` only for the ORCID sandbox |
+| `ANAGRAM_ORGANIZER_ORCIDS` | Comma list of ORCID iDs that become organizers when they join |
+| `ANAGRAM_SMTP_HOST`, `_PORT`, `_FROM`, `_USER`, `_PASSWORD` | Mail server for email sign-in. Port 587 with STARTTLS. Without SMTP, codes go to the node log only |
+| `ANAGRAM_DOWNLOAD_URL` | `https://` page where a person gets the Anagram app. The join page (`/join`) shows "Get Anagram" with this link |
+| `ANAGRAM_ENCLAVE_*` | Matching through the matching enclave of the network. See [enclave.md](enclave.md), "Connect a node". The node does no matching itself: it only relays sealed messages |
+| `ANAGRAM_LAB_QUOTA_MB` | Ciphertext storage quota per lab in MB (default `2048`) |
+| `ANAGRAM_LAB_CREATE` | Who can create labs: `organizer_invite` (default: organizers or members invited by a node invite) or `member` (any node member) |
+| `ANAGRAM_TSA_URLS`, `ANAGRAM_OTS`, `ANAGRAM_OTS_CALENDARS`, `ANAGRAM_ANCHORS`, `ANAGRAM_ANCHOR_BATCH_SECONDS` | Time anchors (section 6). `ANAGRAM_ANCHORS` overrides the TSA/OTS variables. The defaults are good |
+
+Most variables are read at the **first start only** and written to
+`/data/node/node.json`. The following variables are read again at **each
+start**: `ANAGRAM_PUBLIC_URL`, `ANAGRAM_ORCID_CLIENT_ID`,
+`ANAGRAM_ORCID_CLIENT_SECRET`, the SMTP variables (`ANAGRAM_SMTP_*`),
+`ANAGRAM_ENCLAVE_*`, `ANAGRAM_DOWNLOAD_URL`, `ANAGRAM_LAB_QUOTA_MB`, and
+`ANAGRAM_LAB_CREATE`.
 
 Never set `ANAGRAM_DEV_FAKE_ORCID` on a real node. It lets anyone sign in as
 any ORCID iD. The node refuses it for a domain that is not `localhost` or
@@ -90,7 +104,7 @@ which opens the installed app with the invite (the `anagram://` link). The
 person confirms the join in the app and types a name. The invite is the
 proof; there is no ORCID step. On a computer
 where the app does not open, the page shows the full link to paste in the app
-(or use `anagram join '<link>'`). The person who uses it becomes an organizer.
+(or use `anagram join '<link>' --name "Your Name"`). The person who uses it becomes an organizer.
 It is printed only once.
 
 More invites:
@@ -148,11 +162,14 @@ All node data is in the `anagram-data` volume, folder `/data/node`:
 | File | Contents |
 | --- | --- |
 | `node.json` | Configuration (no secrets) |
-| `keys/` | Node keys (log, witness, assertion) and the ORCID client secret. **Keep secret** |
+| `keys/` | Node keys (`log-ed25519`, `witness-ed25519`, `assertion-ed25519`, `network-ed25519`, plus `fake-anchor-ed25519` in dev) and the ORCID client secret. **Keep secret** |
 | `log.sqlite` | The public log and checkpoints with anchors |
 | `identity.sqlite` | Members, invites, sessions (hashes), key backups (ciphertext) |
+| `store.sqlite` | Personal store records and person-key packages (ciphertext only) |
 | `labs.sqlite` | Lab rosters, lab names and members, lab key packages and lab space records (ciphertext) |
 | `vault.sqlite`, `blobs/` | Grants and encrypted evidence (ciphertext only) |
+| `reads.sqlite` | Grant read receipts and fetch events |
+| `proofs.sqlite` | Published public proof bundles for the verify page |
 | `enclave/` | With matching on: the control chain, member credentials, and the relay state (sealed messages only) |
 | `anchors.sqlite`, `admin.sqlite`, `witness.sqlite` | Anchor jobs, organizer sessions, witness state |
 
@@ -224,7 +241,7 @@ You **cannot**:
 - Show two different logs to two members without detection.
 
 Members' apps check the node; they do not trust it. The witness runs on the
-same server in v1, so it does not protect against a dishonest operator. An
+same server today, so it does not protect against a dishonest operator. An
 independent witness is later work. Details: `spec/threat-model.md`.
 
 ## 10. Problems

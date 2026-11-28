@@ -401,3 +401,71 @@ def test_sign_in_again_without_an_invite(ui):
     assert ov["joined"] and ov["kit_saved"]
     assert tc.get("/api/account").status_code == 200
     assert not tc.get("/api/recovery-kit").json()["available"]  # no new kit
+
+
+def test_optional_institution_completes_setup(ui):
+    net, svc, tc = ui
+    launched(tc)
+    svc.join.prepare(net.invite(), login_hint="fake-ui-indie", name="Indie Researcher")
+    join_via_ui(net, svc, tc, None, None, prepare=False)
+    tc.post("/api/recovery-kit/saved", headers=ORIGIN)
+    r = tc.put(
+        "/api/identity",
+        json={"name": "Indie Researcher", "ror": None},
+        headers=ORIGIN,
+    )
+    assert r.status_code == 200
+    ov = r.json()
+    assert ov["setup_done"] is True and ov["institution"] is None
+
+
+def test_redirect_validation_state_check_cancel_and_download_disposition(ui):
+    from anagram.core.errors import ClientError
+    from anagram.shell.ui.account import _valid_organizer_url
+    from anagram.shell.ui.join import UIBrowser
+    from anagram.shell.ui.routers import json_download
+
+    # H27: organizer link validation
+    assert _valid_organizer_url("https://node.test/admin/enter?code=abc", "https://node.test")
+    assert not _valid_organizer_url("https://evil.test/admin/enter?code=abc", "https://node.test")
+    assert not _valid_organizer_url("https://node.test/other?code=abc", "https://node.test")
+    assert not _valid_organizer_url("javascript:alert(1)", "https://node.test")
+
+    # H27: authorize_url validation
+    b = UIBrowser("http://127.0.0.1:9/auth/callback", node_url="https://node.test")
+    with pytest.raises(ClientError, match="unexpected sign-in address"):
+        b.open("https://evil.example/phish?state=x")
+    b_prod = UIBrowser(
+        "http://127.0.0.1:9/auth/callback", node_url="https://node.test", orcid_mode="production"
+    )
+    with pytest.raises(ClientError, match="unexpected sign-in address"):
+        b_prod.open("https://node.test/fake-orcid/authorize?state=x")
+
+    # M8: /auth/callback state verification and join cancel
+    _, svc, tc = ui
+    launched(tc)
+    b2 = UIBrowser("http://127.0.0.1:9/auth/callback", node_url="https://node.test")
+    b2.url = "https://orcid.org/oauth/authorize?state=good-state"
+    from anagram.shell.ui.join import JoinTask
+
+    svc.join.task = JoinTask(b2)
+    assert svc.join.finish_signin({"code": "123", "state": "wrong-state"}) is False
+    assert svc.join.finish_signin({"code": "123", "state": "good-state"}) is True
+    assert tc.post("/api/join/cancel", headers=ORIGIN).json() == {"state": "idle"}
+
+    # M9: json_download escapes quotes, newlines, and non-ASCII cleanly
+    resp = json_download('proof "café"\r\n.json', "{}")
+    cd = resp.headers["content-disposition"]
+    assert "\r" not in cd and "\n" not in cd and "filename*=UTF-8''" in cd
+
+
+def test_live_flows_groups_and_copy(ui):
+    _, _, tc = ui
+    launched(tc)
+    flows = tc.get("/api/flows").json()
+    groups = {f["group"] for f in flows}
+    assert {"local", "active", "optional"} <= groups
+    files = next(f for f in flows if f["id"] == "files-stay")
+    assert "notes and summaries" in files["what"] and "chips" not in files["what"]
+    draft = next(f for f in flows if f["id"] == "match-drafting")
+    assert "Draft from my work" in draft["when"]

@@ -14,8 +14,9 @@ from dataclasses import dataclass, field
 
 from anagram.core.canonical import JsonObject, canonical_json
 from anagram.core.crypto import merkle
+from anagram.core.crypto.hashing import tagged_hash
 from anagram.network.formats.strict import Refused
-from anagram.network.matching.trust.entries import EntryError, check_entry, entry_digest
+from anagram.network.matching.trust.entries import TAG_ENTRY, EntryError, check_entry, entry_digest
 from anagram.network.matching.trust.roots import Roots, Witness, quorum_times
 
 
@@ -25,6 +26,13 @@ def _check_all(entries: list[JsonObject]) -> None:
             check_entry(e)
         except EntryError as exc:
             raise Refused("bad_attestation", str(exc)) from exc
+
+
+def _advance_frontier(frontier: list[bytes], start_size: int, leaves: list[bytes]) -> list[bytes]:
+    cur = frontier
+    for offset, leaf in enumerate(leaves):
+        cur = merkle.frontier_append(cur, start_size + offset, leaf)
+    return cur
 
 
 @dataclass
@@ -39,14 +47,33 @@ class LogView:
     entries: list[JsonObject]
     logged_by: list[int]
     digests: list[bytes] = field(init=False)
+    frontier: list[bytes] | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.digests = [entry_digest(e) for e in self.entries]
 
     @classmethod
+    def from_parts(
+        cls,
+        entries: list[JsonObject],
+        logged_by: list[int],
+        digests: list[bytes],
+        frontier: list[bytes] | None = None,
+    ) -> LogView:
+        """Build a view from already-computed digests and optional Merkle
+        frontier without re-canonicalising or re-hashing every entry."""
+        out = cls.__new__(cls)
+        out.entries = entries
+        out.logged_by = logged_by
+        out.digests = digests
+        out.frontier = frontier
+        return out
+
+    @classmethod
     def from_checkpoints(cls, entries: list[JsonObject], notes: list[str], roots: Roots) -> LogView:
         _check_all(entries)
-        leaves = [merkle.leaf_hash(canonical_json(e)) for e in entries]
+        raws = [canonical_json(e) for e in entries]
+        leaves = [merkle.leaf_hash(r) for r in raws]
         logged_by: list[int | None] = [None] * len(entries)
         for note in notes:
             _, size, _, upper, root = quorum_times(note, roots)
@@ -59,7 +86,12 @@ class LogView:
         times = [t for t in logged_by if t is not None]
         if len(times) != len(logged_by):
             raise Refused("bad_attestation", "an entry is in no checkpoint")
-        return cls(list(entries), times)
+        return cls.from_parts(
+            list(entries),
+            times,
+            [tagged_hash(TAG_ENTRY, r) for r in raws],
+            _advance_frontier([], 0, leaves),
+        )
 
     def extend(
         self,
@@ -76,20 +108,35 @@ class LogView:
         entries = self.entries + more
         if size != len(entries):
             raise Refused("bad_attestation", "checkpoint does not match the entries")
-        leaves = [merkle.leaf_hash(canonical_json(e)) for e in entries]
-        if merkle.root(leaves) != root:
+        base_frontier = (
+            self.frontier
+            if self.frontier is not None
+            else _advance_frontier(
+                [], 0, [merkle.leaf_hash(canonical_json(e)) for e in self.entries]
+            )
+        )
+        raws = [canonical_json(e) for e in more]
+        frontier = _advance_frontier(
+            base_frontier, len(self.entries), [merkle.leaf_hash(r) for r in raws]
+        )
+        if merkle.frontier_root(frontier) != root:
             raise Refused("bad_attestation", "checkpoint does not match the entries")
         logged_by = self.logged_by + [upper] * len(more)
-        for cp in covering:
-            _, cp_size, _, cp_upper, cp_root = quorum_times(cp, roots)
-            if cp_size > size or merkle.root(leaves[:cp_size]) != cp_root:
-                raise Refused("bad_attestation", "checkpoint does not match the entries")
-            for i in range(cp_size):
-                if cp_upper < logged_by[i]:
-                    logged_by[i] = cp_upper
+        if covering:
+            all_leaves = [merkle.leaf_hash(canonical_json(e)) for e in self.entries] + [
+                merkle.leaf_hash(r) for r in raws
+            ]
+            for cp in covering:
+                _, cp_size, _, cp_upper, cp_root = quorum_times(cp, roots)
+                if cp_size > size or merkle.root(all_leaves[:cp_size]) != cp_root:
+                    raise Refused("bad_attestation", "checkpoint does not match the entries")
+                for i in range(cp_size):
+                    if cp_upper < logged_by[i]:
+                        logged_by[i] = cp_upper
         self.entries = entries
         self.logged_by = logged_by
-        self.digests = self.digests + [entry_digest(e) for e in more]
+        self.digests = self.digests + [tagged_hash(TAG_ENTRY, r) for r in raws]
+        self.frontier = frontier
 
     def verify_checkpoint(self, note: str, roots: Roots) -> None:
         """Verify a checkpoint note whose size is at most the current view."""
@@ -103,9 +150,7 @@ class LogView:
     def copy(self) -> LogView:
         """A view that does not grow: one operation reads one view, even
         when another thread extends this one meanwhile."""
-        out = LogView.__new__(LogView)
-        out.entries, out.logged_by, out.digests = self.entries, self.logged_by, self.digests
-        return out
+        return LogView.from_parts(self.entries, self.logged_by, self.digests, self.frontier)
 
     def of_kind(self, kind: str) -> list[tuple[int, JsonObject]]:
         return [(i, e) for i, e in enumerate(self.entries) if e["kind"] == kind]

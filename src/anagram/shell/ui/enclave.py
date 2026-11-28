@@ -25,8 +25,16 @@ if TYPE_CHECKING:
 
 NO_LENS = (
     "Anagram can draft your lines only with a local model and the search index."
-    " Set a local model in Settings, or type your lines."
+    " Set a local model in Account under Model, or type your lines."
 )
+
+
+def _is_simulated(enclave) -> bool:
+    s = enclave.settings()
+    pins = s.get("pins") if isinstance(s, dict) else None
+    if not isinstance(pins, dict):
+        return False
+    return bool(pins.get("dev_root")) or pins.get("profile") == "simulated"
 
 
 class EnclaveUI:
@@ -35,12 +43,12 @@ class EnclaveUI:
 
     def state(self) -> dict:
         with self.ui.session() as c:
-            return c.enclave.status()
+            return {**c.enclave.status(), "simulated": _is_simulated(c.enclave)}
 
     def setup(self, log_url: str, pins: dict) -> dict:
         with self.ui.session() as c:
             c.enclave.set_settings(log_url, pins)
-            return c.enclave.status()
+            return {**c.enclave.status(), "simulated": _is_simulated(c.enclave)}
 
     def draft(self) -> dict:
         """A new beacon draft from the `profile` lens. Nothing leaves."""

@@ -15,6 +15,7 @@ from collections.abc import Callable, Sequence
 
 Subtree = Callable[[int, int], bytes]
 
+HASH_LEN = 32
 EMPTY_ROOT = hashlib.sha256(b"").digest()
 
 
@@ -107,9 +108,11 @@ def consistency_path(subtree: Subtree, old_size: int, new_size: int) -> list[byt
 def root_from_inclusion(leaf: bytes, index: int, size: int, path: Sequence[bytes]) -> bytes | None:
     """Compute the root from a leaf hash and an inclusion path (RFC 9162 2.1.3.2).
 
-    Return None if the path has the wrong shape.
+    Return None if the path has the wrong shape or any hash is not 32 bytes.
     """
     if not 0 <= index < size:
+        return None
+    if len(leaf) != HASH_LEN or any(len(p) != HASH_LEN for p in path):
         return None
     fn, sn = index, size - 1
     r = leaf
@@ -134,6 +137,8 @@ def root_from_inclusion(leaf: bytes, index: int, size: int, path: Sequence[bytes
 def verify_inclusion(
     leaf: bytes, index: int, size: int, path: Sequence[bytes], expected_root: bytes
 ) -> bool:
+    if len(expected_root) != HASH_LEN:
+        return False
     computed = root_from_inclusion(leaf, index, size, path)
     return computed is not None and computed == expected_root
 
@@ -146,7 +151,14 @@ def verify_consistency(
     new_root: bytes,
 ) -> bool:
     """RFC 9162 2.1.4.2 consistency proof check."""
-    if old_size < 0 or old_size > new_size:
+    if (
+        old_size < 0
+        or old_size > new_size
+        or len(old_root) != HASH_LEN
+        or len(new_root) != HASH_LEN
+        or any(len(c) != HASH_LEN for c in path)
+        or (old_size == 0 and old_root != EMPTY_ROOT)
+    ):
         return False
     if old_size == new_size:
         return len(path) == 0 and old_root == new_root

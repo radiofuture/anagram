@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import secrets
+from collections import deque
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
@@ -37,7 +38,15 @@ from anagram.admission.model import (
 )
 from anagram.admission.node.reader import ReaderInvites
 from anagram.admission.node.store import AdmissionStore
-from anagram.core.errors import Conflict, Forbidden, FormatError, Gone, NodeError, NotFound
+from anagram.core.errors import (
+    Conflict,
+    Forbidden,
+    FormatError,
+    Gone,
+    NodeError,
+    NotFound,
+    RateLimited,
+)
 from anagram.identity.api import (
     Admission,
     check_device_nonce,
@@ -54,6 +63,7 @@ from anagram.network.api import (
 USED_TEXT = "This invite link was used. Ask the person who sent it for a new link."
 EXPIRED_TEXT = "This invite link has expired. Ask the person who sent it for a new link."
 CLOSED_TEXT = "This invite link is no longer valid. Ask for a new link."
+INVITE_PER_MINUTE = 30
 
 
 def via_of(ref: str | None) -> str | None:
@@ -96,6 +106,22 @@ class AdmissionService:
         self.readers = readers
         self._db = store.db
         self._lock = store.lock
+        self._invite_hits: dict[str, deque] = {}
+        self.invite_per_minute = INVITE_PER_MINUTE
+
+    def _limit_invite(self, address: str) -> None:
+        now = self.identity.now()
+        with self._lock:
+            if len(self._invite_hits) > 10_000:
+                self._invite_hits = {
+                    k: q for k, q in self._invite_hits.items() if q and q[-1] > now - 60
+                }
+            q = self._invite_hits.setdefault(address, deque())
+            while q and q[0] <= now - 60:
+                q.popleft()
+            if len(q) >= self.invite_per_minute:
+                raise RateLimited("too many invite sign-in attempts; wait one minute")
+            q.append(now)
 
     def _one(self, sql: str, *args):
         return self._db.execute(sql, args).fetchone()
@@ -174,47 +200,61 @@ class AdmissionService:
         receipt. Safe to run again for the same person."""
         return self._claim(subject, token)[1]
 
+    def _claim_tx(self, subject: str, iid: str) -> tuple[Admission, dict]:
+        """Claim body; caller holds `self._lock` and an active SQLite transaction."""
+        idt = self.identity
+        e, claimed_by, receipt = self._node_invite(iid)
+        ref = iid
+        if e.kind == READER:  # the contact proof; no lab (members.invite)
+            if self.readers is None or not self.readers.check_claim(iid, subject):
+                raise NotFound("unknown invite")
+            ref = f"reader:{iid}"
+        admission = Admission(subject, ref, "organizer" if e.role == "organizer" else "member")
+        if claimed_by is not None and claimed_by == subject:
+            return admission, json.loads(receipt)  # idempotent: the same receipt
+        why = self.policy.decide(e, self._claim_now(subject))
+        if why == USED:
+            raise Conflict("invite is already used")
+        if why is not None:
+            raise Gone("invite has expired")
+        receipt_doc = formats.make_receipt(
+            invite=iid,
+            subject=subject,
+            community=idt.cfg.community,
+            node_key=idt.cfg.node_key,
+            claimed_at=idt.now_dt(),
+            key=idt.key,
+        )
+        self._db.execute(
+            "UPDATE invites SET claimed_by = ?, receipt = ? WHERE id = ?",
+            (subject, json.dumps(receipt_doc), iid),
+        )
+        idt.add_member(admission)
+        return admission, receipt_doc
+
     def _claim(self, subject: str, token: str) -> tuple[Admission, dict]:
         try:
             iid = formats.invite_id(token)
         except (ValueError, TypeError) as exc:
             raise NotFound("unknown invite") from exc
-        idt = self.identity
         with self._lock:
-            e, claimed_by, receipt = self._node_invite(iid)
-            ref = iid
-            if e.kind == READER:  # the contact proof; no lab (members.invite)
-                if self.readers is None or not self.readers.check_claim(iid, subject):
-                    raise NotFound("unknown invite")
-                ref = f"reader:{iid}"
-            admission = Admission(subject, ref, "organizer" if e.role == "organizer" else "member")
-            if claimed_by is not None and claimed_by == subject:
-                return admission, json.loads(receipt)  # idempotent: the same receipt
-            why = self.policy.decide(e, self._claim_now(subject))
-            if why == USED:
-                raise Conflict("invite is already used")
-            if why is not None:
-                raise Gone("invite has expired")
-            receipt_doc = formats.make_receipt(
-                invite=iid,
-                subject=subject,
-                community=idt.cfg.community,
-                node_key=idt.cfg.node_key,
-                claimed_at=idt.now_dt(),
-                key=idt.key,
-            )
-            self._db.execute(
-                "UPDATE invites SET claimed_by = ?, receipt = ? WHERE id = ?",
-                (subject, json.dumps(receipt_doc), iid),
-            )
-            idt.add_member(admission)
-            return admission, receipt_doc
+            self._db.execute("BEGIN IMMEDIATE")
+            try:
+                result = self._claim_tx(subject, iid)
+                self._db.execute("COMMIT")
+            except BaseException:
+                self._db.execute("ROLLBACK")
+                raise
+            return result
 
     def open_invites(self) -> int:
         """The number of node invites that a person can still claim."""
         return int(
             self._one(
-                "SELECT COUNT(*) FROM invites WHERE claimed_by IS NULL AND expires_at >= ?",
+                "SELECT COUNT(*) FROM invites i"
+                " LEFT JOIN reader_invites r ON r.invite_id = i.id"
+                " WHERE i.claimed_by IS NULL AND i.expires_at >= ?"
+                " AND (i.role != 'reader' OR r.state = 'open')",
                 self.identity.now(),
             )[0]
         )
@@ -228,15 +268,19 @@ class AdmissionService:
         nonce: str,
         pid: str | None = None,
         email: str | None = None,
+        *,
+        invite_signature: str | None = None,
+        device_signature: str | None = None,
+        address: str = "unknown",
     ) -> dict:
         """Sign in with an invite and no third party. `invite` is the
         token of a node invite (hex) or `lab:<invite id>` of a lab invite. The
         answer has an assertion with method `invite` and no ORCID commitment,
-        and a session. A node invite is claimed in the same lock, so one
+        and a session. A node invite is claimed in the same transaction, so one
         invite makes one account. A reader invite keeps its contact proof: the
         answer is `{"needs": "email_code", ...}` (the node sent a code to the
         invite address) or `{"needs": "orcid"}`."""
-        idt = self.identity
+        self._limit_invite(address)
         check_device_nonce(device_key, nonce)
         if pid is not None and not is_subject(pid):
             raise NodeError("pid must be pid:<32 hex>")
@@ -245,26 +289,73 @@ class AdmissionService:
             raise NotFound("unknown invite")
         if invite.startswith("lab:"):
             return self._lab_invite_signin(
-                invite.removeprefix("lab:"), device_key, nonce, pid, email
+                invite.removeprefix("lab:"),
+                device_key,
+                nonce,
+                pid,
+                email,
+                invite_signature=invite_signature,
+                device_signature=device_signature,
             )
+        return self._node_invite_signin(
+            invite, device_key, nonce, pid, email, device_signature=device_signature
+        )
+
+    def _node_invite_signin(
+        self,
+        invite: str,
+        device_key: str,
+        nonce: str,
+        pid: str | None,
+        email: str | None,
+        *,
+        device_signature: str | None,
+    ) -> dict:
+        idt = self.identity
         try:
             iid = formats.invite_id(invite)
         except (ValueError, TypeError) as exc:
             raise NotFound("unknown invite") from exc
         with self._lock:
-            e, _, _ = self._node_invite(iid)
+            e, claimed_by, _ = self._node_invite(iid)
             if e.kind == READER:
                 return self._reader_signin(iid, device_key, nonce, pid)
-            if idt.vouch.rejoin_ok(pid, iid, device_key):
-                return idt.vouch.sign_in(pid, device_key, nonce, self.claim_invite(pid, invite))
-            why = self.policy.decide(e, self._claim_now())
-            if why == USED:
-                raise Conflict(USED_TEXT)
-            if why is not None:
-                raise Gone(EXPIRED_TEXT)
-            subject = idt.vouch.new_account(pid, email, iid)
-            receipt = self.claim_invite(subject, invite)
-            return idt.vouch.sign_in(subject, device_key, nonce, receipt)
+            self._db.execute("BEGIN IMMEDIATE")
+            try:
+                e, claimed_by, _ = self._node_invite(iid)
+                if e.expires_at < self._claim_now().at:
+                    raise Gone(EXPIRED_TEXT)
+                if (
+                    claimed_by is not None
+                    and claimed_by == pid
+                    and idt.vouch.rejoin_ok(
+                        pid,
+                        iid,
+                        device_key,
+                        invite=invite,
+                        nonce=nonce,
+                        device_signature=device_signature,
+                    )
+                ):
+                    _, receipt = self._claim_tx(pid, iid)
+                    ans = idt.vouch.sign_in(pid, device_key, nonce, receipt)
+                    self._db.execute("COMMIT")
+                    return ans
+                why = self.policy.decide(e, self._claim_now())
+                if why == USED:
+                    raise Conflict(USED_TEXT)
+                if why is not None:
+                    raise Gone(EXPIRED_TEXT)
+                subject = idt.vouch.new_account(
+                    pid, email, iid, device_key=device_key, admit_email=True
+                )
+                _, receipt = self._claim_tx(subject, iid)
+                ans = idt.vouch.sign_in(subject, device_key, nonce, receipt)
+                self._db.execute("COMMIT")
+                return ans
+            except BaseException:
+                self._db.execute("ROLLBACK")
+                raise
 
     def invite_preview(self, invite: str) -> dict:
         """What the join screen asks for, before the sign-in:
@@ -285,14 +376,20 @@ class AdmissionService:
         return {"contact": kind, "email_hint": mask_email(contact) if kind == "email" else None}
 
     def _lab_invite_signin(
-        self, iid: str, device_key: str, nonce: str, pid: str | None, email: str | None
+        self,
+        iid: str,
+        device_key: str,
+        nonce: str,
+        pid: str | None,
+        email: str | None,
+        *,
+        invite_signature: str | None = None,
+        device_signature: str | None = None,
     ) -> dict:
-        """A lab invite: the node checks that it is open. The person becomes a
-        node member only with the lab join request (`join`)."""
+        """A lab invite: the node checks that it is open and verifies proof of
+        the invite secret (`invite_pub`). The person becomes a node member only
+        with the lab join request (`join`)."""
         idt = self.identity
-        with self._lock:
-            if idt.vouch.rejoin_ok(pid, "lab:" + iid, device_key):
-                return idt.vouch.sign_in(pid, device_key, nonce, None)
         try:
             info = self.lab_invite_info(iid) if self.labs is not None else None
         except NodeError:
@@ -301,8 +398,24 @@ class AdmissionService:
             raise NotFound("unknown invite")
         if not info["open"]:
             raise Gone(CLOSED_TEXT)
+        invite_ref = "lab:" + iid
+        if not invite_signature or not formats.verify_lab_invite_signin(
+            invite_ref, device_key, nonce, info["auth"]["invite_pub"], invite_signature
+        ):
+            raise Forbidden("invalid lab invite proof")
         with self._lock:
-            subject = idt.vouch.new_account(pid, email, "lab:" + iid)
+            if idt.vouch.rejoin_ok(
+                pid,
+                invite_ref,
+                device_key,
+                invite=invite_ref,
+                nonce=nonce,
+                device_signature=device_signature,
+            ):
+                return idt.vouch.sign_in(pid, device_key, nonce, None)
+            subject = idt.vouch.new_account(
+                pid, email, invite_ref, device_key=device_key, admit_email=False
+            )
             return idt.vouch.sign_in(subject, device_key, nonce, None)
 
     def _reader_signin(self, iid: str, device_key: str, nonce: str, pid: str | None) -> dict:

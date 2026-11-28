@@ -44,9 +44,27 @@ export function DownloadLink({ href, label, filename = '', kind = 'secondary', n
  * the code on one line, exactly as typed.
  */
 export function KitCode({ code }) {
-  const groups = String(code || '').split('-');
+  const text = String(code || '');
+  const groups = text.split('-');
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    setCopied(false);
+  }, [text]);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      // Clipboard unavailable: the code stays selectable inline.
+    }
+  };
   return html`
-    <p class="ag-kit-code">
-      ${groups.map((g, i) => html`<span key=${i}>${g}${i < groups.length - 1 ? '-' : ''}</span>${i < groups.length - 1 ? html`<wbr />` : null}`)}
-    </p>`;
+    <div class="ag-kit-row">
+      <p class="ag-kit-code">
+        ${groups.map((g, i) => html`<span key=${i}>${g}${i < groups.length - 1 ? '-' : ''}</span>${i < groups.length - 1 ? html`<wbr />` : null}`)}
+      </p>
+      <button type="button" class="rf-ui-button rf-ui-button--secondary" onClick=${copy}>
+        ${copied ? t('common.copied') : t('common.copy')}
+      </button>
+    </div>`;
 }

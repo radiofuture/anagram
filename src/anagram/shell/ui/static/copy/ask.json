@@ -31,5 +31,8 @@
   "earlier": "Earlier questions",
   "clear": "Clear the list",
   "clearing": "Clearing…",
+  "clear_confirm_title": "Clear earlier questions?",
+  "clear_confirm": "This removes your earlier questions list from this computer.",
+  "clear_confirm_action": "Clear list",
   "gone": "This answer is not on this computer now. Ask again."
 }

@@ -26,7 +26,7 @@ from anagram.proofs.log.store import SQLiteLog
 from anagram.proofs.log.witness import Witness, WitnessConflict
 from anagram.proofs.records import KINDS, LOG_ENTRY_SCHEMA, LOG_ONLY_KINDS
 
-_HEX32 = re.compile(r"^[0-9a-f]{64}$")
+_HEX32 = re.compile(r"\A[0-9a-f]{64}\Z")
 
 
 class EntryRejected(ValueError):

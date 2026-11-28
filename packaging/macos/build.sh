@@ -20,7 +20,7 @@ export ANAGRAM_VERSION="$VERSION"
 uv run --group packaging pyinstaller --noconfirm --clean \
   --distpath "$OUT" --workpath "$OUT/.work" packaging/anagram.spec
 
-if [ -n "${ANAGRAM_NO_BUNDLE:-}" ]; then
+if [ -n "${ANAGRAM_NO_BUNDLE:-}" ] && [ "${ANAGRAM_NO_BUNDLE:-}" != "0" ]; then
   PROGRAM="$OUT/Anagram/Anagram"
 else
   PROGRAM="$OUT/Anagram.app/Contents/MacOS/Anagram"

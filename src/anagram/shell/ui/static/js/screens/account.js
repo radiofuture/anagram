@@ -1,6 +1,6 @@
 // Account: details, devices, recovery, guardians, sign out. Other
 // tracks add sections through the slot `account.sections` (this computer, the model).
-import { html, useState } from '../core/html.js';
+import { html, useEffect, useState } from '../core/html.js';
 import { t } from '../core/copy.js';
 import { api, search } from '../core/api.js';
 import { store } from '../core/store.js';
@@ -57,6 +57,15 @@ function Me({ ov }) {
     <//>`;
 }
 
+function isHttpUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 // Optional: ORCID confirms the iD on its own page, then
 // Anagram opens again on Account.
 function LinkOrcid() {
@@ -65,7 +74,7 @@ function LinkOrcid() {
     const view = await api('POST', '/api/orcid/link');
     store.live.join.value = view;
     if (view.state === 'error') throw new Error(view.error);
-    if (view.authorize_url) window.location.assign(view.authorize_url);
+    if (view.authorize_url && isHttpUrl(view.authorize_url)) window.location.assign(view.authorize_url);
   };
   return html`
     <p class="rf-ui-help">${t('account.orcid_link_help')}</p>
@@ -84,6 +93,7 @@ function OrganizerPage() {
     const tab = window.open('', '_blank');
     try {
       const { url } = await api('POST', '/api/organizer/open');
+      if (!isHttpUrl(url)) throw new Error(t('common.failed'));
       if (tab) {
         tab.opener = null;
         tab.location = url;
@@ -263,9 +273,30 @@ function SignOut() {
     <//>`;
 }
 
-function View() {
+function View({ query }) {
   const ov = store.overview.value;
   const acc = useResource('/api/account', { topics: ['overview.changed'] });
+  const target = query?.section;
+  useEffect(() => {
+    if (!target || !acc.data.value) return undefined;
+    let alive = true;
+    const end = performance.now() + 2000;
+    const jump = () => {
+      if (!alive) return;
+      const el = document.getElementById(target);
+      if (el) {
+        if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        el.focus({ preventScroll: true });
+        return;
+      }
+      if (performance.now() < end) requestAnimationFrame(jump);
+    };
+    requestAnimationFrame(jump);
+    return () => {
+      alive = false;
+    };
+  }, [target, Boolean(acc.data.value)]);
   return html`
     <${Screen} title=${t('account.title')} resources=${[acc]}>
       ${() => html`

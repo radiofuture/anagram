@@ -173,8 +173,10 @@ class XdgScheme(UrlScheme):
             return None
         for line in lines:
             if line.startswith("Exec="):
-                argv = parse_exec(line[len("Exec=") :])
-                return argv[:-1] if argv and argv[-1] == "%u" else argv
+                raw = line[len("Exec=") :]
+                if raw.endswith(" %u"):
+                    raw = raw[: -len(" %u")]
+                return parse_exec(raw)
         return None
 
 

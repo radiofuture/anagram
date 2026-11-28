@@ -31,6 +31,7 @@ from pathlib import Path
 
 MAX_READ = 64 * 1024 * 1024
 FIXED_DIRS = ("/tmp", "/var/tmp")  # noqa: S108
+_SKIP_PREFIXES = ("pytest-of-", "tempscan-")
 
 
 def canary(label: str = "canary") -> str:
@@ -48,21 +49,95 @@ def _read(path: Path, since: float) -> bytes | None:
         return None
 
 
+def _has_needle(path: Path, since: float, needles: list[bytes]) -> bool:
+    data = _read(path, since)
+    return data is not None and any(n in data for n in needles)
+
+
 def scan(
     since: float, needles: Iterable[bytes], root: Path, max_depth: int | None = None
 ) -> list[Path]:
     """The files under `root` (to `max_depth` folder levels, None: all) that
     changed at or after `since` and hold a needle."""
-    needles = [n for n in needles if n]
+    needle_list = [n for n in needles if n]
     hits: list[Path] = []
     base_depth = len(root.parts)
     for base, subdirs, files in os.walk(root, onerror=lambda _e: None):
+        subdirs[:] = [d for d in subdirs if not d.startswith(_SKIP_PREFIXES)]
         if max_depth is not None and len(Path(base).parts) - base_depth >= max_depth:
             subdirs.clear()
         for name in files:
-            data = _read(Path(base) / name, since)
-            if data is not None and any(n in data for n in needles):
-                hits.append(Path(base) / name)
+            path = Path(base) / name
+            if _has_needle(path, since, needle_list):
+                hits.append(path)
+    return hits
+
+
+def _snapshot(root: Path) -> dict[str, tuple[bool, int, int]]:
+    """Top-level entries of `root`: name -> (is_dir, st_mtime_ns, st_size).
+    Skips symlinks and pytest/tempscan worker directories."""
+    snap: dict[str, tuple[bool, int, int]] = {}
+    try:
+        with os.scandir(root) as it:
+            for entry in it:
+                if entry.name.startswith(_SKIP_PREFIXES):
+                    continue
+                try:
+                    if entry.is_symlink():
+                        continue
+                    st = entry.stat(follow_symlinks=False)
+                    snap[entry.name] = (
+                        entry.is_dir(follow_symlinks=False),
+                        st.st_mtime_ns,
+                        st.st_size,
+                    )
+                except OSError:
+                    continue
+    except OSError:
+        pass
+    return snap
+
+
+def _scan_external(
+    root: Path,
+    before: dict[str, tuple[bool, int, int]],
+    since: float,
+    needles: list[bytes],
+    max_depth: int | None = None,
+) -> list[Path]:
+    """Scan only files and subdirectories in `root` that appeared or changed
+    since `before`. Avoids walking hundreds of thousands of untouched OS temp
+    files while catching any temp file or folder written during the block."""
+    hits: list[Path] = []
+    try:
+        with os.scandir(root) as it:
+            entries = list(it)
+    except OSError:
+        return hits
+    for entry in entries:
+        if entry.name.startswith(_SKIP_PREFIXES):
+            continue
+        try:
+            if entry.is_symlink():
+                continue
+            st = entry.stat(follow_symlinks=False)
+            is_dir = entry.is_dir(follow_symlinks=False)
+        except OSError:
+            continue
+        prev = before.get(entry.name)
+        path = Path(entry.path)
+        if is_dir:
+            if prev is None:
+                # Newly created directory during the block: scan all of it.
+                hits.extend(scan(0.0, needles, path))
+            elif not prev[0] or prev[1] != st.st_mtime_ns:
+                # Existing directory modified during the block.
+                sub_depth = None if max_depth is None else max(max_depth - 1, 0)
+                hits.extend(scan(since, needles, path, max_depth=sub_depth))
+        else:
+            if prev is None or prev[0] or prev[1] != st.st_mtime_ns or prev[2] != st.st_size:
+                if _has_needle(path, 0.0, needles):
+                    hits.append(path)
     return hits
 
 
@@ -72,6 +147,24 @@ def no_plaintext_temp(*canaries: str) -> Iterator[None]:
     or UTF-16 LE, the forms that Office and PDF tools write)."""
     real = Path(tempfile.gettempdir()).resolve()
     box = Path(tempfile.mkdtemp(prefix="tempscan-")).resolve()
+    external: list[tuple[Path, int | None]] = []
+    seen: set[Path] = set()
+    for d in FIXED_DIRS:
+        p = Path(d)
+        try:
+            if p.is_dir():
+                rp = p.resolve()
+                if rp not in seen:
+                    seen.add(rp)
+                    external.append((rp, None))
+        except OSError:
+            continue
+    try:
+        if real not in seen and real.is_dir():
+            external.append((real, 2))
+    except OSError:
+        pass
+    snapshots = [(root, depth, _snapshot(root)) for root, depth in external]
     old_env, old_tempdir = os.environ.get("TMPDIR"), tempfile.tempdir
     os.environ["TMPDIR"] = str(box)
     tempfile.tempdir = str(box)
@@ -85,10 +178,8 @@ def no_plaintext_temp(*canaries: str) -> Iterator[None]:
         else:
             os.environ["TMPDIR"] = old_env
     needles = [c.encode("utf-8") for c in canaries] + [c.encode("utf-16-le") for c in canaries]
-    hits = scan(start, needles, box)
-    for d in FIXED_DIRS:
-        if Path(d).is_dir():
-            hits += scan(start, needles, Path(d).resolve())
-    hits += scan(start, needles, real, max_depth=2)
+    hits = scan(0.0, needles, box)
+    for root, depth, before in snapshots:
+        hits += _scan_external(root, before, start, needles, max_depth=depth)
     shutil.rmtree(box, ignore_errors=True)
     assert not hits, f"plaintext temp files hold a canary: {hits}"

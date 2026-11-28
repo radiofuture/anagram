@@ -14,6 +14,9 @@ if TYPE_CHECKING:
     from anagram.identity.node.service import IdentityService
 
 
+MAX_BACKUPS_PER_SUBJECT = 20
+
+
 class KeyBackups:
     """The table `backups`."""
 
@@ -29,22 +32,28 @@ class KeyBackups:
         if doc["subject"] != subject:
             raise Forbidden("backup is for another subject")
         db = self.identity.db
-        row = one(db, "SELECT subject FROM backups WHERE backup_id = ?", doc["backup_id"])
-        if row is not None and row[0] != subject:
-            raise Conflict("backup ID is in use")
-        db.execute(
-            "INSERT OR REPLACE INTO backups (backup_id, subject, doc) VALUES (?, ?, ?)",
-            (doc["backup_id"], subject, json.dumps(doc)),
-        )
+        with self.identity.lock:
+            row = one(db, "SELECT subject FROM backups WHERE backup_id = ?", doc["backup_id"])
+            if row is not None and row[0] != subject:
+                raise Conflict("backup ID is in use")
+            if row is None:
+                count = one(db, "SELECT COUNT(*) FROM backups WHERE subject = ?", subject)[0]
+                if count >= MAX_BACKUPS_PER_SUBJECT:
+                    raise NodeError("too many key backups; delete an old backup first")
+            db.execute(
+                "INSERT OR REPLACE INTO backups (backup_id, subject, doc) VALUES (?, ?, ?)",
+                (doc["backup_id"], subject, json.dumps(doc)),
+            )
         return {"backup_id": doc["backup_id"]}
 
     def delete(self, subject: str, backup_id: str) -> dict:
         self.identity.require_member(subject)
         db = self.identity.db
-        row = one(db, "SELECT subject FROM backups WHERE backup_id = ?", backup_id)
-        if row is None or row[0] != subject:
-            raise NotFound("no backup with this ID")
-        db.execute("DELETE FROM backups WHERE backup_id = ?", (backup_id,))
+        with self.identity.lock:
+            row = one(db, "SELECT subject FROM backups WHERE backup_id = ?", backup_id)
+            if row is None or row[0] != subject:
+                raise NotFound("no backup with this ID")
+            db.execute("DELETE FROM backups WHERE backup_id = ?", (backup_id,))
         return {"deleted": backup_id}
 
     def get(self, backup_id: str) -> dict:

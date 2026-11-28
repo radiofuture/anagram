@@ -134,7 +134,7 @@ class IdentityService:
         self._dir: dict[str, SubjectKeys] = {}
         for (entry,) in self._db.execute("SELECT entry FROM directory ORDER BY leaf_index"):
             e = json.loads(entry)
-            self.key_state(e["subject"]).apply(
+            self._dir.setdefault(e["subject"], SubjectKeys(e["subject"])).apply(
                 e, assertion_key=self.key.public_bytes(), node_key=cfg.node_key
             )
         # The parts. Each gets this service (sessions, assertions, members).
@@ -170,9 +170,7 @@ class IdentityService:
 
     def key_state(self, subject: str) -> SubjectKeys:
         """The key directory state of a person (a new empty one if none)."""
-        if subject not in self._dir:
-            self._dir[subject] = SubjectKeys(subject)
-        return self._dir[subject]
+        return self._dir.get(subject) or SubjectKeys(subject)
 
     def assertion(
         self, subject: str, commitment: str | None, method: str, device: str, nonce: str
@@ -370,6 +368,7 @@ class IdentityService:
                 "INSERT INTO members (subject, role, joined_at, invite) VALUES (?, ?, ?, ?)",
                 (subject, "organizer" if organizer else "member", self.now(), admission.ref),
             )
+            self.vouch.claim_pending_email(subject)
             return True
 
     def member_ref(self, subject: str) -> tuple[str, str | None] | None:

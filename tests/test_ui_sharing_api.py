@@ -424,3 +424,25 @@ def test_sync_survives_a_node_fault(two, tmp_path):
         c.device.http.call = down
         assert c.share_sync.sync_shares() == {"changed": []}
         assert len(calls) == 2  # the read records and the reader side were each tried
+
+
+def test_received_file_rejects_traversal_and_symlinks(tmp_path):
+    from anagram.shell.ui.errors import UIError
+    from anagram.shell.ui.service import UIService
+
+    svc = UIService(tmp_path / "home")
+    gid = "a" * 32
+    base = svc.home / "received" / gid
+    base.mkdir(parents=True)
+    ok = base / "report.txt"
+    ok.write_text("ok")
+    outside = tmp_path / "secret.txt"
+    outside.write_text("secret")
+    link = base / "escape.txt"
+    link.symlink_to(outside)
+
+    assert svc.sharing.received_file(gid, "report.txt") == ok
+    for bad in ("..\\secret.txt", "a\\b", "bad\x00.txt", ".hidden", "escape.txt", "../x"):
+        with pytest.raises(UIError) as exc:
+            svc.sharing.received_file(gid, bad)
+        assert exc.value.status == 404

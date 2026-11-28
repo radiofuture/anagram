@@ -256,7 +256,7 @@ def test_new_person_joins_the_node_from_the_link(browser, site, app_of, tmp_path
 
 def test_fallback_paste_in_the_disclosure(browser, site, app_of, tmp_path):
     """No pending invite (the link did not open Anagram): the welcome screen
-    asks for the link, and the paste field is in "Use an invite link"."""
+    shows the invite link field expanded first, with one primary Join button."""
     home = tmp_path / "paste"
     rt = app_of(home)
     page = browser.new_page()
@@ -264,12 +264,11 @@ def test_fallback_paste_in_the_disclosure(browser, site, app_of, tmp_path):
     page.goto(f"http://127.0.0.1:{rt.port}/open/{rt.tokens.mint()}")
     ready(page, "welcome")
     expect(page.get_by_text(copy("welcome.invite_open"))).to_be_visible()
-    expect(page.get_by_label(copy("welcome.invite_label"))).to_be_hidden()
+    expect(page.get_by_label(copy("welcome.invite_label"))).to_be_visible()
     shot(page, "7-no-invite")
-    page.get_by_text(copy("welcome.use_invite")).click()
     page.get_by_label(copy("welcome.invite_label")).fill(site.invite())
     fill_name(page, "Sam Helix")
-    page.get_by_role("button", name=copy("welcome.invite_action")).click()
+    page.get_by_role("button", name=copy("welcome.join_action")).click()
     expect(page.get_by_role("heading", name=copy("welcome.kit_title"))).to_be_visible(timeout=60000)
     assert faults == [], faults
     page.close()

@@ -8,7 +8,11 @@ The node keeps an append-only Merkle log of log entries
 ## 1. Tree
 
 - Leaf data: `canonical_json(entry)`. Leaf hash and node hash: RFC 6962.
-- Inclusion and consistency proofs: RFC 9162 section 2.1.
+- Inclusion and consistency proofs: RFC 9162 section 2.1. Every leaf hash,
+  root hash, and proof path element MUST be 32 bytes (64 lowercase hex
+  characters in JSON). A consistency proof with `old_size == 0` is valid only
+  when `old_root` equals the empty tree root `SHA-256("")` and the path is
+  empty.
 - Proof hashes in JSON: lowercase hex, leaf side first.
 
 ## 2. Checkpoint (C2SP tlog-checkpoint)
@@ -20,6 +24,8 @@ The node keeps an append-only Merkle log of log entries
 ```
 
 The origin is a schema-less URL, for example `anagram.example.org/log`. The
+root hash line MUST be canonical standard base64 of 32 bytes (44 characters,
+no non-zero trailing bits). The
 anchor digest of a checkpoint is `SHA-256(checkpoint text)` (not tagged, so
 that standard tools can check the anchor).
 

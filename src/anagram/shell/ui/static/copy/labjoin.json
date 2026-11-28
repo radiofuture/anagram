@@ -4,7 +4,7 @@
   "panel": "Invite to {lab}",
   "role": "Your role",
   "by": "Invited by",
-  "host": "Node",
+  "host": "Community server",
   "until": "The link closes",
   "reads": "When you join, you can read the lab space and add to it.",
   "join": "Join {lab}",

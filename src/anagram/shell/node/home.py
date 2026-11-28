@@ -51,10 +51,12 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
 
 from anagram.core.crypto.signing import SigningKey
+from anagram.core.errors import NodeError
 from anagram.identity.api import (
     ORCID_MODES,
     PUBLIC_LOG_KINDS,
@@ -123,8 +125,9 @@ class NodeHome:
         check_anchor_policy(orcid_mode, anchors)
         if anchor_mode not in ("inline", "background"):
             raise ValueError("anchor mode must be inline or background")
-        if not public_url.startswith(("https://", "http://")):
-            raise ValueError("public URL must be http(s)")
+        parsed = urllib.parse.urlsplit(public_url)
+        if parsed.scheme not in ("https", "http") or not parsed.hostname:
+            raise ValueError("public URL must be http(s) with a host")
         self.dir.mkdir(parents=True, exist_ok=True)
         ks = FileKeystore(self.dir / "keys")
         for name in NODE_KEYS:
@@ -253,11 +256,14 @@ class NodeHome:
         from anagram.identity.api import FakeOrcid, OrcidOAuth
 
         cfg = self.config()
-        if cfg["orcid"]["mode"] == "fake":
+        mode = cfg["orcid"]["mode"]
+        if mode == "fake":
             return FakeOrcid(cfg["public_url"])
-        return OrcidOAuth(
-            cfg["orcid"]["client_id"], self.orcid_client_secret(), cfg["orcid"]["mode"]
-        )
+        client_id = cfg["orcid"]["client_id"]
+        secret = self.orcid_client_secret()
+        if not client_id or not secret:
+            return _DisabledOrcid(mode)
+        return OrcidOAuth(client_id, secret, mode)
 
     def identity(self, service: NodeService, orcid=None, mailer=None, clock=None):
         from anagram.identity.api import FakeMailer, IdentityConfig, IdentityService
@@ -423,6 +429,7 @@ class NodeHome:
         app.state.enclave = enclave
         app.state.anchoring = anchoring  # `node serve` starts its thread
         app.state.admission = admission
+        app.state.labs = labs
         return app, identity
 
     def anchor(self, spec: str) -> Anchor:
@@ -490,6 +497,25 @@ class NodeHome:
             self.anchors(),
             public_kinds=PUBLIC_LOG_KINDS,
         )
+
+
+class _OrcidUnavailable(NodeError):
+    status = 503
+
+
+class _DisabledOrcid:
+    """Adapter used when a production/sandbox node runs without ORCID credentials."""
+
+    enabled = False
+
+    def __init__(self, mode: str) -> None:
+        self.mode = mode
+
+    def authorize_url(self, state: str, redirect_uri: str, login_hint: str | None = None) -> str:
+        raise _OrcidUnavailable("ORCID is not configured on this node")
+
+    def exchange(self, code: str, redirect_uri: str):
+        raise _OrcidUnavailable("ORCID is not configured on this node")
 
 
 def organizer_orcid(value: str) -> str:

@@ -281,18 +281,33 @@ Old proofs then verify on the new computer.
 
 ## 11. Sign-in flows (node API, not locked)
 
-Invite (v3, the main path; no third party): `POST /auth/invite` with `invite`
+Invite (v3, the main path; no third party): `POST /auth/invite` (rate-limited
+per client address) with `invite`
 (the `token` of a node invite, or `lab:<invite ID>` of a lab invite),
-`device_key`, `nonce`, `pid` (the person ID that the first device made), and
-an optional `email` (the address that the person states). The node:
+`device_key`, `nonce`, `pid` (the person ID that the first device made),
+optional `invite_signature` (required for lab invites: Ed25519 by `invite_pub`
+over `canonical_json({"device_key", "invite", "nonce"})`, tag
+`anagram/v1/sign/lab-invite-signin`), optional `device_signature` (required
+for a pre-binding retry: Ed25519 by `device_key` over
+`canonical_json({"device_key", "invite", "nonce", "pid"})`, tag
+`anagram/v1/sign/invite-rejoin`), and
+an optional `email` (the address that the person states). An already-bound
+device MUST NOT use `POST /auth/invite` to sign in again; it MUST use device
+sign-in (`/auth/device/start` and `/auth/device/verify`). A pre-binding retry
+is allowed only while the account has no key-binding history, the invite is
+still valid/open, `device_key` matches the initial device, and
+`device_signature` verifies. The node:
 
 1. Node invite: checks that the invite exists, is open, and is not expired
    (`404`, `409`, `410`). It makes the account, claims the invite in the same
    lock (single use), and answers the assertion (method `invite`, no ORCID
    commitment), a session, and the `receipt`. The client calls
    `POST /invites/claim` as for each join; the claim is idempotent.
-2. Lab invite: checks that the lab invite is open. The person becomes a node
-   member only with the lab join request ([lab.md](lab.md)).
+2. Lab invite: checks that the lab invite is open and verifies
+   `invite_signature` against `invite_pub` (`403` on missing or bad proof).
+   The person becomes a node member only with the lab join request
+   ([lab.md](lab.md)). Any stated email is kept pending and claims uniqueness
+   only upon admission as a member.
 3. Reader invite (an invite to a named contact): the contact proof stays.
    For an email contact the node sends a code to that address and answers
    `{"needs": "email_code", "challenge_id", "email_hint"}`; the client then
@@ -301,7 +316,7 @@ an optional `email` (the address that the person states). The node:
 
 A **stated** email address is private to the node. It is never a sign-in
 address: an email code for it makes no session for the account. The first
-person who states an address keeps it.
+admitted person who states an address keeps it.
 
 ORCID (optional; `/authenticate` scope, authorization code):
 

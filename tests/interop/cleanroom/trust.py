@@ -99,13 +99,19 @@ class Log:
     pins: Pins
     entries: list[dict]
     checkpoints: list[Checkpoint] = field(default_factory=list)
+    _leaves: list[bytes] = field(default_factory=list, repr=False)
+    _ok: list[bool] = field(default_factory=list, repr=False)
 
     def accept(self, note: str) -> Checkpoint:
         cp = parse_checkpoint(note, self.pins.log_key, self.pins.witnesses)
         lower(cp, self.pins.witnesses)  # raises without a quorum
         if cp.size > len(self.entries):
             raise Refused("bad_checkpoint", "more entries than read")
-        if mth([leaf_hash(cjson(e)) for e in self.entries[: cp.size]]) != cp.root:
+        if len(self._leaves) < cp.size:
+            self._leaves.extend(
+                leaf_hash(cjson(e)) for e in self.entries[len(self._leaves) : cp.size]
+            )
+        if mth(self._leaves[: cp.size]) != cp.root:
             raise Refused("bad_checkpoint", "root")
         self.checkpoints.append(cp)
         return cp
@@ -116,7 +122,9 @@ class Log:
 
     def visible(self) -> list[tuple[int, dict]]:
         n = self.latest.size if self.checkpoints else len(self.entries)
-        return [(i, e) for i, e in enumerate(self.entries[:n]) if entry_ok(e)]
+        if len(self._ok) < n:
+            self._ok.extend(entry_ok(e) for e in self.entries[len(self._ok) : n])
+        return [(i, self.entries[i]) for i in range(n) if self._ok[i]]
 
     def logged_by(self, index: int) -> int | None:
         times = [upper(c, self.pins.witnesses) for c in self.checkpoints if c.size > index]

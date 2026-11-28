@@ -23,7 +23,7 @@ from anagram.shell.ui.routers import UIContext
 def register(app: FastAPI, ctx: UIContext) -> None:
     labs = ctx.service.labs
     watch = LabWatch(ctx.service, ctx.service.publish)
-    ctx.tasks.add("lab.watch", watch.run, every_s=watch.wait)
+    ctx.tasks.add("lab.watch", watch.run, every_s=watch.wait, on_stop=watch.stop)
 
     @app.get("/api/labs/mine")
     def mine() -> list[dict]:

@@ -1,4 +1,4 @@
-"""The join page of the node, `GET /join` (R1 plan, section 7, step 1).
+"""The join page of the node, `GET /join`.
 
 The page is static: the invite is in the fragment, which never goes to the
 server. Its one script sets the "Open Anagram" link."""

@@ -1,5 +1,5 @@
 """From an invite link to the app, in a browser, with no terminal and no
-paste (R1 plan, step S9; integration 1.5).
+paste.
 
 A real node (uvicorn) and a real app (`AppRuntime`) run on
 loopback ports. The test plays the operating system in one place: it gives

@@ -81,7 +81,7 @@ def test_changed_page_is_refused(tmp_path):
 
 
 def test_the_page_cache_holds_the_vector_pages(tmp_path):
-    """Plan net 01 finding 1: SQLCipher decrypts a page again each time it
+    """SQLCipher decrypts a page again each time it
     leaves the cache, so the cache must hold the vector pages (512 MB limit;
     only read pages use RAM). Temp files stay in RAM (no plaintext)."""
     s = IndexStore(tmp_path / "i.sqlite", KEY)

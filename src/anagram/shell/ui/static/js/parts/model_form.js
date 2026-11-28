@@ -1,4 +1,4 @@
-// The form that sets up one model (track R4, step 11b). Two places use it:
+// The form that sets up one model. Two places use it:
 // the model section of Account (`slots/models.js`, for one person) and the
 // lab model (`slots/lab_models.js`, for a PI or an admin).
 //

@@ -1,4 +1,4 @@
-"""P2: identity and joining, end to end over FastAPI TestClient. No network."""
+"""Identity and joining, end to end over FastAPI TestClient. No network."""
 
 from __future__ import annotations
 
@@ -733,7 +733,7 @@ def test_labs(net, tmp_path):
 
 
 def test_log_service_takes_only_the_public_kinds_it_is_given():
-    """The log service knows no public entry kind by itself (layers plan X5):
+    """The log service knows no public entry kind by itself:
     the node gives the L1 key binding check."""
     entry = {"kind": "key_binding", "schema": "anagram.key_binding.v1"}
     with pytest.raises(EntryRejected, match="exactly"):

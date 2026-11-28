@@ -1,4 +1,4 @@
-"""The item, kind, and suggestion routes of the local UI (R4 step 11).
+"""The item, kind, and suggestion routes of the local UI.
 
 The boundary, the space of each item (`spaces.space_of`), the scope rule,
 the kind correction of the person (it stays for a new version), and the
@@ -304,7 +304,7 @@ def test_used_drafts_of_the_old_ui_state_become_stamped(ui, tmp_path):
 
 
 def test_a_negative_result_shows_on_the_item_proposal_and_finding(ui, tmp_path):
-    """Decision C12: the routes give the polarity; a negative finding is
+    """The routes give the polarity; a negative finding is
     proposed and stamped as each other finding is."""
     null = (
         "# Ligand LX-4 and the band\n\n"

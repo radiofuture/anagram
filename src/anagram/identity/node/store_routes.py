@@ -28,7 +28,7 @@ def store_router(store, subject_of: Callable[[str | None], str]) -> APIRouter:
     @router.put("/store/records/{record_id}")
     def store_put(
         record_id: str,
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         return store.put(subject_of(authorization), record_id, field(body, "record"))
@@ -44,7 +44,7 @@ def store_router(store, subject_of: Callable[[str | None], str]) -> APIRouter:
     @router.put("/store/person-keys/{device}")
     def put_person_keys(
         device: str,
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         return store.put_person_keys(subject_of(authorization), device, field(body, "package"))

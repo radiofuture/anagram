@@ -1,4 +1,4 @@
-"""Node vault service (P3b): encrypted blobs, grants, public releases, recovery
+"""Node vault service: encrypted blobs, grants, public releases, recovery
 guardians. See spec/vault.md section 8.
 
 The node stores only ciphertext and public data:

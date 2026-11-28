@@ -33,7 +33,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return library.model_draft(draft_id)
 
     @app.post("/api/findings")
-    def timestamp(body: dict = Body(...)) -> dict:  # noqa: B008
+    def timestamp(body: dict = Body(...)) -> dict:
         keys = body.get("keys") or []
         if not isinstance(keys, list) or not all(isinstance(k, str) for k in keys):
             raise UIError(400, "Bad file list.")

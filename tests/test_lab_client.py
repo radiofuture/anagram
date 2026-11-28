@@ -1,4 +1,4 @@
-"""Client lab unit (plan R2, steps S3a and S3b): verified roster, actions,
+"""Client lab unit: verified roster, actions,
 node faults, and the join with a lab invite link."""
 
 from __future__ import annotations

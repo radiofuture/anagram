@@ -59,7 +59,7 @@ def vault_router(vault, subject_of: Callable[[str | None], str]) -> APIRouter:
 
     @router.post("/grants")
     def post_grant(
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         return vault.put_grant(subject_of(authorization), field(body, "grant"))
@@ -74,7 +74,7 @@ def vault_router(vault, subject_of: Callable[[str | None], str]) -> APIRouter:
 
     @router.post("/public")
     def post_release(
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         return vault.put_release(subject_of(authorization), field(body, "release"))
@@ -89,7 +89,7 @@ def vault_router(vault, subject_of: Callable[[str | None], str]) -> APIRouter:
 
     @router.put("/guardians")
     def put_guardians(
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         return vault.put_guardian_set(subject_of(authorization), field(body, "set"))
@@ -104,7 +104,7 @@ def vault_router(vault, subject_of: Callable[[str | None], str]) -> APIRouter:
 
     @router.post("/recovery/requests")
     def post_request(
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         return vault.create_request(subject_of(authorization), field(body, "request"))
@@ -124,7 +124,7 @@ def vault_router(vault, subject_of: Callable[[str | None], str]) -> APIRouter:
     @router.post("/recovery/requests/{request_id}/approvals")
     def post_approval(
         request_id: str,
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         return vault.add_approval(subject_of(authorization), request_id, field(body, "approval"))

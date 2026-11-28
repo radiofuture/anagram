@@ -463,7 +463,7 @@ def test_is_sync_source():
     assert is_sync_source(ToySync())
     assert is_sync_source(ToySync)
     assert not is_sync_source(PlugIn())
-    v2 = {"gdrive", "gmail", "notion"}  # the cloud kinds of wave 2a use contract v2
+    v2 = {"gdrive", "gmail", "notion"}  # cloud connectors use sync contract v2
     for _, cls in SOURCES:  # each other built-in kind stays contract v1
         assert is_sync_source(cls) == (cls.kind in v2), cls.kind
 

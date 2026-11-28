@@ -240,8 +240,8 @@ def usable_cases(reuse: Reuse) -> list[dict]:
 
 
 def biscuit_refusals(reuse: Reuse) -> list[dict]:
-    """Tokens that break section 6.1, and what a verifier answers (W4
-    finding M-a). Each is signed by the right node key, so only the block
+    """Tokens that break spec/network.md section 6.1, and what a verifier
+    answers. Each is signed by the right node key, so only the block
     content is wrong."""
     alice = member_facts("alice")
     src = cred.biscuit_source(alice)

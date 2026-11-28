@@ -20,6 +20,7 @@ import json
 import random
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from anagram.sim import writers
 from anagram.sim.labs import (
@@ -43,8 +44,8 @@ CSV_ROWS = 24
 @dataclass
 class SimResult:
     out_dir: Path
-    ground_truth: dict
-    canaries: list[dict]
+    ground_truth: dict[str, Any]
+    canaries: list[dict[str, Any]]
 
 
 def _h(seed: int, *parts: str) -> str:
@@ -60,7 +61,7 @@ def fake_ror(seed: int, key: str) -> str:
     return f"fake-ror-{_h(seed, 'ror', key)[:9]}"
 
 
-def _chip(kind: str, label: str) -> dict:
+def _chip(kind: str, label: str) -> dict[str, str]:
     slug = label.lower().replace(" ", "-")
     return {"label": label, "id": f"tbd:{kind}/{slug}"}
 
@@ -71,8 +72,8 @@ class _Book:
 
     seed: int
     out_dir: Path
-    canaries: list[dict] = field(default_factory=list)
-    files: list[dict] = field(default_factory=list)
+    canaries: list[dict[str, Any]] = field(default_factory=list)
+    files: list[dict[str, Any]] = field(default_factory=list)
     counters: dict[str, int] = field(default_factory=dict)
 
     def canary(
@@ -230,6 +231,9 @@ def _pi_evidence(book: _Book, lab: Lab, person: Person, orcid: str, base: Path) 
     canary = book.canary(lab, orcid, book.rel(path), "zotero")
     items = []
     for i, (title, authors, year, venue) in enumerate(lab.library, start=1):
+        note = "Fictional reference for the Anagram synthetic community."
+        if i == 1:
+            note += f" Private reading note. Internal ref: {canary}"
         item = {
             "id": f"{lab.slug}-item-{i}",
             "type": "article-journal",
@@ -238,10 +242,8 @@ def _pi_evidence(book: _Book, lab: Lab, person: Person, orcid: str, base: Path) 
             "issued": {"date-parts": [[year]]},
             "container-title": venue,
             "DOI": f"10.5555/fake.{lab.slug}.{i}",
-            "note": "Fictional reference for the Anagram synthetic community.",
+            "note": note,
         }
-        if i == 1:
-            item["note"] += f" Private reading note. Internal ref: {canary}"
         items.append(item)
     data = (json.dumps(items, indent=2, sort_keys=True) + "\n").encode()
     book.write(
@@ -312,14 +314,14 @@ def _manager_evidence(book: _Book, lab: Lab, person: Person, orcid: str, base: P
     _write_mail(book, lab, orcid, base / "mail" / "vendor-thread.eml", lab.vendor_mail)
 
 
-def _match_reason(a: Lab, b: Lab) -> dict:
+def _match_reason(a: Lab, b: Lab) -> dict[str, list[str]]:
     return {
         f"{a.slug}_gets": sorted(set(a.need_chips) & set(b.offer_chips)),
         f"{b.slug}_gets": sorted(set(b.need_chips) & set(a.offer_chips)),
     }
 
 
-def build_ground_truth(seed: int, book: _Book | None = None) -> dict:
+def build_ground_truth(seed: int, book: _Book | None = None) -> dict[str, Any]:
     """Return the ground-truth manifest (without files when `book` is None)."""
     institutions = [
         {"id": fake_ror(seed, inst.key), "key": inst.key, "name": inst.name, "kind": inst.kind}

@@ -73,7 +73,7 @@ def create_app(
     `vault` (anagram.network.sharing.node.vault.NodeVault) needs `identity`. `admission` (L4,
     `anagram.admission.node.service.AdmissionService`, `NodeHome.admission`) is
     necessary with `identity`; the app does not make one. `enclave`
-    (`anagram.network.api.EnclaveRelay`) adds the `/enclave/*` relay routes to
+    (`anagram.network.matching.node.enclave_relay.EnclaveRelay`) adds the `/enclave/*` relay routes to
     the matching enclave behind member sign-in; the caller that makes the
     relay also runs its timer (`anagram.network.api.Ticker` on `relay.tick`).
     `enclave_parts` (`NodeEnclave`, node.json "enclave") gives the relay,

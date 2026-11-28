@@ -1,4 +1,4 @@
-"""R5 step 1: read receipt, fetch event, reading copy formats and the
+"""Read receipt, fetch event, reading copy formats and the
 `read_receipt` log kind."""
 
 import copy
@@ -50,7 +50,7 @@ def _receipt(key=None, **kw):
 def test_tags_are_unique():
     assert len(set(ALL_TAGS)) == len(ALL_TAGS)
     assert "anagram/v1/read-receipt" in ALL_TAGS
-    # Guest tags are later work (decision P10).
+    # Guest tags are not part of v1.
     assert not any("guest" in t for t in ALL_TAGS)
 
 

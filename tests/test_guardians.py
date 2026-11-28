@@ -1,4 +1,4 @@
-"""P3b: recovery guardians (Shamir 2 of 3) end to end. No network."""
+"""Recovery guardians (Shamir 2 of 3) end to end. No network."""
 
 from __future__ import annotations
 

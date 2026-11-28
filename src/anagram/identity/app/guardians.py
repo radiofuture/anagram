@@ -1,4 +1,4 @@
-"""Recovery guardians (P3b, optional). See spec/vault.md section 6.
+"""Recovery guardians (optional). See spec/vault.md section 6.
 
 Set up (owner device):
 

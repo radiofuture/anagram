@@ -78,7 +78,7 @@ class LabPolicy:
 
     def allows_cloud_assistant(self) -> bool:
         """May an agent of class `cloud` read the lab space? It needs
-        `allows_assistant` too (open-agents plan 2.2)."""
+        `allows_assistant` too."""
         return self.allows_assistant() and bool(self.disclosure.get("allow_cloud_assistant"))
 
     def allows_source(self, kind: str) -> bool:

@@ -1,4 +1,4 @@
-// The join page of the node (`/join`, R1 plan section 7). The invite is in
+// The join page of the node (`/join`). The invite is in
 // the fragment of the link, which the browser never sends to the server.
 // This script gives the fragment to the app: "Open Anagram" becomes
 // `anagram://join/<fragment>`. It also shows the full link, for a computer

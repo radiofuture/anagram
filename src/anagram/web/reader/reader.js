@@ -1,4 +1,4 @@
-// The reading view of a shared finding (release track R5, step 7b).
+// The reading view of a shared finding.
 //
 //   import { mountReader } from '/reader/reader.js';
 //   const view = mountReader(element, model, {
@@ -7,7 +7,7 @@
 //   });
 //   view.show(index); view.destroy();
 //
-// `model` is the reading model of plan R5 section 6.4 (`open_received`). The
+// `model` is the reading model returned by `open_received`. The
 // view needs no framework, so that the member app and a later node page can
 // use the same files. Content goes into the page as text nodes only.
 

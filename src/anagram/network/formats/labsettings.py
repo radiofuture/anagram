@@ -37,8 +37,8 @@ _SETTINGS_META = {
 
 
 def section_defaults() -> dict[str, JsonObject]:
-    """The value of each section when the record does not have it
-    (integration 1.7). The optional key `disclosure.allow_cloud_assistant`
+    """The default value of each section when the record does not have it.
+    The optional key `disclosure.allow_cloud_assistant`
     (agent grant v2) has no default here, so the vectors stay; a reader
     takes an absent key as false (`LabPolicy.allows_cloud_assistant`)."""
     return {
@@ -97,7 +97,7 @@ def _models(value: Any) -> None:
 
 
 def validate_section(name: str, value: Any) -> JsonObject:
-    """Check one section (shapes of integration 1.7). Unknown keys are
+    """Check one section. Unknown keys are
     refused. A key that is absent takes its default (`section_defaults`)."""
     if name == "models":
         _models(value)

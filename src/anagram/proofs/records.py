@@ -65,7 +65,7 @@ KINDS = {
 # (spec/matching.md section 8); a log reader still accepts them.
 KIND_MATCH_ROUND = "match_round"
 KIND_OPERATOR_ATTESTATION = "operator_attestation"
-# P3b: a hidden grant receipt (spec/vault.md section 4). A member submits it.
+# A hidden grant receipt (spec/vault.md section 4). A member submits it.
 KIND_GRANT_RECEIPT = "grant_receipt"
 # A hidden read receipt (spec/vault.md section 12). The node submits it
 # for the reader when it accepts the receipt.

@@ -1,4 +1,4 @@
-"""Ports of the proofs part (layers plan, section 4): what the certificate
+"""Ports of the proofs layer: what the certificate
 and the preprint need from the app. The `Client` composition root
 gives it; proofs does not import the code that gives it."""
 

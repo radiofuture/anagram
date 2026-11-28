@@ -1,5 +1,5 @@
-"""R5 step 4b: share a finding with my own lab. The finding goes into the lab
-space of R2 (`lab_publish`), not into a grant for each member. A member of the
+"""Share a finding with my own lab. The finding goes into the lab
+space (`lab_publish`), not into a grant for each member. A member of the
 lab reads it there; a member of another lab gets nothing; a lab of another
 person is refused before any send."""
 

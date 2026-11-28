@@ -1,4 +1,4 @@
-"""The update check (R1 plan, section 6.6; step S13): a signed manifest, no
+"""The update check: a signed manifest, no
 request when the build has no URL, and a new version that makes the
 launcher start the new app. No network: the fetch is a fake."""
 

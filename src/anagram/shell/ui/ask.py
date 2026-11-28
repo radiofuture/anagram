@@ -136,7 +136,7 @@ class AskUI:
         return {"hits": [h.json() for h in hits], "mode": mode}
 
     def _emit(self, thread: str, type_: str, data: dict) -> None:
-        # An answer's events have the thread id as their key (integration 1.3).
+        # An answer's events use the thread id as their key.
         self.ui.publish(type_, {**data, "thread": thread}, key=thread)
 
     def start_ask(self, question: object, space: object = None, *, wait: bool = False) -> dict:

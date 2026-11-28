@@ -1,6 +1,6 @@
-"""Planted instructions in item text (R4 step 18 fix, `local/understanding/planted.py`).
+"""Planted instructions in item text (`local/understanding/planted.py`).
 
-Step 18 measured injection success 3 to 8 of 10 with local models: a planted
+Local-model evaluations measured injection success at 3 to 8 of 10: a planted
 title passed the grounding check, because the planted words are in the item.
 These tests use fake models that obey the planted text. No network."""
 

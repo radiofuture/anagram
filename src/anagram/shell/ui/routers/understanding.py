@@ -56,7 +56,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return models_ui.models()
 
     @app.put("/api/models/profiles/{pid}")
-    def put_profile(pid: str, body: dict = Body(...)) -> dict:  # noqa: B008
+    def put_profile(pid: str, body: dict = Body(...)) -> dict:
         return models_ui.put_profile(pid, body_dict(body))
 
     @app.delete("/api/models/profiles/{pid}")
@@ -64,7 +64,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return models_ui.delete_profile(pid)
 
     @app.put("/api/models/profiles/{pid}/key")
-    def put_key(pid: str, body: dict = Body(...)) -> dict:  # noqa: B008
+    def put_key(pid: str, body: dict = Body(...)) -> dict:
         return models_ui.put_key(pid, body_dict(body).get("key"))
 
     @app.delete("/api/models/profiles/{pid}/key")
@@ -76,19 +76,19 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return models_ui.test_profile(pid)
 
     @app.put("/api/models/use")
-    def set_use(body: dict = Body(...)) -> dict:  # noqa: B008
+    def set_use(body: dict = Body(...)) -> dict:
         body = body_dict(body)
         return models_ui.set_use(
             body.get("task"), body.get("profile"), body.get("acknowledged") is True
         )
 
     @app.put("/api/models/budget")
-    def set_budget(body: dict = Body(...)) -> dict:  # noqa: B008
+    def set_budget(body: dict = Body(...)) -> dict:
         body = body_dict(body)
         return models_ui.set_budget(body.get("budget_usd"), body.get("expires"))
 
     @app.put("/api/labs/{lab_id}/models")
-    def set_lab_models(lab_id: str, body: dict = Body(...)) -> dict:  # noqa: B008
+    def set_lab_models(lab_id: str, body: dict = Body(...)) -> dict:
         return models_ui.set_lab_models(lab_id, body_dict(body))
 
     @app.get("/api/sources/{sid}/recipients")
@@ -96,7 +96,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return models_ui.get_recipients(sid)
 
     @app.put("/api/sources/{sid}/recipients")
-    def set_recipients(sid: str, body: dict = Body(...)) -> dict:  # noqa: B008
+    def set_recipients(sid: str, body: dict = Body(...)) -> dict:
         return models_ui.set_recipients(sid, body_dict(body).get("allow"))
 
     @app.get("/api/kinds")
@@ -118,7 +118,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return understanding.item(ref)
 
     @app.put("/api/items/{ref}/kind")
-    def set_kind(ref: str, body: dict = Body(...)) -> dict:  # noqa: B008
+    def set_kind(ref: str, body: dict = Body(...)) -> dict:
         return understanding.set_kind(ref, body_dict(body).get("kind"))
 
     @app.get("/api/suggestions")
@@ -126,7 +126,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return understanding.suggestions()
 
     @app.post("/api/suggestions/{draft_id}")
-    def act_on_suggestion(draft_id: str, body: dict = Body(...)) -> list[dict]:  # noqa: B008
+    def act_on_suggestion(draft_id: str, body: dict = Body(...)) -> list[dict]:
         return understanding.act_on_suggestion(draft_id, body_dict(body).get("action"))
 
     @app.get("/api/search")
@@ -144,7 +144,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return ask_ui.ask_setup()
 
     @app.post("/api/ask")
-    def ask(body: dict = Body(...)) -> dict:  # noqa: B008
+    def ask(body: dict = Body(...)) -> dict:
         body = body_dict(body)
         return ask_ui.start_ask(body.get("question"), body.get("space"))
 

@@ -1,4 +1,4 @@
-"""The `understand` stage (R4 step 8): plan, triage, extraction, cache,
+"""The `understand` stage: plan, triage, extraction, cache,
 opt-in, batching, events. Fake models only; no network."""
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from anagram.models.providers.fake import FakeTextModel
 pytestmark = pytest.mark.usefixtures("no_network")
 
 TODAY = date(2026, 11, 16)
-BUDGET = {"approved_by": "Ashish", "budget_usd": "1.00", "expires": "2026-12-31"}
+BUDGET = {"approved_by": "researcher", "budget_usd": "1.00", "expires": "2026-12-31"}
 LAB = "lab:lab-0123456789abcdef"
 
 RESULT = (
@@ -361,7 +361,7 @@ def test_no_understand_job_for_a_doc_with_no_prose(tmp_path):
     assert queued(index) == 0
 
 
-# ------------------------------------------------- the finding check (step 18)
+# ----------------------------------------------------------- the finding check
 
 ERRANDS = (
     "# Friday list\n\n"
@@ -486,7 +486,7 @@ def test_finding_check_reads_no_strong_planted_span(tmp_path):
 
 
 def test_a_short_null_outcome_gets_a_job_and_the_hint(tmp_path):
-    """Decision C12, negative-result recall: a negative result is often one
+    """Negative-result recall: a negative result is often one
     short line. Old code: an item with less than 200 characters that the rules
     did not call a finding got no job, so it had no polarity. Now words of a
     null outcome give a job (40 characters or more), and the triage input
@@ -521,7 +521,7 @@ def test_a_short_null_outcome_gets_a_job_and_the_hint(tmp_path):
      ("own_result", "others", "result"), ("everyday", "none", "result")],
 )  # fmt: skip
 def test_a_negative_result_gets_the_check_and_can_become_a_finding(tmp_path, role, whose, kind):
-    """Decision C12: a model often calls a null outcome with a reading of the
+    """A model often calls a null outcome with a reading of the
     person a `result`. A negative result gets the finding check. All four
     answers must agree to make it a finding; else it stays a result (the
     check does not move a result to a different kind)."""

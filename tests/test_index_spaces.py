@@ -120,7 +120,7 @@ def test_check_scope_refuses_a_space_that_is_not_readable():
 
 
 def test_check_scope_accepts_a_lab_that_is_readable(monkeypatch):
-    """The check reads `readable_spaces`, so step S4 changes one function."""
+    """The check delegates to `readable_spaces` so space access changes in one place."""
     monkeypatch.setattr(spaces, "readable_spaces", lambda client: frozenset({"private", LAB}))
     assert spaces.check_scope([LAB], None) == frozenset({LAB})
     assert spaces.check_scope(["private", LAB], None) == frozenset({"private", LAB})

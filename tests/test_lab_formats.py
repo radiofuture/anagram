@@ -1,5 +1,5 @@
-"""Lab formats (plan R2, steps S1a and S1b): roster entries, the chain rules,
-the permission table (section 4.1), invites, join requests, and the vectors."""
+"""Lab formats: roster entries, the chain rules,
+the permission table, invites, join requests, and the vectors."""
 
 from __future__ import annotations
 
@@ -380,7 +380,7 @@ def test_person_in_lab_cannot_join_again(w):
 
 
 def test_removed_member_cannot_join_again_with_the_same_link(w):
-    """P0-3: a removal is final. The invite that the person used is revoked
+    """A removal is final. The invite that the person used is revoked
     in the same entry, and no other invite takes the person back."""
     auth, seed, iid = w.invite(PI, uses=5)
     w.apply(w.entry("invite", PI, invite=iid))

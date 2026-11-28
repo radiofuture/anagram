@@ -33,7 +33,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return account.overview()
 
     @app.put("/api/identity")
-    def identity(body: dict = Body(...)) -> dict:  # noqa: B008
+    def identity(body: dict = Body(...)) -> dict:
         return account.set_identity(
             body_text(body, "name"),
             body_text(body, "ror", required=False),
@@ -47,22 +47,22 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return account.view()
 
     @app.post("/api/devices")
-    def add_device(body: dict = Body(...)) -> dict:  # noqa: B008
+    def add_device(body: dict = Body(...)) -> dict:
         return account.add_device(body_text(body, "request"))
 
     @app.post("/api/guardians")
-    def guardians(body: dict = Body(...)) -> dict:  # noqa: B008
+    def guardians(body: dict = Body(...)) -> dict:
         people = body.get("people")
         if not isinstance(people, list) or not all(isinstance(p, str) for p in people):
             raise UIError(400, "Choose people from the search results.")
         return account.set_guardians(people, int(body.get("threshold") or 2))
 
     @app.post("/api/guardians/approve")
-    def guardian_approve(body: dict = Body(...)) -> dict:  # noqa: B008
+    def guardian_approve(body: dict = Body(...)) -> dict:
         return account.approve_guardian(body_text(body, "request_id"))
 
     @app.put("/api/settings/findable")
-    def set_findable(body: dict = Body(...)) -> dict:  # noqa: B008
+    def set_findable(body: dict = Body(...)) -> dict:
         return account.set_findable(bool(body.get("on")))
 
     @app.post("/api/store/sync")

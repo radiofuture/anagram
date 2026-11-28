@@ -1,7 +1,7 @@
 // The kinds that a member can connect, the setup of each, and the parts that
 // the source detail uses again (sign in, what to include, who can read it).
-// Track R3 owns this file (step S15). The kinds come from
-// `GET /api/source-kinds`, so a kind that R3 adds shows here with no change.
+// The kinds come from `GET /api/source-kinds`, so new source kinds show
+// here automatically.
 //
 //   folder, Obsidian, Git          the folder picker
 //   Zotero export                  the path of the file

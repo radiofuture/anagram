@@ -1,4 +1,4 @@
-// Timeline (track R4, step 15b): what the library learned, week by week,
+// Timeline: what the library learned, week by week,
 // newest week first (`GET /api/timeline`). Each week: a short summary with a
 // number after each statement when a model is set up (each number opens its
 // item), then the findings, results, and methods as rows, then one line with

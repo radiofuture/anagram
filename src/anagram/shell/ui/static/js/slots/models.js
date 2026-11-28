@@ -1,4 +1,4 @@
-// Slot view `account.sections` of track R4 (step 11b): the model of this
+// Slot view `account.sections`: the model of this
 // person. Which model reads the items and which answers the questions, the
 // models with their test, key, and sources, the spend limit of a cloud
 // model, and the form to add a model (`parts/model_form.js`).

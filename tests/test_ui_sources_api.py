@@ -1,4 +1,4 @@
-"""Source routes of the local UI (plan R3 section 3.11) and the source events
+"""Source routes of the local UI and the source events
 in the table `source_event`. The node is the in-process fake of conftest. No
 network."""
 
@@ -290,7 +290,7 @@ def test_source_events_do_not_go_to_the_bus():
 
 
 # ------------------------------------------------------------------ accounts
-# Step S7. The sign-in goes through the real loopback receiver on 127.0.0.1
+# The sign-in goes through the real loopback receiver on 127.0.0.1
 # (fixture `loopback_only`) and `FakeGoogle`. No call reaches Google.
 
 

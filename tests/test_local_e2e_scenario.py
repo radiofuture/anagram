@@ -1,4 +1,4 @@
-"""R2 step S13: the end-to-end scenario of `deploy/local_e2e.py` (three
+"""The end-to-end scenario of `deploy/local_e2e.py` (three
 people in two labs: lab space, and a shared finding with a read receipt),
 run in process on a test node. The same function runs on the Docker stack.
 No model, no network. (Matching runs only in the enclave: the Docker stack

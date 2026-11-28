@@ -1,4 +1,4 @@
-"""Assistant access (R4 step 16): the MCP server on stdio and the consent
+"""Assistant access: the MCP server on stdio and the consent
 routes. The client of the protocol is in this process; no network.
 
 Checks: off by default; one consent for each assistant; no write tool; only
@@ -286,7 +286,7 @@ def test_read_item_reads_one_open_item(lib):
     for name in ("lab.md", "diary.md"):  # the lab is not open; the source is closed
         text, error = peer.call("read_item", ref=f"item:{ids[name]}")
         assert error and "not open" in text
-    # A received mail is the text of another person: refused (security review P0-1).
+    # A received mail is the text of another person: refused.
     text, error = peer.call("read_item", ref=f"item:{ids['mail.eml']}")
     assert error and "not open" in text and THEIRS not in text
     assert peer.call("read_item", ref="/etc/passwd")[1]

@@ -34,7 +34,7 @@ from anagram.network.formats.sharing import (
 )
 from anagram.proofs.records import OpeningDocument
 
-log = logging.getLogger("anagram.client")
+log = logging.getLogger(__name__)
 
 MADE_BY = "anagram.readcopy.v1"
 CHUNK_SIZE = 1 << 20

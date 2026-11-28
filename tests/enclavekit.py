@@ -1,4 +1,4 @@
-"""A whole simulated network for the enclave slice (plan net 14b step 11).
+"""A whole simulated network for the matching enclave tests.
 
 It runs the real code end to end in one process, with real HTTP routes
 through `TestClient`: the `simulated` log and witnesses, the roster, two

@@ -1,4 +1,4 @@
-"""Browser walk of the Sources screens (plan R3 step S15; Playwright,
+"""Browser walk of the Sources screens (Playwright,
 headless Chromium).
 
 One joined member who is PI of a lab, a real `UIServer` on 127.0.0.1, and

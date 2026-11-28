@@ -1,4 +1,4 @@
-"""Local node (layer L2 of the layers plan): the data of one person on one
+"""Local node (layer L2): the data of one person on one
 computer. Nothing here sends plaintext to the node.
 
 - `sources/`: connectors, OAuth, credentials, the sync engine, source state.

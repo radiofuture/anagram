@@ -1,5 +1,5 @@
 // What you shared with one person (`#/sharing/with/:subject`): each finding,
-// its state, and the record of each share. Track R5 owns this screen.
+// its state, and the record of each share.
 import { html } from '../core/html.js';
 import { t } from '../core/copy.js';
 import { useResource } from '../core/resource.js';

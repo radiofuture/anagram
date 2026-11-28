@@ -31,7 +31,7 @@ def admission_router(
     router = APIRouter()
 
     @router.post("/auth/invite")
-    def invite_signin(request: Request, body: dict = Body(...)) -> dict:  # noqa: B008
+    def invite_signin(request: Request, body: dict = Body(...)) -> dict:
         return admission.invite_signin(
             field(body, "invite"),
             field(body, "device_key"),
@@ -44,19 +44,19 @@ def admission_router(
         )
 
     @router.post("/auth/invite/preview")
-    def invite_preview(body: dict = Body(...)) -> dict:  # noqa: B008
+    def invite_preview(body: dict = Body(...)) -> dict:
         return admission.invite_preview(field(body, "invite"))
 
     @router.post("/invites")
     def create_invite(
-        body: dict = Body(default={}),  # noqa: B008
+        body: dict = Body(default={}),
         authorization: str | None = Header(default=None),
     ) -> dict:
         return admission.create_invite(subject_of(authorization), body.get("expires_days", 7))
 
     @router.post("/invites/claim")
     def claim(
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         return admission.claim_invite(subject_of(authorization), str(field(body, "token")))
@@ -71,7 +71,7 @@ def admission_router(
     @router.post("/labs/{lab_id}/invites")
     def put_lab_invite(
         lab_id: str,
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         return admission.put_lab_invite(
@@ -85,7 +85,7 @@ def admission_router(
     @router.post("/labs/{lab_id}/join")
     def join_lab(
         lab_id: str,
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ):
         out = admission.join_lab(subject_of(authorization), lab_id, field(body, "request"))

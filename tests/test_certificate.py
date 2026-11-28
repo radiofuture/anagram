@@ -1,4 +1,4 @@
-"""Proof certificate (R5 step 12): render, load, verify, CLI, UI route.
+"""Proof certificate: render, load, verify, CLI, UI route.
 
 The print layout (one page) is checked in `test_certificate_browser.py`.
 No network: a local node, or the in-process node of `conftest.net`.

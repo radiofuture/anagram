@@ -1,10 +1,10 @@
-// Sharing on the finding screen (track R5, step 7c).
+// Sharing on the finding screen.
 //
 // finding.actions:  "Share" opens the share sheet: one field for a name, an
 //                   email address, or an ORCID iD; the rings come below it.
 // finding.sections: "Shared with": one row for each person, lab, or invite,
 //                   with its state. A read changes the row in place (S1).
-//                   "Stop sharing" opens the stop sheet (decision P3).
+//                   "Stop sharing" opens the stop sheet.
 import { html, useRef, useState } from '../core/html.js';
 import { t } from '../core/copy.js';
 import { api, search } from '../core/api.js';
@@ -242,7 +242,7 @@ function StopSheet({ finding, row, keep, close }) {
   const stop = async () => {
     await api('POST', `${base}/shares/stop`, { target: row.target });
     await reload(finding);
-    // A new key is a second, explicit action (decision P3). It needs the files.
+    // A new key is a second, explicit action. It needs the files.
     if (row.person.kind === 'member' && finding.evidence.every((e) => e.on_this_computer)) setStopped(true);
     else close(true);
   };

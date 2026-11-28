@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from importlib import resources
+from typing import Any
 
 
 def _tuples(value: object) -> object:
@@ -16,6 +17,9 @@ def _tuples(value: object) -> object:
     return value
 
 
-def load(name: str) -> tuple:
+def load(name: str) -> tuple[Any, ...]:
     text = resources.files("anagram.sim").joinpath("data", f"{name}.json").read_text("utf-8")
-    return _tuples(json.loads(text))
+    out = _tuples(json.loads(text))
+    if not isinstance(out, tuple):
+        raise ValueError(f"fixture {name} is not a list")
+    return out

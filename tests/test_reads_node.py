@@ -1,4 +1,4 @@
-"""R5 step 2: the node read ledger, the receipt gate, fetch events, grant and
+"""The node read ledger, the receipt gate, fetch events, grant and
 blob delete, and the grant list with no ciphertext."""
 
 from __future__ import annotations

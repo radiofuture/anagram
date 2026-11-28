@@ -22,7 +22,7 @@ Rules:
   between the first and the second half.
 
 Weight: each basis item adds 0.5 ** (age / half-life), so a reading of many
-recent items ranks first (plan net-03b step 2; half-life 12 months).
+recent items ranks first (half-life 12 months).
 """
 
 from __future__ import annotations
@@ -312,9 +312,9 @@ def _trajectory(
 
 
 def draft(readings: Sequence[Reading], published: set[str] | None = None) -> tuple[list, list]:
-    """The beacon draft (plan net-12 step 2): (offers, wants), each at most
+    """The beacon draft: (offers, wants), each at most
     `MAX_LINES` lines, by weight. `published`: IDs of published items; a
-    line with any other basis item has scope `inside` (N22 default)."""
+    line with any other basis item defaults to scope `inside`."""
     published = published or set()
     side_of = {"asks": "want", "stuck_on": "want", "offers": "offer", "tacit_skill": "offer"}
     lines: dict[str, list[Line]] = {"offer": [], "want": []}

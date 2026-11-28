@@ -1,5 +1,5 @@
 # ruff: noqa: F811, S105, S106 - fixtures from test_ui_sources_api; test values, not secrets
-"""The lab settings sections of R3 in the local UI (plan R3 step S15):
+"""The lab source settings sections in the local UI:
 `oauth_clients` (the Google and Notion clients of a lab) and `sources` (the
 kinds that the lab space permits, and the default space). The node is the
 in-process fake of conftest. No network."""

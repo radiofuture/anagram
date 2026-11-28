@@ -1,4 +1,4 @@
-"""R8 step S5: the join with the invite only in the local UI, the optional
+"""Invite-only join in the local UI, the optional
 ORCID link, the invite chain on screens, and the organizer page with no
 ORCID sign-in."""
 

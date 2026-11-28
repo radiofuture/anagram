@@ -173,7 +173,7 @@ class LocalIndex:
         (the composition root gives them; for example the lab space)."""
         self.kinds = SourceKinds(sources)
         self.store = IndexStore(path, key)
-        # Vector and full-text search (plan net 01: the retrieval store port).
+        # Vector and full-text search behind the retrieval store port.
         self.retrieval: RetrievalStore = SqliteVecStore(self.store)
         source_labels.migrate(self.store)  # no source label is a path
         self.vocab = vocab or default_vocabulary()

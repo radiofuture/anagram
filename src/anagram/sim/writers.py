@@ -16,7 +16,7 @@ import struct
 import subprocess  # git is called with fixed arguments only
 import zipfile
 import zlib
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from email.message import EmailMessage
 from email.utils import formataddr
 from pathlib import Path
@@ -91,7 +91,7 @@ def _rels(items: list[tuple[str, str, str]]) -> str:
     return f'{XML_HEAD}<Relationships xmlns="{PKG_REL}">{body}</Relationships>'
 
 
-def _zip(members: list[tuple[str, str | bytes]]) -> bytes:
+def _zip(members: Sequence[tuple[str, str | bytes]]) -> bytes:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
         for name, data in members:
@@ -279,7 +279,7 @@ def eml_bytes(
     return msg.as_bytes()
 
 
-# --- Zip, docx, PDF (extraction corpus, net 02) ----------------------------
+# --- Zip, docx, PDF (extraction corpus) ------------------------------------
 
 
 def normalize_zip(data: bytes, fix: Callable[[str, bytes], bytes] | None = None) -> bytes:

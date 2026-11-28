@@ -1,11 +1,11 @@
-// Lab (`#/lab/:id?/:tab?`, track R2 step S12): the people of the lab, the
+// Lab (`#/lab/:id?/:tab?`): the people of the lab, the
 // lab space, and the lab settings. With no id: the first lab of the member.
 // With no lab: start one, or open an invite link.
 //
 // The one task of the members view is "invite people": the invite is the
 // one offset panel of the screen. One click makes a link with the defaults
 // (one person, member, 7 days); the link shows one time, with Copy.
-// Live: each `lab.*` event (task `lab.watch`, plan R2 5.6) reloads the lab
+// Live: each `lab.*` event (task `lab.watch`) reloads the lab
 // resources; a new member or item row opens in place (RowList, recipe L1).
 import { html, useLayoutEffect, useRef, useState } from '../core/html.js';
 import { t } from '../core/copy.js';

@@ -30,7 +30,7 @@ __all__ = [
     "parse_lab_invite_link",
     # Roster checks
     "GroupAdmission",
-    # Device
+    # App
     "GroupInvites",
     "node_of",
     "invite_preview",

@@ -1,4 +1,4 @@
-// Slot view `account.sections` of track R1 (step S8b): "This computer".
+// Slot view `account.sections`: "This computer".
 // The start at login switch, the state of the helper (live from `app.helper`
 // events), where the keys are, and the version. Routes: `GET /api/app`,
 // `PUT /api/app/start-at-login`, `POST /api/app/restart-helper`. Words:
@@ -52,7 +52,7 @@ function ThisComputer() {
       <${StartAtLogin} key=${String(login.on)} block=${login} />
       <${Facts} rows=${[
         [t('computer.helper'), helperText(helper)],
-        // Keys in files: the one sentence of R1 plan section 10, said one time.
+        // Keys in files: note it once here.
         [
           t('computer.keys'),
           keys.protected

@@ -1,5 +1,4 @@
-"""No plaintext of the index on disk, also not in temp files (plan net 01
-step 4, review finding M6).
+"""No plaintext of the index on disk, including temp files.
 
 The index holds notes with canary words and dense vectors. A load that can
 make SQLite use temp space runs (searches, a large sort, GROUP BY, an FTS5

@@ -1,7 +1,7 @@
 // One finding. The order of the page: the finding (its proof and its
 // evidence files), then who has it, then the outputs and the versions.
 // Sharing (the share sheet, "Shared with") and the outputs (certificate,
-// preprint draft) come from track R5 through the slots `finding.actions`
+// preprint draft) plug in through the slots `finding.actions`
 // and `finding.sections` (js/slots/share.js, js/slots/certify.js).
 import { html, useLayoutEffect, useRef } from '../core/html.js';
 import { t } from '../core/copy.js';

@@ -295,7 +295,7 @@ def reader_invites_router(invites: ReaderInvites, subject_of) -> APIRouter:
 
     @router.post("/reader-invites")
     def create(
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         if not isinstance(body, dict):

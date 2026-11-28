@@ -65,7 +65,7 @@ def witness_app(witness: EntryWitness, reader: HttpLog) -> FastAPI:
     app = FastAPI(title="Anagram enclave log witness (simulated profile)", lifespan=lifespan)
 
     @app.post("/witness/cosign", response_model=None)
-    def cosign(body: JsonObject = Body(...)) -> JsonObject | JSONResponse:  # noqa: B008
+    def cosign(body: JsonObject = Body(...)) -> JsonObject | JSONResponse:
         try:
             note, old, proof, entries = cosign_request(body)
             with lock:
@@ -81,7 +81,7 @@ def witness_app(witness: EntryWitness, reader: HttpLog) -> FastAPI:
         return {"cosignature": line}
 
     @app.post("/witness/entry-cosign")
-    def entry_cosign(body: JsonObject = Body(...)) -> JsonObject:  # noqa: B008
+    def entry_cosign(body: JsonObject = Body(...)) -> JsonObject:
         entry: Any = body.get("entry")  # untrusted: `check_entry_cosign` refuses a bad one
         try:
             with lock:

@@ -1,7 +1,6 @@
-"""R5 step 4c: invite a person who is not a member to read a finding (plan
-section 6.5, decision P10). The person joins the node with the contact of the
-invite, has no lab, and reads the finding after one owner sync. FakeMailer
-and FakeOrcid; no network."""
+"""Invite a person who is not a member to read a finding. The person joins
+the node with the contact of the invite, has no lab, and reads the finding
+after one owner sync. FakeMailer and FakeOrcid; no network."""
 
 from __future__ import annotations
 
@@ -74,7 +73,7 @@ def test_invite_by_email_joins_with_no_lab_and_reads_after_one_sync(world, tmp_p
         {"invite_id": out["invite_id"], "owner": chen.device.subject}
     ]
 
-    # Security review P1-3: the owner confirms the claimer before the grant.
+    # The owner confirms the claimer before the grant.
     (ask,) = chen.invites.sync_reader_invites()
     assert ask == {"findings": [], "invite_id": out["invite_id"], "kind": "confirm",
                    "subject": dana.device.subject}  # fmt: skip
@@ -287,7 +286,7 @@ def test_only_the_owner_sees_and_ends_an_invite(world, tmp_path):
     assert r.status_code == 401
 
 
-# ------------------------------------------- security review P1-3
+# ------------------------------------------------ owner confirmation of claims
 
 
 def test_a_node_that_marks_a_claim_gets_no_key_without_the_owner(world, tmp_path):

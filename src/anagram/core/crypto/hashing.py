@@ -36,7 +36,7 @@ TAG_SIGN_KEY_POSSESSION = "anagram/v1/sign/key-possession"
 TAG_SIGN_IDENTITY = "anagram/v1/sign/identity-record"
 TAG_KEY_BINDING_ENTRY = "anagram/v1/key-binding-entry"
 TAG_INVITE_ID = "anagram/v1/invite-id"
-# P3b: vault, grants, rings, guardians (spec/vault.md).
+# Vault, grants, rings, guardians (spec/vault.md).
 TAG_BLOB_KEY = "anagram/v1/blob/key"
 TAG_BLOB_CHUNK = "anagram/v1/blob/chunk"
 TAG_GRANT_RECEIPT = "anagram/v1/grant-receipt"

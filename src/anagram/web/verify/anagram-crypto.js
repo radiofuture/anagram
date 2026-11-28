@@ -8,8 +8,8 @@
 // file never leaves the browser. WebCrypto needs a secure context (HTTPS or
 // localhost).
 //
-// Only what the verify page needs is here (R5 step 13). The guest reader
-// (later work, decision P10) can add to this module.
+// Only what the verify page needs is here. A future guest reader can extend
+// this module.
 
 export const CONTENT_ALG = 'anagram-chunked-sha256-v1';
 export const TAG_CONTENT = 'anagram/v1/content';

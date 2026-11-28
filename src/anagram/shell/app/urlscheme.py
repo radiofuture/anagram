@@ -4,8 +4,8 @@ Links:
 
 - `anagram://open`: open the app.
 - `anagram://join/<fragment>`: open the app with an invite. `<fragment>` is
-  the text after `#` of a join link (a node invite or a lab invite,
-  integration 1.5). The app only stores it as pending; the person confirms
+  the text after `#` of a join link (a node invite or a lab invite).
+  The app only stores it as pending; the person confirms
   the join on the screen.
 
 The operating system starts `<app> open-url <link>` (`launcher.open_url`).

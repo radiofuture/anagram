@@ -208,7 +208,7 @@ def test_resolve_builds_each_provider_with_its_key(index, keystore, tmp_path):
     assert isinstance(m, OllamaModel) and not m.external and m.profile_id == local.id
     http = FakeHTTP([(200, chat('{"kind": "note"}'))])
     m = profile.resolve(cfg, "ask", keystore, tmp_path, transport=http)
-    # No price and not on this computer: inside the usage limit (review P2).
+    # No price and not on this computer: inside the usage limit.
     assert isinstance(m, UsageGate) and m.external and not m.paid
     assert isinstance(m.model, OpenAICompatModel)
     assert m.recipient_id == f"model:{uni.id}"
@@ -242,7 +242,7 @@ def test_a_paid_profile_runs_only_inside_the_gate(index, keystore, tmp_path):
 
 
 def test_an_endpoint_with_no_price_never_skips_the_gate(index, keystore, tmp_path):
-    """Security review P2: a model with no price that is not on this computer
+    """A model with no price that is not on this computer
     counts calls and characters against a limit for each day. A cloud
     provider with no known price is refused until a price or a limit is set."""
     limited = {**UNIVERSITY, "label": "Small limit", "limit": {"calls": 3, "chars": 10_000}}

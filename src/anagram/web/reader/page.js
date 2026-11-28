@@ -1,6 +1,6 @@
 // The full page of the reading view in the member app: /reader/#<grant_id>.
-// It opens the received finding with the routes of plan R5 section 11
-// (`POST /api/shared/<grant_id>/open`) and shows it with `mountReader`.
+// It opens the received finding (`POST /api/shared/<grant_id>/open`) and
+// shows it with `mountReader`.
 
 import { el } from './dom.js';
 import { mountReader } from './reader.js';

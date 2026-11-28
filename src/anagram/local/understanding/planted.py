@@ -8,10 +8,10 @@
 This is layer 2 of the defence against planted instructions. Layer 1 is
 structural (`extractive.py`): the model writes no free text into a kept fact,
 so it does not need to recognise an order. Detection is a second layer: it
-recognises many English orders, and it is an arms race (step 18 fix: it
-flagged 1 of 10 held-out orders as strong). A word check alone ("the output
+recognises many English orders, and it is an arms race (in held-out tests it
+flagged 1 of 10 orders as strong). A word check alone ("the output
 words are in the item") does not stop a planted title, because the planted
-words are in the item (step 18: injection success 3 to 8 of 10). This module
+words are in the item (injection success was 3 to 8 of 10). This module
 gives three defences:
 
 1. Detection. Each sentence gets signals: words that address a model, words

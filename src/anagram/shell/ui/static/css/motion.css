@@ -1,6 +1,6 @@
 /* Motion of the product, on the three brand timings and the brand ease
-   (brand/product-ui/tokens.css). Class prefix ag-m-. These recipes are the
-   proposed extension of the brand MOTION.md (plan R7, section 5.3).
+   (brand/product-ui/tokens.css). Class prefix ag-m-. These recipes extend
+   the brand MOTION.md guidelines.
 
    Rules: each motion has a cause (an input of the person, or one real event).
    Only transform, opacity, and clip-path move; the height of a disclosure and

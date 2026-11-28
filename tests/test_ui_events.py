@@ -488,7 +488,7 @@ def test_events_of_a_real_join_and_a_real_source(tmp_path, sim_community):
         headers=ORIGIN,
     )
     assert r.status_code == 200 and r.json()["added"] >= 3
-    # Source events go to the table `source_event` (plan R3 S5); a bridge
+    # Source events go to the table `source_event`; a bridge
     # moves them to the bus.
     assert published(bus, mark) == []
     with svc.session(index=True) as (_, idx):
@@ -542,7 +542,7 @@ def test_live_starts_and_stops_the_bridges_and_the_tasks(app):
 
 
 def test_source_event_bridge_moves_each_row_to_the_bus(tmp_path, sim_community):
-    """Step 6a: a row of `source_event` reaches the page as one event, and
+    """A row of `source_event` reaches the page as one event, and
     source work makes the drafts stale."""
     net = make_net(tmp_path)
     svc, tc = ui_client(net, tmp_path / "chen", sim_community)

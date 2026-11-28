@@ -99,7 +99,7 @@ def chunk_document(doc: Document, max_chars: int = MAX_CHARS) -> list[Chunk]:
 def context_chunks(doc: Document, max_chars: int = MAX_CHARS) -> list[Chunk]:
     """Chunks of `doc.quoted`: text that other people wrote (quoted mail, a
     received message). They go to the table `context_chunk` only (class
-    `context`, integration 1.9). Each anchor starts with `quoted/`."""
+    `context`). Each anchor starts with `quoted/`."""
     if not doc.quoted.strip():
         return []
     out: list[Chunk] = []

@@ -1,4 +1,4 @@
-"""`GET /api/activity` (plan R7 step 9b): the Home lines from the bus."""
+"""`GET /api/activity`: the Home lines from the bus."""
 
 from __future__ import annotations
 

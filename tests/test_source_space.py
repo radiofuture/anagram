@@ -1,6 +1,6 @@
 # ruff: noqa: F811 - the fixtures come from test_ui_sources_api
-"""Space assignment with the R2 lab policy, lab OAuth clients from the lab
-settings record (plan R3 step S12), and source labels (carry-over X3). The
+"""Space assignment with the lab policy, lab OAuth clients from the lab
+settings record, and source labels. The
 node is the in-process fake of conftest. No network."""
 
 from __future__ import annotations

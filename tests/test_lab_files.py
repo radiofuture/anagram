@@ -1,4 +1,4 @@
-"""Attachments of lab items (plan R2, step S10): encrypted blobs that only
+"""Attachments of lab items: encrypted blobs that only
 lab members read, with no read receipt; a removed item deletes its blobs."""
 
 from __future__ import annotations

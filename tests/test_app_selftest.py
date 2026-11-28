@@ -1,5 +1,5 @@
-"""The self test of a packaged build and the program of the packaged app
-(R1 plan, step S10). The packaged build itself is made by
+"""The self test of a packaged build and the program of the packaged app.
+The packaged build itself is made by
 packaging/macos/build.sh, not by the test suite."""
 
 from __future__ import annotations

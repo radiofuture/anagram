@@ -1,5 +1,5 @@
-"""The R4 entries of "What leaves this computer" and the threat model section
-17 (plan R4, step 17)."""
+"""The understanding entries of "What leaves this computer" and the threat
+model section 17."""
 
 from __future__ import annotations
 

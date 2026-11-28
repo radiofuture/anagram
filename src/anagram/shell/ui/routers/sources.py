@@ -24,7 +24,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return sources.list()
 
     @app.post("/api/sources")
-    def add(body: dict = Body(...)) -> dict:  # noqa: B008
+    def add(body: dict = Body(...)) -> dict:
         # The whole body goes to the sources service (kind, path, space,
         # label, and the fields of later kinds); it checks each field.
         body_text(body, "kind")
@@ -47,7 +47,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return sources.get(sid)
 
     @app.patch("/api/sources/{sid}")
-    def change(sid: str, body: dict = Body(...)) -> dict:  # noqa: B008
+    def change(sid: str, body: dict = Body(...)) -> dict:
         return sources.patch(sid, body)
 
     @app.post("/api/sources/{sid}/pause")
@@ -63,7 +63,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return sources.sync(sid)
 
     @app.delete("/api/sources/{sid}")
-    def remove(sid: str, body: dict | None = Body(None)) -> dict:  # noqa: B008
+    def remove(sid: str, body: dict | None = Body(None)) -> dict:
         delete_data = (body or {}).get("delete_data", True)
         return sources.remove(sid, delete_data=delete_data)
 
@@ -80,15 +80,15 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return sources.choices(account_id, kind, parent)
 
     @app.post("/api/sources/preview")
-    def preview(body: dict = Body(...)) -> dict:  # noqa: B008
+    def preview(body: dict = Body(...)) -> dict:
         return sources.preview(body)
 
     @app.post("/api/accounts/connect")
-    def connect(body: dict = Body(...)) -> dict:  # noqa: B008
+    def connect(body: dict = Body(...)) -> dict:
         return connections.connect(body)
 
     @app.post("/api/accounts/key")
-    def connect_key(body: dict = Body(...)) -> dict:  # noqa: B008
+    def connect_key(body: dict = Body(...)) -> dict:
         return connections.connect_key(body)
 
     @app.get("/api/accounts/connect/{flow}")
@@ -107,7 +107,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return lab_sources.lab_source_settings()
 
     @app.put("/api/source-settings/{lab_id}/clients/{provider}")
-    def set_client(lab_id: str, provider: str, body: dict = Body(...)) -> dict:  # noqa: B008
+    def set_client(lab_id: str, provider: str, body: dict = Body(...)) -> dict:
         return lab_sources.set_lab_client(lab_id, provider, body)
 
     @app.delete("/api/source-settings/{lab_id}/clients/{provider}")
@@ -115,10 +115,10 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return lab_sources.remove_lab_client(lab_id, provider)
 
     @app.put("/api/source-settings/{lab_id}/sources")
-    def set_lab_sources(lab_id: str, body: dict = Body(...)) -> dict:  # noqa: B008
+    def set_lab_sources(lab_id: str, body: dict = Body(...)) -> dict:
         return lab_sources.set_lab_sources(lab_id, body)
 
     @app.delete("/api/accounts/{account_id}")
-    def remove_account(account_id: str, body: dict | None = Body(None)) -> dict:  # noqa: B008
+    def remove_account(account_id: str, body: dict | None = Body(None)) -> dict:
         remove_sources = (body or {}).get("remove_sources", False)
         return connections.remove_account(account_id, remove_sources=remove_sources)

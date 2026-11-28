@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS alerts (
     leaf_index INTEGER,
     text TEXT NOT NULL
 );
--- P3b. Local file path and flags of each evidence item. The index
+-- Local file path and flags of each evidence item. The index
 -- sets `third_party` = 1 when an item holds other people's words
 -- (for example a quoted email). Optional; the default is 0.
 CREATE TABLE IF NOT EXISTS evidence_meta (
@@ -246,7 +246,7 @@ class Vault:
     def alerts(self) -> list[str]:
         return [r[0] for r in self._db.execute("SELECT text FROM alerts ORDER BY id")]
 
-    # ------------------------------------------------- vault, rings (P3b)
+    # ------------------------------------------------------ vault and rings
 
     def set_evidence_meta(
         self, root: str, slot: int, path: str | None, third_party: bool = False

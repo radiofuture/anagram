@@ -1,5 +1,5 @@
 """The engines of the `simulated` build: the deterministic test embedder and
-joint judge (plan net 14b step 10: dev and CI).
+joint judge (dev and CI).
 
 They prove the plumbing, not the quality of matches. `simulated_engines` is
 the `EngineFactory` that the simulated enclave host gives an instance;

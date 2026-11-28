@@ -1,4 +1,4 @@
-"""The `profile` lens (plan net-03b step 2; plan net-12 step 2)."""
+"""The `profile` lens and beacon drafts."""
 
 from __future__ import annotations
 

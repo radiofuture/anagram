@@ -1,4 +1,4 @@
-"""Helpers for the browser tests of the local UI (plan R7 step 7a).
+"""Helpers for the browser tests of the local UI.
 
 - `copy(key, **params)`: the text that the page shows for a copy key, from
   the same files (`ui/static/copy/*.json`). A test finds elements by this

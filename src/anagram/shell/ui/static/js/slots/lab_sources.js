@@ -1,4 +1,4 @@
-// Slot view `lab.settings` of track R3 (step S15): the sections
+// Slot view `lab.settings`: the sections
 // `oauth_clients` and `sources` of the lab settings. The lab screen
 // renders `<Slot name="lab.settings" props=${{ lab }} />`; `lab` is the lab
 // ID or an object with `id` (or `lab_id`). A PI or admin changes the values;

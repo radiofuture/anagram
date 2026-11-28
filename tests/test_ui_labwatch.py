@@ -1,4 +1,4 @@
-"""The task `lab.watch` (plan R2 5.6, step S9b), with a fake bus."""
+"""The task `lab.watch`, with a fake bus."""
 
 from __future__ import annotations
 

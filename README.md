@@ -17,6 +17,81 @@ had a result no later than a date, which show only the parts that you choose.
 > enclave runs only in a *simulated* mode for development and tests. Read
 > [What we promise, and the limits](#what-we-promise-and-the-limits).
 
+## Quick start (30-second demo)
+
+You need [uv](https://docs.astral.sh/uv/) (0.7.20 or later); it installs
+Python 3.13 for you. The local web app (`uv run anagram`) runs on macOS and
+Linux; the packaged `.app` bundle is macOS-first, and community nodes run on
+Linux in Docker.
+
+```sh
+git clone https://github.com/radiofuture/anagram
+cd anagram
+uv sync
+```
+
+| Goal | Start here | Time |
+| --- | --- | --- |
+| **Try the simulated demo** | `uv run anagram demo up --dir /tmp/anagram-demo --ready --day-seconds 60` | ~2 min (1 tab) |
+| **Run your own local app** | `uv run anagram` | Immediate |
+| **Make a CLI priority proof** | `uv run anagram init && uv run anagram commit data.csv --claim "X binds Y"` | ~1 min |
+
+### Try the simulated demo
+
+Starts a local node, a `simulated` matching enclave network, and 4 invented
+researchers on your computer. No account, no model, no Docker, and no network
+are needed. With `--ready`, three researchers are already set up and matching,
+leaving only Mei-Lin Chen for you in a single browser tab:
+
+```sh
+uv run anagram demo up --dir /tmp/anagram-demo --ready --day-seconds 60
+```
+
+Open the printed link for Mei-Lin Chen, join, save the recovery kit, open
+**Network matching**, and click **Approve and start matching**. A proposal
+arrives on the next demo day (60 seconds), and a reveal follows after you say
+yes.
+
+- **All 4 tabs yourself:** drop `--ready` (`uv run anagram demo up --dir /tmp/anagram-demo`).
+- **Several nodes:** add `--nodes 2` or `--nodes 3` to match across local nodes.
+- **Stop:** `uv run anagram demo down --dir /tmp/anagram-demo`
+
+Full walk-through: [docs/demo.md](docs/demo.md).
+
+### Run your own local app
+
+```sh
+uv run anagram
+```
+
+Starts the local web UI on `127.0.0.1` and opens your browser with a one-time
+link. Your data stays in `~/.anagram` (use `--home DIR` for another folder).
+
+Optional extras:
+
+- `uv sync --extra node` — required to run a community node or enclave process
+  (not needed for the local app alone).
+- `uv sync --extra anthropic` — required to use Anthropic as a model provider.
+
+### Make a CLI priority proof
+
+Run these from the `anagram` folder (or pass the full path to any file):
+
+```sh
+echo "sample,value" > data.csv                       # any file of your results
+uv run anagram init                                  # keys and a local test node
+uv run anagram commit data.csv --claim "X binds Y"   # prints the proof file name
+uv run anagram verify anagram-*.proof.json           # VALID ...
+uv run anagram list                                  # your findings: time, finding id, version, root
+uv run anagram certificate <finding id>              # one HTML page that holds the proof
+uv run anagram verify anagram-certificate-*.html --file data.csv
+```
+
+The local test node uses a **fake time anchor** (`verify` flags this; a real
+node uses independent anchors). If `init` reports a locked or unavailable
+keychain (for example over SSH), run `uv run anagram --plain-key-files init`.
+Run `uv run anagram --help` to see all commands.
+
 ## How it works
 
 1. **Your app reads your work.** You connect folders, Git repositories,
@@ -36,8 +111,8 @@ had a result no later than a date, which show only the parts that you choose.
    lines, not the other person.
 4. **Both say yes, or nobody learns anything.** You answer yes, not now, or
    no. If both people say yes, each sees the other's **card** (name,
-   affiliation and how to make contact). If not, neither
-   side learns who the other person was, or what they answered.
+   affiliation and how to make contact). If not, neither side learns who the
+   other person was, or what they answered.
 
 ```
  your computer            your node                 matching enclave
@@ -92,133 +167,21 @@ Until the hardware profile ships, do not use Anagram for real, unpublished
 research plans. Details: [docs/enclave.md](docs/enclave.md) and
 [SECURITY.md](SECURITY.md).
 
-## Quick start (try it on your computer)
+## Documentation
 
-You need [uv](https://docs.astral.sh/uv/) (0.7.20 or later). uv installs
-Python 3.13 for you. The first release targets macOS. The node also runs on
-Linux in Docker.
-
-```sh
-git clone https://github.com/radiofuture/anagram
-cd anagram
-uv sync
-```
-
-A node and the enclave processes need the `node` extra: `uv sync --extra node`
-(or `pip install 'anagram[node]'`). The app alone does not.
-
-### 1. A demo community
-
-This starts a node, a matching network (the enclave and its log, in the
-`simulated` profile), and one app for each of 4 invented researchers, all on
-your computer. No account, no model, no Docker and no network are necessary.
-
-```sh
-uv run anagram demo up --dir /tmp/anagram-demo
-```
-
-The command starts everything in the background, prints one link for each
-person, and returns. Open the links in your browser, one tab for each
-person. In each tab:
-
-1. Join (the invite and the name are ready).
-2. Save the recovery kit. It is the file that gets your account back if you
-   lose your computer.
-3. Search an institution (for example "Northbridge"), choose "Make a new
-   lab", and save.
-4. Open "Network matching", approve your lines, and turn matching on.
-
-One demo day is 2 minutes: the next day brings a proposal, and a reveal
-comes when both people said yes. `--nodes 2` or `--nodes 3` spreads the
-labs over several local nodes that match through the same enclave. Stop the
-demo with:
-
-```sh
-uv run anagram demo down --dir /tmp/anagram-demo
-```
-
-Step-by-step walk-through: [docs/demo.md](docs/demo.md).
-
-### 2. Your own app
-
-```sh
-uv run anagram
-```
-
-This starts the app on `127.0.0.1` only and opens your browser. The terminal
-shows a one-time link; only that link opens the app. Keep the terminal open.
-Your data goes in `~/.anagram` (use `--home DIR` for another folder).
-
-### 3. A priority proof from the command line
-
-Run these in the `anagram` folder (`uv run` uses the project there). For a
-file in another folder, give its full path.
-
-```sh
-echo "sample,value" > data.csv                       # any file of your results
-uv run anagram init                                  # keys and a local test node
-uv run anagram commit data.csv --claim "X binds Y"   # prints the proof file name
-uv run anagram verify anagram-*.proof.json           # VALID ...
-uv run anagram list                                  # your findings: time, finding id, version, root
-uv run anagram certificate <finding id>              # one HTML page that holds the proof
-uv run anagram verify anagram-certificate-*.html --file data.csv
-```
-
-The local test node uses a **fake time anchor**. `verify` says so: a fake
-anchor proves no time. A real node uses independent anchors.
-
-If `init` says that the keychain is locked or refused the access (for
-example over SSH), unlock the keychain, or keep the keys in files instead:
-`uv run anagram --plain-key-files init`.
-
-To see all commands: `uv run anagram --help`.
-
-## Run a node
-
-A node is one Docker container behind Caddy (automatic HTTPS), with SQLite
-and an organizer page at `/admin`. You need a Linux server, a domain name and
-about 30 minutes.
-
-- Run a node for your lab or community: [docs/deploy.md](docs/deploy.md)
-- Test the real deployment on a laptop: [docs/local-test.md](docs/local-test.md)
-- Connect a node to the matching enclave, or run a development enclave
-  network: [docs/enclave.md](docs/enclave.md)
-- Install the app for members (macOS): [docs/install.md](docs/install.md)
-- Index sources in the background, and write source plug-ins:
-  [docs/indexing.md](docs/indexing.md)
+| Audience | Guides |
+| --- | --- |
+| **Researchers** | [Install the app](docs/install.md) · [Demo walk-through](docs/demo.md) · [Google Drive & Gmail setup](docs/google-client.md) |
+| **Node & network operators** | [Run a community node](docs/deploy.md) · [Test a Docker deployment locally](docs/local-test.md) · [Matching enclave operator guide](docs/enclave.md) |
+| **Developers & protocol readers** | [Contributing & checks](CONTRIBUTING.md) · [Background indexer & plug-ins](docs/indexing.md) · [Design notes](docs/design/README.md) · [Protocol specifications](spec/README.md) |
 
 ## Develop
 
-```sh
-uv sync --all-extras
-uv run pre-commit install                # hooks: ruff, gitleaks, Biome and more
-uv run playwright install chromium       # optional, for the browser tests
-```
-
-Run the checks before you open a pull request. CI runs the same checks.
-
-```sh
-set -o pipefail
-uv run ruff check src tests && uv run ruff format --check src tests
-uv run mypy
-HF_HUB_OFFLINE=1 uv run pytest -q -p no:randomly
-uv run pre-commit run --all-files
-```
-
-The tests use no network. The first `pre-commit` run downloads its hooks
-from GitHub. To see the matching enclave work end to end in one
-process (sealed uploads, proposals, a both-or-neither reveal):
-
-```sh
-uv run pytest tests/test_enclave_services.py tests/test_enclave_processes.py
-```
-
-`deploy/local-e2e.sh` runs the full Docker deployment with 2 nodes and 4
-people. It is slow, so CI runs it only on request.
-
-Read [CONTRIBUTING.md](CONTRIBUTING.md) for the rules: change the spec first,
-never change an existing test vector, and import another layer only through
-its `api.py`.
+Install all extras and hooks with `uv sync --all-extras && uv run pre-commit install`,
+then run the test and lint checks listed in [CONTRIBUTING.md](CONTRIBUTING.md).
+Key rules: change the spec before wire behaviour, never modify existing files
+in `spec/vectors/`, and import across layers only through each layer's `api.py`
+(`tests/test_layers.py`).
 
 ## Project layout
 
@@ -259,10 +222,12 @@ profile is designed to stop this, and we will say when a real test passes.
 **Which models and agents work?**
 For understanding your work: a local model through
 [Ollama](https://ollama.com) (the default, if it runs on your computer), any
-OpenAI-compatible address (also OpenAI and OpenRouter), or Anthropic. You
-choose. Your own AI assistant (for example Claude Desktop, or any MCP
-client) can read your library through `anagram mcp`, a read-only MCP server
-on your computer. You approve each assistant and what it can read.
+OpenAI-compatible address (also OpenAI and OpenRouter), or Anthropic (requires
+`uv sync --extra anthropic`). You choose. Your own AI assistant (for example
+Claude Desktop, or any MCP client) can connect through `anagram mcp` on your
+computer; it supports read tools plus draft proposals (such as matching lines)
+that wait for your explicit approval in the app. You approve each assistant
+and what it can access.
 
 **What does it cost?**
 The software is free and open source. A local model costs nothing. With a

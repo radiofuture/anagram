@@ -56,7 +56,7 @@ which only the members of your lab can read. Do not put it in a public place.
 
 ## 5. Put the client into the lab settings
 
-1. In Anagram, open the lab, then **Lab settings**.
+1. In Anagram, open the lab, then **Settings**.
 2. In **Google client**, paste the client ID and the client secret, and save.
 
 You can also do this in **Sources**: select **Google Drive** or **Gmail**

@@ -263,7 +263,9 @@ def snp_claims(platform_evidence: object, gpu_evidence: object, roots: Roots) ->
     if report.mask_chip_key:
         raise Refused("untrusted_root", "MASK_CHIP_KEY is set")
     product = product_of(report, raw["leaf"])
-    tcb = decode_tcb(report.reported_tcb, product)
+    reported_tcb = decode_tcb(report.reported_tcb, product)
+    launch_tcb = decode_tcb(report.launch_tcb, product)
+    effective_tcb = {k: min(reported_tcb[k], launch_tcb[k]) for k in reported_tcb}
     # Steps 2 to 8.
     chain = amd.verify_chain(
         product,
@@ -273,7 +275,7 @@ def snp_claims(platform_evidence: object, gpu_evidence: object, roots: Roots) ->
         raw["leaf"],
         raw["crl"],
         roots.amd_arks,
-        tcb,
+        reported_tcb,
         report.chip_id,
     )
     # Step 9.
@@ -293,7 +295,7 @@ def snp_claims(platform_evidence: object, gpu_evidence: object, roots: Roots) ->
         "product": product,
         "vmpl": report.vmpl,
     }
-    applicable = floor_items(product, tcb)
+    applicable = floor_items(product, effective_tcb)
     cpu: JsonObject = {
         "csp_id": chain.csp_id,
         "debug": report.policy["debug"],
@@ -310,7 +312,8 @@ def snp_claims(platform_evidence: object, gpu_evidence: object, roots: Roots) ->
             for c in ("boot_loader", "tee", "snp", "microcode", "fmc")
         ),
         "tcb_required": sorted(["report_version", *applicable]),
-        "valid_until": chain.crl_next_update,
+        "valid_from": chain.valid_from,
+        "valid_until": chain.valid_until,
     }
     return Claims(cpu, None)
 

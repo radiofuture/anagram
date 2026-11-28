@@ -38,6 +38,8 @@ from anagram.network.formats.strict import Refused
 from anagram.network.matching.trust.profiles import Claims, evidence_object
 from anagram.network.matching.trust.profiles.amd import (
     _bit_string_unused,
+    _check_ca,
+    _check_not_ca,
     _cn,
     _load_cert,
     untrusted,
@@ -154,10 +156,15 @@ def _verify_chain(x5c: object, pin: str) -> tuple[rsa.RSAPublicKey, int, int]:
         _issued_by(root, root, "root")
         _issued_by(mid, root, "intermediate")
         _issued_by(leaf, mid, "leaf")
+        _check_ca(root, "root", crl_sign=True)
+        _check_ca(mid, "intermediate", crl_sign=False)
+        _check_not_ca(leaf, "leaf")
         leaf_key = _rsa_key(leaf.public_key(), "leaf")
         chain = (leaf, mid, root)
         not_before = max(int(c.not_valid_before_utc.timestamp()) for c in chain)
         not_after = min(int(c.not_valid_after_utc.timestamp()) for c in chain)
+        if not_before >= not_after:
+            raise Refused("untrusted_root", "certificate validity window is empty")
     return leaf_key, not_before, not_after
 
 

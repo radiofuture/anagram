@@ -82,6 +82,8 @@ class FakeAmd:
     def _cert(
         self, subject: str, issuer: str, key: object, signer: rsa.RSAPrivateKey, serial: int,
         exts: list[tuple[x509.ObjectIdentifier, bytes]] = (),  # type: ignore[assignment]
+        *, ca: bool | None = None, crl_sign: bool = False,
+        not_before: dt.datetime | None = None, not_after: dt.datetime | None = None,
     ) -> x509.Certificate:  # fmt: skip
         b = (
             x509.CertificateBuilder()
@@ -89,9 +91,26 @@ class FakeAmd:
             .issuer_name(_name(issuer))
             .public_key(key)  # type: ignore[arg-type]
             .serial_number(serial)
-            .not_valid_before(NOW - dt.timedelta(days=1))
-            .not_valid_after(NOW + dt.timedelta(days=3650))
+            .not_valid_before(not_before or (NOW - dt.timedelta(days=1)))
+            .not_valid_after(not_after or (NOW + dt.timedelta(days=3650)))
         )
+        if ca is not None:
+            b = b.add_extension(x509.BasicConstraints(ca=ca, path_length=None), critical=True)
+            if ca:
+                b = b.add_extension(
+                    x509.KeyUsage(
+                        digital_signature=False,
+                        content_commitment=False,
+                        key_encipherment=False,
+                        data_encipherment=False,
+                        key_agreement=False,
+                        key_cert_sign=True,
+                        crl_sign=crl_sign,
+                        encipher_only=False,
+                        decipher_only=False,
+                    ),
+                    critical=True,
+                )
         for oid, raw in exts:
             b = b.add_extension(x509.UnrecognizedExtension(oid, raw), critical=False)
         return b.sign(signer, hashes.SHA384(), rsa_padding=PSS)
@@ -107,8 +126,10 @@ class FakeAmd:
         t = self.product.capitalize()
         ark_cn = f"ARK-{t}"
         ask_cn = self.ask_cn or (f"SEV-{t}" if self.signing_key == amd.VCEK else f"SEV-VLEK-{t}")
-        ark = self._cert(ark_cn, ark_cn, self.ark_key.public_key(), self.ark_key, 0x10000)
-        ask = self._cert(ask_cn, ark_cn, self.ask_key.public_key(), self.ark_key, 0x10001)
+        ark = self._cert(
+            ark_cn, ark_cn, self.ark_key.public_key(), self.ark_key, 0x10000, ca=True, crl_sign=True
+        )
+        ask = self._cert(ask_cn, ark_cn, self.ask_key.public_key(), self.ark_key, 0x10001, ca=True)
         spl = self.spl if self.spl is not None else self.tcb
         exts = [(amd.OID_PRODUCT_NAME, _der_ia5(f"{self.leaf_product or t}-B0"))]
         exts += [(amd.SPL_OIDS[n], _der_int(v)) for n, v in spl.items() if n in amd.SPL_OIDS]
@@ -153,6 +174,7 @@ class FakeAmd:
         mask_chip_key: bool = False,
         cpuid: tuple[int, int, int] | None = None,
         tcb: dict[str, int] | None = None,
+        launch_tcb: dict[str, int] | None = None,
     ) -> bytes:
         """A signed report of the given values; the rest are zero."""
         r = bytearray(0x4A0)
@@ -163,17 +185,24 @@ class FakeAmd:
         r[0x50:0x90] = report_data.ljust(64, b"\x00")
         r[0x90:0xC0] = measurement
         t = tcb or self.tcb
-        raw = bytearray(8)
-        if self.product == "turin":
-            raw[0], raw[1], raw[2], raw[3], raw[7] = (
-                t.get("fmc", 0), t["boot_loader"], t["tee"], t["snp"], t["microcode"],
-            )  # fmt: skip
-        else:
-            raw[0], raw[1], raw[6], raw[7] = t["boot_loader"], t["tee"], t["snp"], t["microcode"]
+
+        def pack_tcb(vals: dict[str, int]) -> bytearray:
+            buf = bytearray(8)
+            if self.product == "turin":
+                buf[0], buf[1], buf[2], buf[3], buf[7] = (
+                    vals.get("fmc", 0), vals["boot_loader"], vals["tee"], vals["snp"], vals["microcode"],
+                )  # fmt: skip
+            else:
+                buf[0], buf[1], buf[6], buf[7] = (
+                    vals["boot_loader"], vals["tee"], vals["snp"], vals["microcode"],
+                )  # fmt: skip
+            return buf
+
+        raw = pack_tcb(t)
         r[0x180:0x188] = raw
         r[0x38:0x40] = raw
         r[0x1E0:0x1E8] = raw
-        r[0x1F0:0x1F8] = raw
+        r[0x1F0:0x1F8] = pack_tcb(launch_tcb) if launch_tcb is not None else raw
         if version >= 3:
             r[0x188:0x18B] = bytes(cpuid or CPUID[self.product])
         r[0x1A0:0x1E0] = self.chip_id

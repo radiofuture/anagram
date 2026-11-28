@@ -9,6 +9,7 @@ which each entry was first in a checkpoint with a quorum.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from anagram.core.canonical import JsonObject, canonical_json
@@ -60,9 +61,16 @@ class LogView:
             raise Refused("bad_attestation", "an entry is in no checkpoint")
         return cls(list(entries), times)
 
-    def extend(self, more: list[JsonObject], note: str, roots: Roots) -> None:
+    def extend(
+        self,
+        more: list[JsonObject],
+        note: str,
+        roots: Roots,
+        covering: Sequence[str] = (),
+    ) -> None:
         """Add the entries that a newer checkpoint with a quorum covers. The
-        note must cover exactly the entries so far and `more`."""
+        note must cover exactly the entries so far and `more`. Optional
+        `covering` checkpoints tighten `logged_by` for newly added entries."""
         _check_all(more)
         _, size, _, upper, root = quorum_times(note, roots)
         entries = self.entries + more
@@ -71,9 +79,26 @@ class LogView:
         leaves = [merkle.leaf_hash(canonical_json(e)) for e in entries]
         if merkle.root(leaves) != root:
             raise Refused("bad_attestation", "checkpoint does not match the entries")
+        logged_by = self.logged_by + [upper] * len(more)
+        for cp in covering:
+            _, cp_size, _, cp_upper, cp_root = quorum_times(cp, roots)
+            if cp_size > size or merkle.root(leaves[:cp_size]) != cp_root:
+                raise Refused("bad_attestation", "checkpoint does not match the entries")
+            for i in range(cp_size):
+                if cp_upper < logged_by[i]:
+                    logged_by[i] = cp_upper
         self.entries = entries
-        self.logged_by = self.logged_by + [upper] * len(more)
+        self.logged_by = logged_by
         self.digests = self.digests + [entry_digest(e) for e in more]
+
+    def verify_checkpoint(self, note: str, roots: Roots) -> None:
+        """Verify a checkpoint note whose size is at most the current view."""
+        _, size, _, _, root = quorum_times(note, roots)
+        if size > len(self.entries):
+            raise Refused("bad_attestation", "checkpoint larger than log view")
+        leaves = [merkle.leaf_hash(canonical_json(e)) for e in self.entries[:size]]
+        if merkle.root(leaves) != root:
+            raise Refused("bad_attestation", "checkpoint does not match the entries")
 
     def copy(self) -> LogView:
         """A view that does not grow: one operation reads one view, even

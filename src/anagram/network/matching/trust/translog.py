@@ -39,6 +39,7 @@ from anagram.network.matching.trust.entries import check_entry, entry_digest, si
 from anagram.network.matching.trust.issuance import EXPIRY_WINDOW
 from anagram.network.matching.trust.lines import (
     MAX_LEASE,
+    _walk,
     latest_epoch,
     lease_ended,
     line_forked,
@@ -109,9 +110,13 @@ class LogStore:
 
 def reader_refuses(entries: list[JsonObject], roots: Roots) -> bool:
     """An Anagram witness refuses a log that forks a line or logs one line
-    ID twice (section 2.4)."""
+    ID twice (section 2.4). Unauthorized `enclave_line` entries are ignored."""
     view = LogView(entries, [0] * len(entries))
-    lines = [e["line_id"] for e in entries if e["kind"] == "enclave_line"]
+    lines = [
+        e["line_id"]
+        for e in entries
+        if e["kind"] == "enclave_line" and e["signer"] == roots.release_key
+    ]
     if len(lines) != len(set(lines)):
         return True
     return any(line_forked(view, line, roots) for line in set(lines))
@@ -141,7 +146,11 @@ def check_entry_cosign(entry: JsonObject, view: LogView, roots: Roots, now: int)
     if entry["signer"] != roots.release_key:
         raise Refused("bad_entry", "not signed by the release key")
     if entry["kind"] == "enclave_line":
-        same = [e for _, e in view.of_kind("enclave_line") if e["line_id"] == entry["line_id"]]
+        same = [
+            e
+            for _, e in view.of_kind("enclave_line")
+            if e["line_id"] == entry["line_id"] and e["signer"] == roots.release_key
+        ]
         if len(same) != 1:
             raise Refused("bad_entry", "the line ID is logged twice")
         return
@@ -289,12 +298,69 @@ class TransparencyLog:
             self.store.add_entries(index, [entry])
         return index
 
+    def _check_state_epoch(self, entry: JsonObject) -> int | None:
+        """Validate an `enclave_state_epoch`. Return the existing index if an
+        identical epoch is already stored (idempotent), else None."""
+        line_id, counter = entry["line_id"], entry["counter"]
+        for i, existing in enumerate(self.entries):
+            if (
+                existing.get("kind") == "enclave_state_epoch"
+                and existing.get("line_id") == line_id
+                and existing.get("counter") == counter
+            ):
+                if existing == entry:
+                    return i
+                raise Refused("bad_entry", "a state epoch for this line and counter already exists")
+        if not any(
+            e.get("kind") == "enclave_line"
+            and e.get("line_id") == line_id
+            and e.get("signer") == self.roots.release_key
+            for e in self.entries
+        ):
+            raise Refused("bad_entry", "state epoch for an unknown line")
+        cur_view = LogView(self.entries, [0] * len(self.entries))
+        walk = _walk(cur_view, line_id, self.roots)
+        if walk.forked:
+            raise Refused("bad_entry", "line is already forked")
+        walk.epoch(entry, entry_digest(entry).hex())
+        if walk.forked:
+            raise Refused(
+                "bad_entry", "state epoch does not extend the line under the active writer"
+            )
+        return None
+
+    def _check_append_signer(self, entry: JsonObject) -> None:
+        kind, signer = entry["kind"], entry["signer"]
+        witness_keys = {w.entry_key for w in self.roots.witnesses}
+        if kind in ("enclave_release", "enclave_floor", "enclave_line", "enclave_writer"):
+            if signer != self.roots.release_key:
+                raise Refused("bad_entry", f"{kind} must be signed by the release key")
+        elif kind == "enclave_rebuild":
+            if signer not in self.roots.rebuilders:
+                raise Refused("bad_entry", "enclave_rebuild must be signed by a pinned rebuilder")
+        elif kind == "enclave_entry_cosign":
+            if signer not in witness_keys:
+                raise Refused("bad_entry", "enclave_entry_cosign must be signed by a witness")
+        elif kind == "enclave_revoke":
+            if signer != self.roots.release_key and signer not in witness_keys:
+                raise Refused("bad_entry", "enclave_revoke signer is not authorised")
+        elif kind in ("roster_checkpoint", "node_admission"):
+            if self.roots.roster_key is not None and signer != self.roots.roster_key:
+                raise Refused("bad_entry", f"{kind} must be signed by the roster key")
+
     def append(self, entry: JsonObject) -> int:
-        """Append a signed entry (section 2.2). Return its index."""
+        """Append a signed entry (section 2.2) after enforcing signer
+        authorization and line/epoch invariants. Return its index."""
         check_entry(entry)
-        if entry["kind"] == "enclave_instance_key":
+        kind = entry["kind"]
+        if kind == "enclave_instance_key":
             raise Refused("bad_entry", "an instance key needs its attestation document")
-        if entry["kind"] == "member_credential":
+        self._check_append_signer(entry)
+        if kind == "enclave_state_epoch":
+            existing_index = self._check_state_epoch(entry)
+            if existing_index is not None:
+                return existing_index
+        elif kind == "member_credential":
             # Section 2.3: `expires` in the next 24 hours, so the month of a
             # join entry (network.md 6.7) is the month of its append.
             expires = parse_time(entry["expires"], "expires")
@@ -307,23 +373,56 @@ class TransparencyLog:
         whose evidence passes rules 1 to 6 and 8, and with a lease that ends
         at most 24 hours after the log's own time (rule 7 (a), section 2.4)."""
         check_entry(entry)
+        if entry["kind"] != "enclave_instance_key":
+            raise Refused("bad_entry", "expected enclave_instance_key")
         if parse_time(entry["lease_until"], "lease_until") > self.clock() + MAX_LEASE:
             raise Refused("instance_not_logged", "lease longer than 24 h")
-        if not isinstance(document, dict) or not {"platform_evidence", "output_key"} <= set(
-            document
-        ):
+        need_doc = {
+            "instance_id",
+            "intake_key",
+            "key_epoch",
+            "line_id",
+            "output_key",
+            "platform_evidence",
+            "profile",
+            "release",
+        }
+        if not isinstance(document, dict) or not need_doc <= set(document):
             raise Refused("bad_attestation", "document form")
         try:
             digest = hashlib.sha256(canonical_json(document["platform_evidence"])).hexdigest()
         except ValueError as exc:  # CanonicalError
             raise Refused("bad_attestation", "evidence form") from exc
-        if entry["evidence_digest"] != digest or entry["signer"] != document["output_key"]:
+        if (
+            entry["evidence_digest"] != digest
+            or entry["signer"] != document["output_key"]
+            or entry["line_id"] != document["line_id"]
+            or entry["instance_id"] != document["instance_id"]
+            or entry["intake_key"] != document["intake_key"]
+            or entry["key_epoch"] != document["key_epoch"]
+            or entry["profile"] != document["profile"]
+            or entry["release"] != document["release"]
+        ):
             raise Refused("bad_attestation", "the entry does not name this document")
+        for existing in self.entries:
+            if (
+                existing.get("kind") == "enclave_instance_key"
+                and existing.get("line_id") == entry["line_id"]
+                and existing.get("instance_id") == entry["instance_id"]
+                and existing.get("signer") != entry["signer"]
+            ):
+                raise Refused("bad_entry", "instance_id is already bound to another output key")
         view = self.view()
         index = view.find(bytes.fromhex(entry["release"]))
         if index is None:
             raise Refused("release_not_logged")
-        verify_evidence(document, view.entries[index], view, self.roots, self.clock())
+        release = view.entries[index]
+        if (
+            release.get("kind") != "enclave_release"
+            or release.get("signer") != self.roots.release_key
+        ):
+            raise Refused("release_not_logged")
+        verify_evidence(document, release, view, self.roots, self.clock())
         self.evidence[digest] = document
         if self.store is not None:
             self.store.add_evidence(digest, document)

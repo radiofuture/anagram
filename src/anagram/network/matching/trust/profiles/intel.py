@@ -40,6 +40,8 @@ from cryptography.x509.oid import SignatureAlgorithmOID
 from anagram.network.formats.strict import Refused
 from anagram.network.matching.trust.profiles.amd import (
     _bit_string_unused,
+    _check_ca,
+    _check_not_ca,
     _cn,
     _ext,
     _load_cert,
@@ -283,6 +285,7 @@ class Chain:
     leaf_key: ec.EllipticCurvePublicKey
     tcb_signing_key: ec.EllipticCurvePublicKey
     pck: Pck
+    valid_from: int  # the latest notBefore of the certificates
     valid_until: int  # the earliest next update or expiry of the chain and CRLs
 
 
@@ -362,6 +365,15 @@ def verify_chain(
         _issued_by(ca, root, "PCK CA")
         _issued_by(leaf, ca, "PCK")
         _issued_by(signer, root, "TCB signing certificate")
+        _check_ca(root, "root", crl_sign=True)
+        _check_ca(ca, "PCK CA", crl_sign=True)
+        _check_not_ca(leaf, "PCK")
+        _check_not_ca(signer, "TCB signing certificate")
+        certs = (root, ca, leaf, signer)
+        not_before = max(int(c.not_valid_before_utc.timestamp()) for c in certs)
+        cert_after = min(int(c.not_valid_after_utc.timestamp()) for c in certs)
+        if not_before >= cert_after:
+            raise Refused("untrusted_root", "certificate validity window is empty")
         leaf_key = _p256(leaf.public_key(), "PCK")
         signer_key = _p256(signer.public_key(), "TCB signing certificate")
         # Step 4: the platform the PCK certifies.
@@ -375,9 +387,9 @@ def verify_chain(
                 "root CRL",
             ),
             _check_crl(pck_crl_der, ca, {"PCK": leaf.serial_number}, "PCK CRL"),
+            cert_after,
         ]
-        until += [int(c.not_valid_after_utc.timestamp()) for c in (root, ca, leaf, signer)]
-        return Chain(leaf_key, signer_key, pck, min(until))
+        return Chain(leaf_key, signer_key, pck, not_before, min(until))
 
 
 # --- signed collateral --------------------------------------------------------

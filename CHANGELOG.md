@@ -60,8 +60,37 @@ The first release for labs, and private matching through a network enclave.
   confidentiality from the host operator. The hardware (TEE) profile is not
   in this build. See [SECURITY.md](SECURITY.md) and
   [docs/enclave.md](docs/enclave.md).
+- **Enclave transparency log & handoff hardening.** Enforced signer
+  authorization, line/epoch invariants, and immutable `(line_id, instance_id)`
+  output-key binding in `TransparencyLog.append()` and
+  `append_instance_key()`; rejected low-order X25519 `reply_key` and
+  `response` keys before state mutation and isolated slot-sealing failures;
+  verified control-chain signatures before recording `seen` or marking forks;
+  fixed `Network.removes()` so bans, node removals, and credential revocations
+  still erase previously moved subjects; tightened `accept_hand_off()` role
+  and line checks, self-handoff refusal, and per-successor standby tracking;
+  required fresh user approval when `statement_hash` or `descriptor_set`
+  changes; and enforced certificate validity windows, CA `BasicConstraints`/
+  `KeyUsage`, and SEV-SNP `launch_tcb` floors across AMD, Intel, and GCP
+  attestation verifiers.
+- **Lab & sharing access hardening.** Required `settings` permission on
+  `topic="settings"` writes, transferred stored `author` on settings updates,
+  bounded record version jumps, enforced monotonic `roster.seq` and exact
+  `from_seq` keeper checks on clients, refused writes to closed labs, revoked
+  member invites on `leave`, wrapped multi-table `ReadLedger`/`NodeVault`
+  writes in transactions under locks, checked `grant_id` via `gated_call` in
+  `Grants.fetch_payload()`, disallowed `image/svg+xml` in reading-copy
+  figures, and bounded ZIP figure decompression.
 
 ### Fixed
 
 - The vector makers took `--help` as an output folder and wrote vector
   files into `./--help/`. They now print help.
+- **Enclave reliability & matching.** Prevented writer crash/restart before
+  epoch cosigning from emitting conflicting epochs or deadlocking the log;
+  fetched covering checkpoints during incremental `LogFollower.follow()` and
+  verified checkpoints when `size <= len(view.entries)`; persisted and
+  restored `max_seen` across restarts and takeovers; handled non-positive
+  stage-1 cosine scores in `_reasons()` and validated judge candidate types;
+  rejected non-release entry digests cleanly in `accept_release()`; and
+  cleaned up user-facing error messages in `EnclaveMatching`.

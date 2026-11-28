@@ -449,6 +449,7 @@ class LabState:
         if self.members[actor] == PI:
             raise FormatError("leave: the PI gives the PI role to another member first")
         self._drop(actor, e["seq"])
+        self._revoke_member_invites(actor)
 
     def _op_role(self, e: JsonObject) -> None:
         subject, role = e["subject"], e["role"]
@@ -491,6 +492,11 @@ class LabState:
         self.times.pop(subject, None)
         self.removed_at = seq
 
+    def _revoke_member_invites(self, subject: str) -> None:
+        for inv in self.invites.values():
+            if inv["actor"] == subject or subject in inv["joined"]:
+                inv["revoked"] = True
+
     def _bar(self, subject: str, seq: int) -> None:
         """Rules v2: a removal is final. Record the person and the devices of
         the person in the chain, and revoke each invite that the person made
@@ -498,9 +504,7 @@ class LabState:
         self.removed[subject] = seq
         for device in self.devices.get(subject, ()):
             self.barred[device] = subject
-        for inv in self.invites.values():
-            if inv["actor"] == subject or subject in inv["joined"]:
-                inv["revoked"] = True
+        self._revoke_member_invites(subject)
 
     def _readmit(self, subject: str) -> None:
         """An explicit `add` by a PI or admin ends the bar of a removed person."""

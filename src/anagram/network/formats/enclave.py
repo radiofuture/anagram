@@ -28,6 +28,7 @@ from anagram.network.formats.strict import (
     NODE_ID,
     ROR,
     Refused,
+    check_x25519_public,
     enum,
     exact,
     fmt_time,
@@ -148,7 +149,8 @@ def parse_header(raw: bytes) -> Request:
     need(len(raw) >= HEADER and raw[:4] == MAGIC, "bad_envelope", "magic")
     cls = raw[4]
     need(cls in SIZES and len(raw) == SIZES[cls], "bad_envelope", "class or size")
-    return Request(cls, raw[5:37], raw[37:69], raw[RESPONSE], request_digest(raw))
+    response = check_x25519_public(raw[RESPONSE], "bad_envelope", "response key")
+    return Request(cls, raw[5:37], raw[37:69], response, request_digest(raw))
 
 
 def open_request(
@@ -460,7 +462,9 @@ def check_withdrawal(doc: Any) -> JsonObject:
         doc, {"created", "reply_key", "schema", "signature", "subject", "version"}, "withdrawal"
     )
     hexval(doc["subject"], HEX32, "subject")
-    hexval(doc["reply_key"], HEX32, "reply_key")
+    check_x25519_public(
+        bytes.fromhex(hexval(doc["reply_key"], HEX32, "reply_key")), "bad_message", "reply_key"
+    )
     intval(doc["version"], 1, MAX_SAFE, "version")
     parse_time(doc["created"], "created")
     need(sig_ok(doc, TAG_SIGN_WITHDRAWAL, doc["subject"]), "bad_signature", "withdrawal")
@@ -488,7 +492,9 @@ def check_cover(doc: Any, ctx: packs.Context) -> cred.MemberFacts:
     names = {"created", "credential", "kind", "reply_key", "schema", "signature", "subject"}
     exact(doc, names, "cover")
     hexval(doc["subject"], HEX32, "subject")
-    hexval(doc["reply_key"], HEX32, "reply_key")
+    check_x25519_public(
+        bytes.fromhex(hexval(doc["reply_key"], HEX32, "reply_key")), "bad_message", "reply_key"
+    )
     enum(doc["kind"], ("group", "person"), "kind")
     packs.check_age(parse_time(doc["created"], "created"), ctx.now)
     need(sig_ok(doc, TAG_SIGN_COVER, doc["subject"]), "bad_signature", "cover")

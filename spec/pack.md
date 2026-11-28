@@ -103,7 +103,7 @@ field (`bad_message`).
 | `topics` | 0 to 64 concepts, ascending, no repeats |
 | `deny` | Section 3.7 |
 | `block` | Section 3.8 |
-| `reply_key` | The X25519 public key to which the enclave seals this person's slots (sections 6 and 7 of [enclave-messages.md](enclave-messages.md)). The app must make a new random key for each subject. It must not reuse a device key, the person key or a key of another use. The app keeps one reply key for a subject and changes it only after a withdrawal or a suspected compromise. The slot of day D uses the reply key of the pack, cover or withdrawal that was current at the cut of day D ([enclave-messages.md](enclave-messages.md) section 6.5). The app keeps each old reply private key for 14 days |
+| `reply_key` | The X25519 public key to which the enclave seals this person's slots (sections 6 and 7 of [enclave-messages.md](enclave-messages.md)). It must be a valid non-low-order X25519 point (low-order keys that yield an all-zero shared secret are refused with `bad_message`, for packs, covers and withdrawals alike). The app must make a new random key for each subject. It must not reuse a device key, the person key or a key of another use. The app keeps one reply key for a subject and changes it only after a withdrawal or a suspected compromise. The slot of day D uses the reply key of the pack, cover or withdrawal that was current at the cut of day D ([enclave-messages.md](enclave-messages.md) section 6.5). The app keeps each old reply private key for 14 days |
 | `signature` | Section 4 |
 
 ### 3.2 Consent

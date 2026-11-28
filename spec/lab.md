@@ -83,7 +83,9 @@ the same. A `remove` entry, in the same entry:
   rotation wraps a new key to it.
 
 A `join` of a removed person, or from a barred device key, is refused. Only an
-explicit `add` by a PI or admin ends the bar. A `leave` does not bar.
+explicit `add` by a PI or admin ends the bar. A `leave` does not bar, and it
+revokes each invite that the leaving person made or joined with so later
+rotations do not wrap keys to it.
 
 ## 3. Invite (`anagram.lab_invite.v1`) and join request (`anagram.lab_join.v1`)
 
@@ -107,9 +109,9 @@ key of one device. For an invite the one device is (`invite_pub`,
 `invite_x25519`). The sender device signs the package
 (`anagram/v1/sign/lab-key`). A reader accepts a package only if the roster
 head that it names (`roster_seq`, `roster_head`) is in the verified chain,
-the sender had the role PI or admin at a roster seq from `roster_seq` to
-now, and the sender device was a key of the sender at `created_at` (log
-proofs). Each other package is a node fault.
+the sender had the role PI or admin at `roster_seq`, and the sender device
+was a key of the sender at `created_at` (log proofs). Each other package is
+a node fault.
 
 `roster_seq` is the roster seq at the start of the epoch: a rotation sets
 it to the seq that the rotating device saw; a package for a new member or an
@@ -160,8 +162,11 @@ Node routes: `PUT /labs/{id}/space/records/{record_id}` with
 `{"record", "blobs"?, "drop"?, "topic"?}`, `GET /labs/{id}/space/records?after=&limit=`,
 `GET /labs/{id}/space/records/{record_id}`. The node checks the form, the size,
 and the quota (`413`), and that the writer is a member and the lab is not
-suspended. Only the first writer of a record, the PI, or an admin replaces or
-drops it. A new version must be higher than the stored one (`409`). `drop`
+closed or suspended. Only the first writer of a record, the PI, or an admin
+replaces or drops it. When `topic` is `settings`, the writer must be the PI
+or an admin (for both insert and update), the stored author updates to the
+writer, and each update increments `version` by at most 1 (and `version` is
+at most 2^31 − 1). A new version must be higher than the stored one (`409`). `drop`
 deletes other records in the same action (the text parts of a removed or
 shorter item). `topic` is `space` (default) or `settings`; it names the row
 in the change feed.
@@ -237,9 +242,12 @@ absent section, or an absent key in a section, takes its default:
 | `matching` | `{"enabled": true}` |
 
 `updated_device` signs the record (`anagram/v1/sign/lab-settings`). A reader
-accepts the record only if `updated_by` is PI or admin in the verified roster.
-The higher `rev` wins. No API key of a model is in the record. The writer
-also checks the roster head that the record names, as for an item.
+accepts the record only if `roster.seq` is at least the previous accepted
+settings record's `roster.seq` and the current key epoch's `roster_seq`,
+`updated_by` is PI or admin at `max(roster.seq, epoch_seq)` in the verified
+roster, and `rev` is higher than the stored one. No API key of a model is in
+the record. The reader also checks the roster head that the record names, as
+for an item.
 
 The client gives the sections to other code as a `LabPolicy` (cache only):
 `allows_recipient(id, external=True)` (a local recipient always; `mcp`

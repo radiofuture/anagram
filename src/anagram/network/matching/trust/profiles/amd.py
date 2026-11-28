@@ -178,6 +178,32 @@ def leaf_product(leaf_der: bytes) -> str:
     return product if product in PRODUCTS else ""
 
 
+def _check_ca(cert: x509.Certificate, what: str, *, crl_sign: bool = False) -> None:
+    """Verify BasicConstraints(ca=True) and KeyUsage(key_cert_sign[, crl_sign])."""
+    try:
+        bc = cert.extensions.get_extension_for_class(x509.BasicConstraints).value
+    except x509.ExtensionNotFound as exc:
+        raise Refused("untrusted_root", f"{what}: missing BasicConstraints") from exc
+    if not bc.ca:
+        raise Refused("untrusted_root", f"{what}: not a CA")
+    try:
+        ku = cert.extensions.get_extension_for_class(x509.KeyUsage).value
+    except x509.ExtensionNotFound as exc:
+        raise Refused("untrusted_root", f"{what}: missing KeyUsage") from exc
+    if not ku.key_cert_sign or (crl_sign and not ku.crl_sign):
+        raise Refused("untrusted_root", f"{what}: KeyUsage")
+
+
+def _check_not_ca(cert: x509.Certificate, what: str) -> None:
+    """Refuse a leaf certificate whose BasicConstraints marks it as a CA."""
+    try:
+        bc = cert.extensions.get_extension_for_class(x509.BasicConstraints).value
+    except x509.ExtensionNotFound:
+        return
+    if bc.ca:
+        raise Refused("untrusted_root", f"{what}: leaf is a CA")
+
+
 @dataclass(frozen=True)
 class Chain:
     """A chain that passed: the leaf key, and what the leaf and CRL say."""
@@ -185,6 +211,8 @@ class Chain:
     leaf_key: ec.EllipticCurvePublicKey
     csp_id: str | None  # VLEK only
     crl_next_update: int  # Unix seconds
+    valid_from: int  # latest notBefore of the chain (Unix seconds)
+    valid_until: int  # earliest of CRL nextUpdate and chain notAfter (Unix seconds)
 
 
 def _check_leaf_claims(
@@ -272,6 +300,13 @@ def verify_chain(
         _issued_by(ark, ark, "ark")
         _issued_by(ask, ark, "ask")
         _issued_by(leaf, ask, "leaf")
+        _check_ca(ark, "ark", crl_sign=True)
+        _check_ca(ask, "ask", crl_sign=False)
+        _check_not_ca(leaf, "leaf")
+        not_before = max(int(c.not_valid_before_utc.timestamp()) for c in (ark, ask, leaf))
+        not_after = min(int(c.not_valid_after_utc.timestamp()) for c in (ark, ask, leaf))
+        if not_before >= not_after:
+            raise Refused("untrusted_root", "certificate validity window is empty")
         # Step 5.
         leaf_key = leaf.public_key()
         if (
@@ -283,7 +318,13 @@ def verify_chain(
             raise Refused("untrusted_root", "leaf product name")
         csp_id = _check_leaf_claims(leaf, product, signing_key, tcb, chip_id)  # steps 6, 7
         next_update = _check_crl(crl_der, ark, ask, leaf)  # step 8
-        return Chain(leaf_key=leaf_key, csp_id=csp_id, crl_next_update=next_update)
+        return Chain(
+            leaf_key=leaf_key,
+            csp_id=csp_id,
+            crl_next_update=next_update,
+            valid_from=not_before,
+            valid_until=min(next_update, not_after),
+        )
 
 
 def verify_report_signature(

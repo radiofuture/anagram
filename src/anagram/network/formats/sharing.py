@@ -55,6 +55,7 @@ READING_COPY_MAX = 8 << 20  # 8 MiB for the whole reading copy
 READING_FIGURES_MAX = 6 << 20  # figures go in until this size, then `truncated`
 TABLE_ROWS_MAX = 500
 VIEWS = ("pdf", "image", "table", "text", "document", "slides", "file")
+SAFE_FIGURE_MEDIA_TYPES = ("image/png", "image/jpeg", "image/gif", "image/webp")
 _MAX_ITEMS = 4096
 _MAX_SEQ = 2**53 - 1
 
@@ -302,8 +303,8 @@ def _item(it: Any) -> int:
         if not isinstance(f["id"], str) or not _FIGURE_ID.match(f["id"]) or f["id"] in ids:
             raise FormatError("figure id: bad or repeated value")
         ids.add(f["id"])
-        if not isinstance(f["media_type"], str) or not f["media_type"].startswith("image/"):
-            raise FormatError("figure media_type: an image type")
+        if not isinstance(f["media_type"], str) or f["media_type"] not in SAFE_FIGURE_MEDIA_TYPES:
+            raise FormatError("figure media_type: an allowed raster image type")
         _b64(f["data"], "figure data")
     if type(it["truncated"]) is not bool:
         raise FormatError("truncated: a boolean")

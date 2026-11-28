@@ -30,7 +30,7 @@ import secrets
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from anagram.core.canonical import JsonObject
+from anagram.core.canonical import JsonObject, canonical_json
 from anagram.core.crypto import aead
 from anagram.core.crypto.signing import verify
 from anagram.network.formats import enclave as m
@@ -89,6 +89,7 @@ class EnclaveInstance(HandoffSteps):
     signed: SignedClock = field(default_factory=SignedClock)
     last_epoch: int = -1  # the 10-minute index of the last epoch written
     last_digest: str | None = None  # digest of the line's latest epoch entry
+    pending_epoch: JsonObject | None = None  # latest uncosigned epoch emitted by this writer
     handoff: Handoff = field(default_factory=Handoff)
     refusals: dict[str, int] = field(default_factory=dict)  # counted without line state
     nonces: dict[tuple[str, str], int] = field(default_factory=dict)  # (node, nonce) -> time
@@ -177,12 +178,22 @@ class EnclaveInstance(HandoffSteps):
             self._count("clock_unsafe")
             return None
         self._follow_network()
+        if self.journal is not None:
+            self.journal.ledger.max_seen = max(self.journal.ledger.max_seen, self.signed.max_seen)
         if self.role == Role.WRITER and self.journal is not None:
             self.matching.erase_removed(self.journal.ledger, now)
         latest = latest_epoch(self.log.view(), self.line_id)
         j = self.journal
-        if j is not None and latest is not None and j.cosigned < latest["counter"] < j.counter:
-            j.cosign(latest["counter"])
+        if j is not None and latest is not None:
+            if j.cosigned < latest["counter"] < j.counter:
+                j.cosign(latest["counter"])
+                if self.pending_epoch is not None and self.pending_epoch["counter"] <= j.cosigned:
+                    self.pending_epoch = None
+            elif latest["counter"] >= j.counter and self.role == Role.WRITER:
+                try:
+                    self.restart()
+                except Refused:
+                    pass
         return now
 
     def _signed_epoch(self) -> int:
@@ -202,7 +213,11 @@ class EnclaveInstance(HandoffSteps):
                     self._count("bad_control_event")
 
     def _roster_fresh(self, now: int) -> bool:
-        found = [e for _, e in self.log.view().of_kind("roster_checkpoint")]
+        found = [
+            e
+            for _, e in self.log.view().of_kind("roster_checkpoint")
+            if e["signer"] == self.net.roster_key
+        ]
         if not found:
             return False
         try:
@@ -249,14 +264,32 @@ class EnclaveInstance(HandoffSteps):
             self.matching.sweep(ledger, now)
             self.matching.make_batch(ledger, day, self.journal.counter, self.keys.output)
         if now // EPOCH > self.last_epoch:
-            self._write_epoch(next_writer=None)
+            try:
+                self._write_epoch(next_writer=None)
+            except Refused:
+                self._count("pending_epoch_conflict")
 
     def _write_epoch(self, next_writer: str | None, holders: list[str] | None = None) -> None:
         if self.journal is None:
             raise Refused("unavailable", "no line state")
-        counter, sealed = self.journal.epoch()
+        latest = latest_epoch(self.log.view(), self.line_id)
+        if latest is not None and self.journal.cosigned < latest["counter"] < self.journal.counter:
+            self.journal.cosign(latest["counter"])
+        if (
+            self.pending_epoch is not None
+            and self.pending_epoch["counter"] <= self.journal.cosigned
+        ):
+            self.pending_epoch = None
+        if self.pending_epoch is not None and self.pending_epoch["counter"] > self.journal.cosigned:
+            self.log.append(self.pending_epoch)
+            self.journal.counter = max(self.journal.counter, self.pending_epoch["counter"] + 1)
+            self.last_digest = entry_digest(self.pending_epoch).hex()
+            self.last_epoch = self._signed_epoch()
+            return
+        self.journal.ledger.max_seen = max(self.journal.ledger.max_seen, self.signed.max_seen)
+        counter = self.journal.counter
+        sealed = self.journal.seal(counter, canonical_json(self.journal.ledger.to_json()))
         if holders is None:
-            latest = latest_epoch(self.log.view(), self.line_id)
             holders = latest["holders"] if latest else [self.instance_id]
         fields = {
             "checkpoint": quorum_times(self.log.checkpoint(), self.roots)[0].hex(),
@@ -271,7 +304,19 @@ class EnclaveInstance(HandoffSteps):
             "snapshot_size": len(sealed),
         }
         entry = sign_entry("enclave_state_epoch", fields, self.keys.output)
-        self.log.append(entry)
+        existed = counter in self.host.disk
+        if not existed:
+            self.host.disk[counter] = sealed
+        try:
+            self.log.append(entry)
+        except Refused:
+            if not existed:
+                self.host.disk.pop(counter, None)
+            raise
+        if existed:
+            self.host.disk[counter] = sealed
+        self.journal.counter = counter + 1
+        self.pending_epoch = entry
         self.last_digest = entry_digest(entry).hex()
         self.last_epoch = self._signed_epoch()
 
@@ -326,7 +371,11 @@ class EnclaveInstance(HandoffSteps):
         stamp = now if now is not None else ledger.max_seen
         status = "accepted" if reason is None else "rejected"
         doc = m.receipt(status, reason, digest, stamp, self.keys.output)
-        sealed = m.seal_receipt(raw[m.RESPONSE], digest, doc)
+        try:
+            sealed = m.seal_receipt(raw[m.RESPONSE], digest, doc)
+        except ValueError:
+            self._count("bad_envelope")
+            return
         encoded = base64.b64encode(sealed).decode("ascii")
         ledger.add_receipt(digest.hex(), node, self.journal.counter, encoded, stamp)
 
@@ -408,6 +457,7 @@ class EnclaveInstance(HandoffSteps):
             **self.keys.record(),
             "handoff": list(received) if received else None,
             "line_id": self.line_id,
+            "pending_epoch": self.pending_epoch,
             "role": self.role.value,
             "state_key": self.state_key.hex() if self.state_key else None,
         }
@@ -446,6 +496,9 @@ class EnclaveInstance(HandoffSteps):
         if record["handoff"]:
             me, counter, digest = record["handoff"]
             self.handoff.received = (me, counter, digest)
+        pending = record.get("pending_epoch")
+        if isinstance(pending, dict):
+            self.pending_epoch = pending
         if self.role in (Role.WRITER, Role.DRAINING) and self.state_key is not None:
             self.journal = self._journal(Ledger())
             try:

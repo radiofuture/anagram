@@ -141,7 +141,11 @@ A reader checks each entry that it reads against a cosigned checkpoint
 (the root of the first `size` leaves); the routes give no trust. The log
 keeps every cosigned checkpoint that it published. Write API: only
 Radiofuture's log service writes; each writer in section 2.3 sends its
-signed entry to it. The log refuses an entry that fails section 2.2.
+signed entry to it. The log refuses an entry that fails section 2.2, whose
+`signer` is not authorised for its `kind` (section 2.3), or that breaks
+line invariants: an `enclave_state_epoch` must extend an authorised line
+under its active writer and must not conflict with an existing entry at the
+same `(line_id, counter)` (an identical repeat is idempotent).
 
 ### 2.2 Entry form
 
@@ -232,17 +236,20 @@ reader picks.
 - `logged_by(e)` = the smallest `upper(cp)` over the accepted checkpoints
   that include entry `e`.
 
-**Old checkpoints for a fresh app**. An app that starts with no
-history has only the bundle's checkpoint, so `logged_by` of an old entry
-would be "now", and an old release would fail the notice rule. So the app
-asks `GET /log/checkpoint/covering/{index}` for each entry whose
+**Old checkpoints for a fresh app and incremental sync**. An app that starts
+with no history has only the bundle's checkpoint, so `logged_by` of an old
+entry would be "now", and an old release would fail the notice rule. So the
+app asks `GET /log/checkpoint/covering/{index}` for each entry whose
 `logged_by` a rule uses: `enclave_release` and `enclave_rebuild` (2.5),
-`enclave_line` (5.6) and `enclave_instance_key` (rule 7 (a), 5.6). One
-covering checkpoint serves every entry below its size, so the app asks
-once for each run of such entries. It checks each one like any checkpoint
-(rules 1 and 2 above; its root must equal the root of the first `size`
-entries that it read) and adds it to the minimum. After that, the hourly
-checks of 2.7 give the times of new entries.
+`enclave_line` (5.6) and `enclave_instance_key` (rule 7 (a), 5.6), both on
+initial sync and on incremental updates that add such entries. One covering
+checkpoint serves every entry below its size, so the app asks once for each
+run of such entries. It checks each one like any checkpoint (rules 1 and 2
+above; its root must equal the root of the first `size` entries that it
+read) and adds it to the minimum. When a polled checkpoint's size is not
+larger than the app's view, the app still verifies its signature, quorum and
+prefix root. After that, the hourly checks of 2.7 give the times of new
+entries.
 
 Why this is sound: every cosigned checkpoint that includes `e` gives a
 true upper bound of the time at which `e` was in the log. If the log
@@ -693,13 +700,17 @@ Rules:
   3. `SIGNING_KEY` is 0 (VCEK; the ASK's CN is `SEV-<Product>`) or 1
      (VLEK; the ASVK's CN is `SEV-VLEK-<Product>`); the ARK's CN is
      `ARK-<Product>`.
-  4. ARK (self-signed) → ASK → leaf: each issuer name matches, and each
-     signature is RSASSA-PSS with SHA-384, MGF1 SHA-384 and salt 48. The
-     inner and outer AlgorithmIdentifier are exactly the DER of those
-     parameters, with or without an explicit `trailerField` 1 (AMD's
-     certificates carry it, its CRLs do not), and the signature BIT
-     STRING has no unused bits. The outer copy is not signed; these rules
-     stop its bytes from changing without a refusal.
+  4. ARK (self-signed) → ASK → leaf: each issuer name matches, the ARK has
+     `BasicConstraints(ca=true)` and `KeyUsage` with `keyCertSign` and
+     `cRLSign`, the ASK has `BasicConstraints(ca=true)` and `KeyUsage` with
+     `keyCertSign`, the leaf is not a CA (`BasicConstraints.ca` is absent or
+     false), all certificate validity windows overlap (`max(notBefore) <
+     min(notAfter)`), and each signature is RSASSA-PSS with SHA-384, MGF1
+     SHA-384 and salt 48. The inner and outer AlgorithmIdentifier are
+     exactly the DER of those parameters, with or without an explicit
+     `trailerField` 1 (AMD's certificates carry it, its CRLs do not), and
+     the signature BIT STRING has no unused bits. The outer copy is not
+     signed; these rules stop its bytes from changing without a refusal.
   5. The leaf key is ECDSA P-384, and its product name is the product.
   6. The leaf SPL extensions (1.3.6.1.4.1.3704.1.3.1 boot loader, .3.2
      TEE, .3.3 SNP, .3.8 microcode, each a DER INTEGER 0 to 255) equal
@@ -728,14 +739,15 @@ Rules:
   its `csp_id` is in the release's `csp_ids`. A VCEK names one chip, and a
   machine that the operator owns can have one: physical attacks on the
   memory bus forge evidence on such machines (TEE.fail, 2025).
-- Rule 2: each `REPORTED_TCB` component ≥ the floor of the product;
-  `SIGNATURE_ALGO = 1`; `VERSION ≥` the floor `report_version`.
+- Rule 2: each `REPORTED_TCB` and `LAUNCH_TCB` component ≥ the floor of the
+  product; `SIGNATURE_ALGO = 1`; `VERSION ≥` the floor `report_version`.
 - Rule 5: `REPORT_DATA = report_data || 32 zero bytes`.
 - Claims (`trust/profiles/snp.py`): `debug`, `migratable`
   (`MIGRATE_MA`), the whole decoded `policy`, `signing_key` (`vcek` or
   `vlek`), `csp_id` (VLEK) or null, the reference object, `report_data`,
-  `valid_until` (the CRL's next update), and the TCB under the floor names
-  of section 4.8.
+  `valid_from` (latest certificate `notBefore`), `valid_until` (earliest of
+  the CRL's next update and the certificates' `notAfter`), and the TCB under
+  the floor names of section 4.8.
 - Reference object: `{"family_id", "host_data", "image_id",
   "measurement", "product", "vmpl"}` (hex values; `product` is `milan`,
   `genoa` or `turin` from the CPUID fields). `MEASUREMENT` is the launch
@@ -793,12 +805,16 @@ STRING has no unused bits):
    `bad_attestation`.
 2. The PCK chain has exactly 3 certificates, and the SHA-256 of the third
    is the pinned Intel SGX Root CA (2.6): else `untrusted_root`.
-3. Names and signatures (`untrusted_root`): the root is
+3. Names, constraints and signatures (`untrusted_root`): the root is
    `Intel SGX Root CA` and signs itself; the CA is `Intel SGX PCK Platform
    CA` or `Intel SGX PCK Processor CA`, signed by the root; the leaf is
    `Intel SGX PCK Certificate`, signed by the CA, with a P-256 key; the
    `tcb_signing` certificate is `Intel SGX TCB Signing`, signed by the
-   root, with a P-256 key.
+   root, with a P-256 key. Both the root and the PCK CA carry
+   `BasicConstraints(ca=true)` and `KeyUsage` with `keyCertSign` and
+   `cRLSign`; the PCK leaf and TCB signing certificate are not CAs; and the
+   4 certificates' validity windows overlap (`max(notBefore) <
+   min(notAfter)`).
 4. The leaf's SGX extensions (OID `1.2.840.113741.1.13.1`) are strict DER
    with each OID once: PPID, TCB (the 16 component SVNs, PCESVN, and a
    CPUSVN equal to the 16 SVNs), PCE-ID, FMSPC and SGX type (0 Standard,
@@ -840,9 +856,10 @@ STRING has no unused bits):
     `OutOfDateConfigurationNeeded`, `Revoked`) is `bad_attestation`. No
     matching level gives the status `Unsupported`.
 
-The collateral's `valid_until` (rule 4) is the earliest of: the TCB Info
-and QE Identity `nextUpdate`, the two CRLs' next update, and the expiry of
-the 4 certificates.
+The collateral's `valid_from` is the latest `notBefore` of the 4
+certificates, and its `valid_until` (rule 4) is the earliest of: the TCB
+Info and QE Identity `nextUpdate`, the two CRLs' next update, and the expiry
+of the 4 certificates.
 
 Claims for the other rules:
 
@@ -889,11 +906,14 @@ Rule 8, in this order:
    `untrusted_root`); the SHA-256 of the root's DER is the pinned root
    (2.6) (else `untrusted_root`).
 3. The root is `Confidential Space Root CA` and signs itself; the root
-   signs the intermediate; the intermediate signs the leaf. Each is
-   sha256WithRSAEncryption with the exact algorithm identifier (with NULL
-   parameters) inside and outside the signed part, no unused bits in the
-   signature, an issuer name equal to its signer's subject, and RSA keys
-   of at least 2048 bits (else `untrusted_root`).
+   signs the intermediate; the intermediate signs the leaf. The root carries
+   `BasicConstraints(ca=true)` and `KeyUsage` with `keyCertSign` and
+   `cRLSign`; the intermediate carries `BasicConstraints(ca=true)` and
+   `KeyUsage` with `keyCertSign`; the leaf is not a CA; and their validity
+   windows overlap. Each is sha256WithRSAEncryption with the exact algorithm
+   identifier (with NULL parameters) inside and outside the signed part, no
+   unused bits in the signature, an issuer name equal to its signer's
+   subject, and RSA keys of at least 2048 bits (else `untrusted_root`).
 4. The leaf key signs `header.payload` (RS256): else `untrusted_root`.
 5. `iss = https://confidentialcomputing.googleapis.com` (else
    `untrusted_root`); `aud` is the string `anagram/v1/enclave`; `exp`,
@@ -1125,7 +1145,8 @@ from a live instance of the same line:
    and sends an `anagram.enclave.handoff_request.v1` `{attestation: <v3
    document>, line_id, schema}` to the live writer (through the operator's
    network; the content is public).
-2. The live instance checks, in order: the successor's release passes
+2. The live instance checks, in order: the successor is not itself and is
+   on the same line; the successor's release passes
    section 2.5 (with the live instance's own signed time); the successor's
    release is the same release or names the live release in
    `successor_of` (else `handoff_not_successor`; so there is no downgrade
@@ -1149,7 +1170,9 @@ from a live instance of the same line:
    `signature = Ed25519(output key, tagged_message("anagram/v1/enclave/sign/handoff",
    canonical_json(message without "signature")))`. HPKE base mode does not
    say who sealed; the signature does.
-4. The successor checks, in order: `signer` is the output key (from
+4. Only a new instance (not an active writer, standby, draining or retired
+   instance) may accept a handoff, and only for its own `line_id`. The
+   successor checks, in order: `signer` is the first logged output key (from
    `enclave_instance_key`) of a holder in the latest state epoch of the
    line, and the signature verifies (else `handoff_bad_sender`); `counter`
    and `snapshot_digest` equal that epoch (else `snapshot_unknown`);
@@ -1186,12 +1209,17 @@ lease is unexpired.
 
 **Evidence before logging**. The instance sends its
 attestation document with each `enclave_instance_key` entry. The log
-accepts the entry only if `evidence_digest` is the SHA-256 of
-`canonical_json(platform_evidence)` of the document and the document
-passes section 3.4 rules 1 to 6 and 8. The log serves the document at
+accepts the entry only if `entry.kind == "enclave_instance_key"`, every
+identifying field (`line_id`, `instance_id`, `intake_key`, `key_epoch`,
+`profile`, `release`, and `signer = output_key`) matches the document,
+`evidence_digest` is the SHA-256 of `canonical_json(platform_evidence)` of
+the document, no earlier `enclave_instance_key` entry for `(line_id,
+instance_id)` bound a different `output_key`, and the document passes
+section 3.4 rules 1 to 6 and 8. The log serves the document at
 `GET /log/evidence/{evidence_digest}`, and the two Anagram witnesses check
 it again before they cosign (section 2.4). So only a TEE that runs the
-logged image can log an instance key.
+logged image can log an instance key, and each `instance_id` is bound
+immutably to its first valid `output_key`.
 
 **Holders, not keys, count.** An attested clone can still log a key. It is
 not a holder (no live holder hands it the state key without the checks of

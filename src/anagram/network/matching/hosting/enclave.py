@@ -17,7 +17,7 @@ the node tries its next enclave URL.
 
 A standby (`--standby-of URL`) logs its instance key, then asks the writer
 for the state key: the writer checks the standby's attestation document
-(same release, logged, rules 1 to 8) and seals the key to its intake key.
+(same release, logged, rules 1 to 9) and seals the key to its intake key.
 After a failover entry names it, the standby loads the latest epoch and
 writes.
 

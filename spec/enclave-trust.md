@@ -66,7 +66,7 @@ receipt codes that the enclave puts in a sealed receipt are in
 | Entry form | `bad_entry`, `bad_entry_signature` | 2.2 |
 | Release | `release_not_logged`, `release_revoked`, `release_app_too_old`, `release_rebuild_differs`, `release_rebuilds_missing`, `release_fix_not_cosigned`, `release_notice_short`, `release_not_yet` | 2.5 |
 | Attestation pre-checks | `bad_attestation`, `unknown_profile` | 3.4 |
-| Attestation rules 1 to 8 | `measurement_mismatch`, `tcb_below_floor`, `policy_refused`, `evidence_expired`, `binding_mismatch`, `gpu_binding_mismatch`, `instance_not_logged`, `line_not_authorised`, `instance_revoked`, `line_forked`, `instance_not_writer`, `instance_limit`, `untrusted_root`, `cert_revoked` | 3.5 |
+| Attestation rules 1 to 9 | `measurement_mismatch`, `tcb_below_floor`, `policy_refused`, `smt_allowed`, `ciphertext_hiding_off`, `page_swap_allowed`, `secure_boot_off`, `image_not_stable`, `launch_override`, `evidence_expired`, `binding_mismatch`, `gpu_binding_mismatch`, `instance_not_logged`, `line_not_authorised`, `instance_revoked`, `line_forked`, `instance_not_writer`, `instance_limit`, `untrusted_root`, `cert_revoked`, `evidence_not_cloud_bound` | 3.5 |
 | Handoff | `handoff_not_successor`, `handoff_bad_sender`, `handoff_bad_ciphertext` (plus all codes above, and `snapshot_unknown`) | 5.3 |
 | Snapshot load (enclave, counted) | `snapshot_stale`, `snapshot_unknown`, `line_forked` | 6.2 |
 | Pack intake (enclave, in a receipt) | `tombstoned`, `expired`, `clock_unsafe` (defined in enclave-messages.md; the rules are in 6.3 and 6.4) | 6 |
@@ -166,7 +166,7 @@ Times are RFC 3339 UTC with whole seconds. An image or vendor digest is
 
 | Kind (`schema`) | Fields (besides the four common ones) | Signer |
 | --- | --- | --- |
-| `enclave_release` (`anagram.enclave.release.v1`) | `build` {`builder` (image digest of the pinned builder), `lock_sha256` (SHA-256 of `uv.lock`), `source_date_epoch`}, `descriptor_hashes` (1 to 64), `image_digest`, `max_instances` (1 to 64), `min_app_version` (`x.y.z`), `not_before`, `profiles` {profile → {`measurement`, `reference`, `tcb_floor`}}, `security_fix` (bool), `source_commit` (40 hex), `successor_of` (release digest or null), `vendor_digests` [{`name`, `digest`}], `weights` [{`name`, `digest`}] | the release key (pinned) |
+| `enclave_release` (`anagram.enclave.release.v1`) | `build` {`builder` (image digest of the pinned builder), `lock_sha256` (SHA-256 of `uv.lock`), `source_date_epoch`}, `descriptor_hashes` (1 to 64), `image_digest`, `max_instances` (1 to 64), `min_app_version` (`x.y.z`), `not_before`, `profiles` {profile → {`cloud` (not for `simulated`), `measurement`, `reference`, `tcb_floor`}}, `security_fix` (bool), `source_commit` (40 hex), `successor_of` (release digest or null), `vendor_digests` [{`name`, `digest`}], `weights` [{`name`, `digest`}] | the release key (pinned) |
 | `enclave_rebuild` (`anagram.enclave.rebuild.v1`) | `image_digest`, `measurements` {profile → hex}, `release` (digest), `same` (bool) | a rebuilder key (pinned) |
 | `enclave_revoke` (`anagram.enclave.revoke.v1`) | `reason` (`vulnerability`, `malicious`, `key_compromise`, `broken_build`, `superseded`), `target` (exactly one of {`release`: digest}, {`instance_id`: hex}, {`line_id`: hex}) | the release key, or any signer with an independent quorum of `enclave_entry_cosign` entries on its digest |
 | `enclave_floor` (`anagram.enclave.floor.v1`) | `profile`, `release` (digest), `tcb_floor` | the release key |
@@ -181,6 +181,12 @@ Times are RFC 3339 UTC with whole seconds. An image or vendor digest is
 
 `enclave_release.profiles` holds only the profiles of section 4 that the
 release supports. A production release never lists `simulated`.
+`cloud` pins the clouds that may run the release (rule 9). It has exactly
+the pin names of its profile, each a sorted list of 1 to 16 distinct
+non-empty strings (at most 128 characters): `raw-snp` {`csp_ids`} (the
+`csp_id` of a VLEK, section 4.3); `gcp-cs` {`project_numbers`, `zones`}
+(section 4.5); `raw-tdx` and `azure-cvm-gpu` {} (their evidence names no
+cloud). `simulated` has no `cloud`.
 `max_instances` is the largest number of holders of one line (rule 7 (f)).
 
 The enclave uses a roster checkpoint only when it is a `roster_checkpoint`
@@ -465,28 +471,34 @@ document in this fixed order. The first failure gives its code.
    profile is in the release's `profiles` and the app supports it. Else
    `unknown_profile`. So a document that fails a check of its integrity
    always gives `bad_attestation`, whatever its `profile` says.
-2. Rule 8 (roots), rule 4 (age), rule 3 (policy), rule 2 (TCB floor),
+2. Rule 8 (roots), rule 9 (cloud), rule 4 (age), rule 3 (policy), rule 2 (TCB floor),
    rule 1 (measurement), rule 5 (key binding), rule 6 (GPU binding),
    rule 7 (log and instance count).
 
-Roots come first, so no claim of unverified evidence is read. The
+Roots come first, so no claim of unverified evidence is read. The cloud
+comes next: evidence from a machine that no pinned cloud runs says
+nothing else worth reading. The
 measurement comes after policy and floor, so a debug or old-firmware VM
 gives the code that names its cause.
 
-### 3.5 The eight rules
+### 3.5 The nine rules
 
 Each rule has one or more refusal vectors in `vectors/enclave-trust.json`
-(`attestation_cases`), and the test refuses each one with its code.
+(`attestation_cases`), and the test refuses each one with its code. The
+codes of the strict policy (rule 9 and the rule 3 codes after
+`policy_refused`) have their vectors in `vectors/enclave-policy.json`, at
+the level of verified claims (section 4.9).
 
 | # | Rule | Code |
 | --- | --- | --- |
 | 1 | Evidence → claims → reference object → measurement (section 3.3) equals `profiles[profile].measurement` of the release | `measurement_mismatch` |
 | 2 | Each item of the effective TCB floor (release floor, raised by `enclave_floor` entries, section 7.2) is met by the claims (section 4.8). The GPU items (`gpu_driver`, `gpu_vbios`) apply only to a document with GPU evidence; without GPU evidence rule 6 decides (a release whose reference has `"gpu": true` then gives `gpu_binding_mismatch`) | `tcb_below_floor` |
-| 3 | Policy: debug off, migration off, production launcher, GPU confidential mode on and GPU debug off (per profile, section 4) | `policy_refused` |
+| 3 | Policy: debug off, migration off, GPU confidential mode on and GPU debug off; then the bits of the profile (section 4.9), in the order of its table | `policy_refused`; the bits of 4.9 each give their own code: `smt_allowed`, `ciphertext_hiding_off`, `page_swap_allowed`, `secure_boot_off`, `image_not_stable`, `launch_override` |
 | 4 | Age: `now − lower(checkpoint of the document) ≤ 24 h`, and `lower(...) ≤ now + 300 s`. A token-based profile also needs `valid_from ≤ now + 300 s` and `now < valid_until` (the token's `nbf` and `exp`, narrowed by its certificates, section 4.5). A profile with collateral (the AMD CRL, section 4.3) also needs `now <` its next update | `evidence_expired` |
 | 5 | The evidence carries `report_data` (section 3.2) in its binding place (section 4) | `binding_mismatch` |
 | 6 | If the release reference has `"gpu": true`: GPU evidence is present; its nonce is `gpu_nonce`; and `report_data` is the GPU form. If `report_data` equals the plain `binding` while GPU evidence is present, the CPU evidence does not cover the GPU. A profile whose CPU evidence itself carries the GPU claims (`gcp-cs`) has no GPU evidence and uses the plain form | `gpu_binding_mismatch` |
 | 7 | (a) An `enclave_instance_key` entry matches `release`, `line_id`, `instance_id`, `key_epoch`, `intake_key`, `profile`, with `signer = output_key`; its latest such entry `e` has `now < lease_until ≤ logged_by(e) + 24 h`. (b) The line is authorised (section 5.6): it has one `enclave_line` entry with an independent quorum, its reason rules hold, no authorised total-loss line replaces it, and its shard is the shard of the app's subject. (c) No valid revoke targets the instance or the line. (d) The line is not forked (section 5.5). (e) The instance is the writer of the line: the `next_writer` of the latest state epoch, or its `instance_id` if `next_writer` is null. (f) The latest state epoch lists at most `max_instances` holders | (a) `instance_not_logged`, (b) `line_not_authorised`, (c) `instance_revoked`, (d) `line_forked`, (e) `instance_not_writer`, (f) `instance_limit` |
+| 9 | The evidence shows that a cloud pinned by the release's `profiles[profile].cloud` runs the instance (section 4.9). `raw-snp`: the report is signed by a VLEK whose `csp_id` is in `csp_ids`. `gcp-cs`: the token's project number and zone are in `project_numbers` and `zones`. `raw-tdx`: refused by a production app (it pins no development root); its evidence names no cloud. `azure-cvm-gpu`: refused (parked). `simulated`: no check (rule 8 refuses it in production) | `evidence_not_cloud_bound` |
 | 8 | The evidence chains to a pinned vendor root (and, for `simulated`, to the pinned development root). Every certificate in the chain and every RIM signing certificate has OCSP or CRL status "good" | `untrusted_root`; a revoked or not-good status gives `cert_revoked` |
 
 "now" in the app is `max(computer clock, lower(latest accepted
@@ -686,8 +698,19 @@ Rules:
   9. The report signature: ECDSA P-384 with SHA-384 by the leaf key over
      bytes 0x000 to 0x29F; R and S are little-endian, and their bytes
      48 to 71 are zero.
-- Rule 3: `POLICY.DEBUG = 0`; `POLICY.MIGRATE_MA = 0`; `VMPL` equals the
-  reference `vmpl` (0 for a guest with no SVSM).
+- Rule 3: `POLICY.DEBUG = 0`; `POLICY.MIGRATE_MA = 0`. (`VMPL` is in the
+  reference object, so rule 1 fixes it: 0 for a guest with no SVSM.) Then `POLICY.SMT = 0`
+  (else `smt_allowed`), `POLICY.CIPHERTEXT_HIDING = 1` (else
+  `ciphertext_hiding_off`) and `POLICY.PAGE_SWAP_DISABLE = 1` (else
+  `page_swap_allowed`). The firmware launches a guest only on a platform
+  that meets its policy, so the report shows that SMT is off, that
+  ciphertext hiding is on and that the host can not swap the guest's
+  pages. Only firmware with ciphertext hiding can launch such a guest
+  **(to confirm: Turin and later parts, and the firmware version)**.
+- Rule 9: `SIGNING_KEY = 1` (a VLEK, which AMD issues to one cloud) and
+  its `csp_id` is in the release's `csp_ids`. A VCEK names one chip, and a
+  machine that the operator owns can have one: physical attacks on the
+  memory bus forge evidence on such machines (TEE.fail, 2025).
 - Rule 2: each `REPORTED_TCB` component ≥ the floor of the product;
   `SIGNATURE_ALGO = 1`; `VERSION ≥` the floor `report_version`.
 - Rule 5: `REPORT_DATA = report_data || 32 zero bytes`.
@@ -695,9 +718,7 @@ Rules:
   (`MIGRATE_MA`), the whole decoded `policy`, `signing_key` (`vcek` or
   `vlek`), `csp_id` (VLEK) or null, the reference object, `report_data`,
   `valid_until` (the CRL's next update), and the TCB under the floor names
-  of section 4.8. Rule 3 reads only `debug` and `migratable` today;
-  `policy` and `csp_id` are there for the stricter policy that a later
-  change adds.
+  of section 4.8.
 - Reference object: `{"family_id", "host_data", "image_id",
   "measurement", "product", "vmpl"}` (hex values; `product` is `milan`,
   `genoa` or `turin` from the CPUID fields). `MEASUREMENT` is the launch
@@ -812,6 +833,9 @@ Claims for the other rules:
   (`TDATTRIBUTES.MIGRATABLE`); all the decoded attribute bits are in
   `td_attributes`. `SEPT_VE_DISABLE = 1` is checked by a later change
   **(to confirm: the guest boots with it)**.
+- Rule 9: a production app refuses `raw-tdx` (`evidence_not_cloud_bound`):
+  a TDX quote names a chip, not a cloud. The profile stays for
+  development and for the differential tests.
 - Rule 2: `tcb_status`, `tdx_module_tcb_status`, `qe_tcb_status`, and
   `tcb_evaluation_data_number` (the lower of the TCB Info's and the QE
   Identity's). The floor must name all 4 (4.8). The advisory IDs of the
@@ -868,12 +892,17 @@ Claims and the other rules:
   not-before; `valid_until` the earliest of `exp` and their expiry
   (3.5). The instance fetches a new token each hour.
 - Rule 3: `debug` is `dbgstat ≠ disabled-since-boot`; `migratable` is
-  false (Confidential Space VMs do not live-migrate). Also claimed for a
-  later change that checks them: `secboot`, `support_attributes`
-  (`STABLE` required), `cmd_override` and `env_override` (must be
-  empty). With a GPU: `cc_mode = ON` and `dbgstat = disabled` (the GPU
+  false (Confidential Space VMs do not live-migrate). Then `secboot` is
+  true (else `secure_boot_off`); `support_attributes` has `STABLE` (else
+  `image_not_stable`: a debug image has none, and an image that Google no
+  longer supports loses it); `cmd_override` and `env_override` are empty
+  (else `launch_override`). With a GPU: `cc_mode = ON` and `dbgstat = disabled` (the GPU
   `dbgstat` is `enabled` when `cc_mode = DEVTOOLS`); `cc_feature` is
   claimed.
+- Rule 9: `submods.gce.project_number` is in the release's
+  `project_numbers` and `submods.gce.zone` is in its `zones` (claimed as
+  `cloud`; a token without `submods.gce` names no place). The project
+  number never changes and is never reused.
 - Rule 2: `swversion` (the one value of `swversion`, decimal digits);
   from the one object of `tdx` (absent unless `hwmodel = GCP_INTEL_TDX`):
   `tcb_evaluation_data_number` and `tcb_status`
@@ -996,6 +1025,38 @@ A status claim (an item whose name ends in `_status`) of `Revoked` or
 
 The values come from the vendors' current advisories at release time.
 The platform spike records the values of the spike platforms.
+
+### 4.9 What each profile enforces, and what it can not
+
+Rule 9 and the bits of rule 3, per profile. A bit that the evidence can
+not show is a named risk, not a check. Vectors:
+`vectors/enclave-policy.json` (claims, release pins, production or not,
+expected code).
+
+| Profile | Cloud (rule 9) | SMT off | Ciphertext hiding | Page swap off | Other bits (rule 3) |
+| --- | --- | --- | --- | --- | --- |
+| `simulated` | none (refused in production by rule 8) | no | no | no | debug, migration |
+| `raw-snp` | VLEK `csp_id` in `csp_ids` | `smt_allowed` | `ciphertext_hiding_off` | `page_swap_allowed` | debug, migration (VMPL is fixed by rule 1) |
+| `raw-tdx` | refused in production | not shown: risk | not shown: risk | not applicable (TDX has no host swap of private pages) | debug, migration |
+| `gcp-cs` | project and zone pinned | not shown: risk | not shown: risk | not shown: risk | debug, migration, `secure_boot_off`, `image_not_stable`, `launch_override`, GPU mode |
+| `azure-cvm-gpu` | refused (parked, section 20) | not shown | not shown | not shown | (none: parked) |
+
+What these bits do and do not give:
+
+- **SMT off** stops a sibling thread on the same core from reading the
+  guest's timing through shared core state.
+- **Ciphertext hiding** stops the host from reading the ciphertext of the
+  guest's memory, so it can not see which values repeat. It is a defence
+  against software side channels from the host, not against physical
+  attacks on the memory bus.
+- **Page swap off** stops the host from moving the guest's encrypted
+  pages out and back.
+- **Residual risks of every profile:** physical access to the machine at
+  the cloud (memory-bus interposers); a compromise of the vendor's root
+  keys; page-fault and cache side channels that these bits do not close.
+  On `gcp-cs`, Google's firmware, launcher and attestation service are in
+  the trusted base (section 4.1), and the token does not show SMT,
+  ciphertext hiding or page swap.
 
 ## 5. Key custody
 
@@ -1617,6 +1678,8 @@ logic; sharding (v1 has one line per shard).
 - 2026-11-27: the `raw-tdx` verifier (section 18).
 - 2026-11-27: the `gcp-cs` verifier (section 19).
 - 2026-11-27: differential tests; `azure-cvm-gpu` parked (section 20).
+- 2026-11-27: cloud binding (rule 9) and the policy bits per profile
+  (section 21).
 
 ## 12. Changes after the spec review (2026-11-25)
 
@@ -1790,3 +1853,20 @@ enclave-messages.md section 15.
   enclaves use `gcp-cs`, whose token reports the H100 (4.5). If Azure is
   taken up again, the path is the raw HCL report, the AMD VCEK chain, the
   vTPM quote and the event log, with no Microsoft Azure Attestation.
+
+## 21. Cloud binding and the strict policy bits (2026-11-27)
+
+- New rule 9 (`evidence_not_cloud_bound`), checked right after rule 8:
+  the evidence must name a cloud that the release pins in
+  `profiles[profile].cloud` (2.3, 3.5). `raw-snp` needs a VLEK of a
+  pinned cloud; `gcp-cs` a pinned project and zone; a production app
+  refuses `raw-tdx`.
+- Rule 3 checks the bits of each profile, each with its own code: SMT
+  off, ciphertext hiding on and page swap off for `raw-snp`; secure boot,
+  a `STABLE` image and no launch overrides for `gcp-cs` (4.3, 4.5).
+- Section 4.9 lists what each profile enforces and the risks it can not
+  close.
+- The codes of rule 9 and the new rule 3 codes have their vectors in a
+  new file, `vectors/enclave-policy.json`; `enclave-trust.json` is
+  unchanged. Every release in it lists only `simulated`, which has no
+  `cloud`.

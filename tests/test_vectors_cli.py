@@ -17,6 +17,7 @@ MAKERS = (
     "anagram.vectors.build",
     "anagram.vectors.net.build",
     "anagram.vectors.enclave_trust",
+    "anagram.vectors.enclave_policy",
 )
 
 

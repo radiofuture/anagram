@@ -14,6 +14,7 @@ from anagram.core.canonical import JsonObject, canonical_json
 from anagram.core.crypto.hashing import tagged_hash
 from anagram.core.crypto.signing import SigningKey, verify
 from anagram.network.formats.strict import Refused, parse_time
+from anagram.network.matching.trust.policy import CLOUD_PINS
 
 TAG_ENTRY = "anagram/v1/enclave/log-entry"
 
@@ -112,16 +113,34 @@ def _floor(v: object) -> bool:
     )
 
 
+def _pins(v: object) -> bool:
+    """1 to 16 distinct non-empty strings, sorted."""
+    return (
+        isinstance(v, list)
+        and 1 <= len(v) <= 16
+        and all(isinstance(x, str) and 0 < len(x) <= 128 for x in v)
+        and v == sorted(set(v))
+    )
+
+
+def _cloud(profile: str, v: object) -> bool:
+    """The cloud pins of a profile (section 2.3): exactly its pin names."""
+    names = CLOUD_PINS[profile]
+    return isinstance(v, dict) and set(v) == set(names) and all(_pins(v[n]) for n in names)
+
+
 def _profiles(v: object) -> bool:
     if not isinstance(v, dict) or not v or any(p not in PROFILES for p in v):
         return False
+    base = {"measurement", "reference", "tcb_floor"}
     return all(
         isinstance(x, dict)
-        and set(x) == {"measurement", "reference", "tcb_floor"}
+        and set(x) == (base if p == "simulated" else base | {"cloud"})
+        and (p == "simulated" or _cloud(p, x["cloud"]))
         and _hex(32)(x["measurement"])
         and isinstance(x["reference"], dict)
         and _floor(x["tcb_floor"])
-        for x in v.values()
+        for p, x in v.items()
     )
 
 

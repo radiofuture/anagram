@@ -1,4 +1,4 @@
-"""Proof certificate in a real browser (R5 step 12): the action on the
+"""Proof certificate in a real browser: the action on the
 finding screen saves the file, the file prints to one page (A4 and Letter)
 with 8 files, and a phone width has no side scroll. Chromium only; the test
 is skipped when Playwright or Chromium is not installed. No network: the UI
@@ -107,7 +107,7 @@ def test_save_from_the_finding_screen(browser, net, tmp_path):
         text = saved.read_text()
         assert "Adaeze Okafor" not in text and CLAIM in text
 
-        # The preprint draft (step 14) is one action that opens a sheet.
+        # The preprint draft is one action that opens a sheet.
         expect(page.get_by_label(copy("certify.draft_authors"))).to_have_count(0)
         panel.get_by_role("button", name=copy("certify.draft_open")).click()
         draft = page.locator("dialog")

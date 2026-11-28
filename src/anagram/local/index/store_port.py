@@ -1,4 +1,4 @@
-"""The retrieval store port (plan net 01 step 1).
+"""The retrieval store port.
 
 The index keeps chunk vectors and the full-text index behind this port, so
 the engine can change without a change to its callers. Hybrid fusion
@@ -38,7 +38,7 @@ class Filter:
     means "no limit by this field". All set fields must match.
 
     - `spaces`: the space of the source (`private` or `lab:<id>`).
-    - `tiers`: the trust tier of the item (plan net 05; no adapter has it yet).
+    - `tiers`: the trust tier of the item (no adapter supports it yet).
     - `source_ids`: the source of the item.
     - `kinds`: the item kind (`local/understanding/kinds.py`).
     - `since`, `until`: the item time, `since <= time < until`.

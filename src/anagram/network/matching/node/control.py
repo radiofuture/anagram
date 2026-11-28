@@ -74,7 +74,7 @@ def control_router(chain: ControlChain) -> APIRouter:
     router = APIRouter(prefix="/net")
 
     @router.get("/control")
-    def control(after: int = Query(0, ge=0)) -> JsonObject:  # noqa: B008
+    def control(after: int = Query(0, ge=0)) -> JsonObject:
         return {"count": chain.count, "events": chain.events(after)}
 
     @router.get("/node")

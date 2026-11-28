@@ -244,7 +244,7 @@ def reads_router(ledger: ReadLedger, subject_of, field) -> APIRouter:
     @router.post("/grants/{grant_id}/receipts")
     def post_receipt(
         grant_id: str,
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         return ledger.accept(subject_of(authorization), grant_id, field(body, "receipt"))

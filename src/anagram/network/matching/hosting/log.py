@@ -145,7 +145,7 @@ def log_app(service: LogService, tick_every: float = TICK_SECONDS) -> FastAPI:
     app.include_router(log_read_router(Reads()))
 
     @app.post("/log/write/entries")
-    def append(body: JsonObject = Body(...)) -> JsonObject:  # noqa: B008
+    def append(body: JsonObject = Body(...)) -> JsonObject:
         entry: Any = body.get("entry")  # untrusted: `check_entry` refuses a bad one
         try:
             return {"index": service.append(entry)}
@@ -153,7 +153,7 @@ def log_app(service: LogService, tick_every: float = TICK_SECONDS) -> FastAPI:
             raise _refused(exc) from exc
 
     @app.post("/log/write/instance-keys")
-    def append_instance_key(body: JsonObject = Body(...)) -> JsonObject:  # noqa: B008
+    def append_instance_key(body: JsonObject = Body(...)) -> JsonObject:
         entry: Any = body.get("entry")  # untrusted: checked by the log, as above
         document: Any = body.get("document")
         try:

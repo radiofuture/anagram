@@ -1,8 +1,8 @@
-"""The `profile` lens (primitive `purpose-lens`; plan net-03b step 2).
+"""The `profile` lens (primitive `purpose-lens`).
 
     lens = ProfileLens(model, embedder)
     view = lens.view(items, today=date.today(), grant={"discoverable", "shared"})
-    view.offers, view.wants      # beacon draft lines (plan net-12 step 2)
+    view.offers, view.wants      # beacon draft lines
     view.readings                # person-level readings with a basis
     lens.view(items + [new], ...)  # reads only the new item again
 
@@ -12,7 +12,7 @@ not built yet; this lens has the fields that the registry will read.
 
 Rules:
 
-- Tiers (plan 05): the lens reads `discoverable` and `shared`
+- Tiers: the lens reads `discoverable` and `shared`
   items, never `private` ones (received mail and other third-party text are
   private). A caller whose grant does not hold all lens tiers gets
   `TierRefused`. An item of a tier outside the grant is not read.

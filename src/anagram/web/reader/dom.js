@@ -1,7 +1,6 @@
 // Small DOM helpers of the reading view. Content from a shared file goes into
 // the page as text nodes only: no HTML parse of content, no inline handler,
-// no URL from content except an http(s) link (plan R5 section 13.2,
-// `test_reader_does_not_run_content`).
+// no URL from content except an http(s) link (`test_reader_does_not_run_content`).
 
 /** el('p', {class: 'x'}, 'text', child) */
 export function el(tag, attrs = {}, ...children) {

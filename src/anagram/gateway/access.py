@@ -1,5 +1,4 @@
-"""The agent grants of the person (grant v2; open-agents plan section 2.1,
-primitive `agent-grant`).
+"""The agent grants of the person (grant v2; primitive `agent-grant`).
 
 The record is the meta key `agent_grants` of the encrypted index store:
 
@@ -66,8 +65,8 @@ ADAPTER = "agent"  # the adapter of a disclosure row is "agent:<grant id>"
 READ_TOOLS = ("read.search", "read.ask", "read.item", "read.timeline")
 ACT_TOOLS = ("act.lines_propose",)
 TOOLS = READ_TOOLS + ACT_TOOLS
-# Negotiation scopes of the open-agents plan (4.2). Not in v1 (decision C22,
-# net 06 step 1): only the person's node negotiates, with the local model.
+# Negotiation scopes are reserved and not enabled in v1: only the person's
+# node negotiates, with the local model.
 NEGOTIATION = ("act.ask", "act.table_reply", "act.intro_propose", "act.room_card")
 
 ACTIVE = "active"

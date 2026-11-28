@@ -638,7 +638,7 @@ def admin_router(admin: Admin) -> APIRouter:  # noqa: C901, PLR0915
         return _headers(resp)
 
     @router.post("/passkey/options")
-    def pk_options(request: Request, body: dict = Body(...)) -> Response:  # noqa: B008
+    def pk_options(request: Request, body: dict = Body(...)) -> Response:
         if not same_origin(admin, request, required=True):
             return JSONResponse({"detail": "wrong origin"}, status_code=403)
         try:
@@ -650,7 +650,7 @@ def admin_router(admin: Admin) -> APIRouter:  # noqa: C901, PLR0915
             return JSONResponse({"detail": str(exc)}, status_code=400)
 
     @router.post("/passkey/verify")
-    def pk_verify(request: Request, body: dict = Body(...)) -> Response:  # noqa: B008
+    def pk_verify(request: Request, body: dict = Body(...)) -> Response:
         if not same_origin(admin, request, required=True):
             return JSONResponse({"detail": "wrong origin"}, status_code=403)
         try:

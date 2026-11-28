@@ -84,9 +84,9 @@ def lab_context(client: Client | None) -> LabContext | None:
 
 
 class Client:
-    # The composition root of the app gives the ports (layers plan
-    # section 4): the source kinds of L3 for the index (`SpaceSource`: the
-    # lab space; `LocalIndex.for_client` reads it), and the admission checks
+    # The composition root of the app gives the ports: the source kinds of L3
+    # for the index (`SpaceSource`: the lab space; `LocalIndex.for_client`
+    # reads it), and the admission checks
     # of the lab roster (`AdmissionCheck`, `self.admission_check`).
     index_sources: tuple[type, ...] = (LabSpaceConnector,)
 

@@ -1,7 +1,7 @@
 """Lens items from the local index.
 
     items = from_index(index, policy)   # own items only, with role and tier
-    first = fast_subset(items, today)   # the fast pass (plan net-03b step 4)
+    first = fast_subset(items, today)   # the fast pass
 
 Only own items (`LocalIndex.items(own_only=True)`): no received mail, no
 attachment of a received mail, no file of another owner, no item of a
@@ -67,7 +67,7 @@ def from_index(index: LocalIndex, policy: TrustPolicy | None = None) -> list[Len
     return out
 
 
-FAST_LIMIT = 400  # items of the fast pass (plan net-03b step 4: first profile in 15 min)
+FAST_LIMIT = 400  # items of the fast pass (first profile in ~15 min)
 _FAST_ORDER = {"publication": 0, "sent": 1, "doc": 2, "protocol": 2, "notebook": 3, "code": 3}
 
 

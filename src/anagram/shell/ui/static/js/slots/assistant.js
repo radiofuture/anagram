@@ -1,4 +1,4 @@
-// Slot view `account.sections` of track R4 (step 16), agent grant v2:
+// Slot view `account.sections` (agent grant v2):
 // Assistant access. The person's own AI assistant (for example Claude
 // Desktop) can search the library and read items, and, if the person turns
 // it on, propose lines for matching. A proposal waits here until the

@@ -1,4 +1,4 @@
-"""Ask with citations (R4 step 13): passages mode, citation check, left-out
+"""Ask with citations: passages mode, citation check, left-out
 count, no scope crossing, the log. Fake models only; no network."""
 
 from __future__ import annotations

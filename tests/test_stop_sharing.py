@@ -1,4 +1,4 @@
-"""R5 step 6: stop sharing and "make a new version now". A stopped person
+"""Stop sharing and "make a new version now". A stopped person
 gets 404 and no later version. No network."""
 
 from __future__ import annotations

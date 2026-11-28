@@ -1,4 +1,4 @@
-"""Network and discovery (layer L3 of the layers plan): groups (labs),
+"""Network and discovery (layer L3): groups (labs),
 sharing, reads, and matching, in the app (`app/`) and on the node
 (`node/`).
 

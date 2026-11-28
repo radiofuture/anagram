@@ -3,7 +3,7 @@
 Node side: `NodeError` and its subclasses carry an HTTP status. The node app
 turns each one into a JSON response with that status.
 
-Device side: `ClientError` is an error that the client shows to the person.
+App side: `ClientError` is an error that the client shows to the person.
 `LogMisbehaved` is a node answer that does not check out.
 
 `FormatError` is a document or a field that does not match its format (both

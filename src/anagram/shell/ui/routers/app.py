@@ -27,7 +27,7 @@ def register(app: FastAPI, ctx) -> None:
         return settings.view()
 
     @app.put("/api/app/start-at-login")
-    def start_at_login(body: dict = Body(...)) -> dict:  # noqa: B008
+    def start_at_login(body: dict = Body(...)) -> dict:
         on = body.get("on") if isinstance(body, dict) else None
         if not isinstance(on, bool):
             raise UIError(400, "Give on as true or false.")
@@ -38,7 +38,7 @@ def register(app: FastAPI, ctx) -> None:
         return settings.restart_helper()  # the runtime publishes app.helper
 
     @app.post("/api/recover")
-    def recover(body: dict = Body(...)) -> dict:  # noqa: B008
+    def recover(body: dict = Body(...)) -> dict:
         kit = body.get("kit") if isinstance(body, dict) else None
         out = ctx.service.account.recover(kit)
         ctx.bus.publish("overview.changed")

@@ -36,7 +36,7 @@ from anagram.network.sharing.app.tables import ShareStore
 from anagram.proofs.bundle import EvidenceOpening, ProofBundle
 from anagram.proofs.records import LINK_INCLUDES, OpeningDocument, finding_links
 
-log = logging.getLogger("anagram.client")
+log = logging.getLogger(__name__)
 
 RECEIVED_DIR = "received"
 READING_FILE = "reading.blob"

@@ -1,4 +1,4 @@
-"""Admission formats (layer L4, layers plan section 2.4; spec/admission.md).
+"""Admission formats (layer L4; spec/admission.md).
 
 The formats of the ways into a community. They are locked: this module only
 holds them; their bytes, tags, and names are the same as before the move.

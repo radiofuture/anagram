@@ -42,7 +42,7 @@ SCHEMA_VERSION = 2
 KEY_LEN = 32
 DB_KEY_INFO = b"anagram.index.sqlcipher.v1"
 BUSY_TIMEOUT_MS = 30_000
-# Page cache limit of one connection (plan net 01, benchmark finding 1).
+# Page cache limit of one connection.
 # SQLCipher keeps decrypted pages only in this cache. With the SQLite
 # default (8 MB), each vector search decrypts and checks all vector pages
 # again: 10k chunks x 384 float, one search, 54 ms; with a cache that holds
@@ -234,7 +234,7 @@ CREATE TABLE IF NOT EXISTS source_state (
     updated_at REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS source_state_space ON source_state (space);
--- Chunks of class `context` (integration 1.9, migration I-3): text that
+-- Chunks of class `context`: text that
 -- other people wrote (`Document.quoted`, received mail). A table of its own,
 -- so no reader of `chunk` (embedding, lens, proposals, lab items) can get
 -- it. Only `retrieve.search` reads it, for the private space.
@@ -263,7 +263,7 @@ CREATE TABLE IF NOT EXISTS source_event (
 );
 """
 
-# Columns added after schema version 2 (net 02 step 1). `IndexStore` adds a
+# Columns added after schema version 2. `IndexStore` adds a
 # missing column when it opens a store, so `SCHEMA_VERSION` stays 2 and an
 # old store needs no copy. Old rows get the default.
 ADDED_COLUMNS = (
@@ -327,9 +327,9 @@ class IndexStore:
         self._db.execute(f"PRAGMA busy_timeout = {BUSY_TIMEOUT_MS}")
         self._db.execute("PRAGMA journal_mode = DELETE")
         # SQLCipher does not encrypt SQLite temp files (sorts, temp tables,
-        # VACUUM): with temp_store = FILE they hold plaintext (plan net 01
-        # step 4). The sqlcipher3 build keeps them in RAM by default
-        # (SQLITE_TEMP_STORE=2); this pragma keeps them in RAM with any build.
+        # VACUUM): with temp_store = FILE they hold plaintext. The sqlcipher3
+        # build keeps them in RAM by default (SQLITE_TEMP_STORE=2); this
+        # pragma keeps them in RAM with any build.
         self._db.execute("PRAGMA temp_store = MEMORY")
         self._db.execute(f"PRAGMA cache_size = -{CACHE_MB * 1024}")  # in KiB
         self._db.execute("PRAGMA foreign_keys = ON")

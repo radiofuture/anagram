@@ -412,7 +412,7 @@ def test_real_os_keychain_round_trip():
     assert slot.get(acct) is None
 
 
-# ---- the policy of the CLI (security review P2)
+# ---- the policy of the CLI
 
 
 @pytest.mark.parametrize(

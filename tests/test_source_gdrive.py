@@ -1,6 +1,6 @@
 """Google Drive source (contract v2) against `FakeGoogle`. No network.
 
-Cases of plan R3 section 5: first sync, no change (one live call), add,
+Cases: first sync, no change (one live call), add,
 edit, delete, move out of the selection, permission lost, cursor expired
 (reconcile), item too large (skipped), selection change, and scale."""
 

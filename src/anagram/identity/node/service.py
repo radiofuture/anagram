@@ -75,7 +75,7 @@ ASSERTION_TTL = timedelta(minutes=10)
 
 class IdentityDirectory(Protocol):
     """What the node services of the higher layers (labs, matching) read from
-    L1 (port `IdentityDirectory`, layers plan section 4). `IdentityService`
+    L1 (port `IdentityDirectory`). `IdentityService`
     gives it; a higher layer never reads the identity database."""
 
     def now(self) -> int: ...

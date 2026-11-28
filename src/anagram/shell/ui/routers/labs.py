@@ -34,11 +34,11 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return ctx.service.people.search_labs(q)
 
     @app.post("/api/labs")
-    def create(body: dict = Body(...)) -> dict:  # noqa: B008
+    def create(body: dict = Body(...)) -> dict:
         return labs.create(body.get("name"))
 
     @app.post("/api/labs/join")
-    def join(body: dict | None = Body(None)) -> dict:  # noqa: B008
+    def join(body: dict | None = Body(None)) -> dict:
         return labs.join((body or {}).get("url"))
 
     @app.get("/api/labs/invite")
@@ -50,11 +50,11 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return labs.view(lab_id)
 
     @app.put("/api/labs/{lab_id}/name")
-    def rename(lab_id: str, body: dict = Body(...)) -> dict:  # noqa: B008
+    def rename(lab_id: str, body: dict = Body(...)) -> dict:
         return labs.rename(lab_id, body.get("name"))
 
     @app.post("/api/labs/{lab_id}/invites")
-    def invite(lab_id: str, body: dict | None = Body(None)) -> dict:  # noqa: B008
+    def invite(lab_id: str, body: dict | None = Body(None)) -> dict:
         return labs.invite(lab_id, body or {})
 
     @app.delete("/api/labs/{lab_id}/invites/{invite_id}")
@@ -62,7 +62,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return labs.revoke(lab_id, invite_id)
 
     @app.post("/api/labs/{lab_id}/members")
-    def add(lab_id: str, body: dict = Body(...)) -> dict:  # noqa: B008
+    def add(lab_id: str, body: dict = Body(...)) -> dict:
         return labs.add(lab_id, body)
 
     @app.delete("/api/labs/{lab_id}/members/{pid}")
@@ -70,7 +70,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return labs.remove(lab_id, pid)
 
     @app.put("/api/labs/{lab_id}/members/{pid}")
-    def change(lab_id: str, pid: str, body: dict = Body(...)) -> dict:  # noqa: B008
+    def change(lab_id: str, pid: str, body: dict = Body(...)) -> dict:
         return labs.change(lab_id, pid, body)
 
     @app.post("/api/labs/{lab_id}/leave")
@@ -82,7 +82,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return labs.settings(lab_id)
 
     @app.put("/api/labs/{lab_id}/settings")
-    def set_settings(lab_id: str, body: dict = Body(...)) -> dict:  # noqa: B008
+    def set_settings(lab_id: str, body: dict = Body(...)) -> dict:
         return labs.set_settings(lab_id, body)
 
     @app.get("/api/labs/{lab_id}/space")
@@ -90,7 +90,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return labs.space(lab_id, after, limit)
 
     @app.post("/api/labs/{lab_id}/space")
-    def put(lab_id: str, body: dict = Body(...)) -> dict:  # noqa: B008
+    def put(lab_id: str, body: dict = Body(...)) -> dict:
         return labs.put(lab_id, body)
 
     @app.get("/api/labs/{lab_id}/space/{item_id}")

@@ -1,12 +1,11 @@
 // The words of one share: the state of a person, and the facts after it.
 // The finding screen (slot `finding.sections`), the sharing screen, and the
 // history of one person use them, so a state reads the same in each place.
-// Track R5 owns this file.
 import { html, useRef } from '../core/html.js';
 import { t } from '../core/copy.js';
 import { fmtDate } from '../core/format.js';
 
-/** The state word of a history row (plan R5 section 8.4). */
+/** The state word of a history row. */
 export function stateKey(row) {
   if (row.state === 'stopped') return 'stopped';
   if (row.person.kind === 'lab') return 'lab';

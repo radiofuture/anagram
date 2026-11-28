@@ -1,4 +1,4 @@
-// Ask (track R4, step 15b): one screen, one input. With a model the answer
+// Ask: one screen, one input. With a model the answer
 // streams with a number after each statement, and each number opens its
 // source row. With no model the same input searches and the passages are the
 // answer. The Home field opens this screen with `?q=`. The address then

@@ -1,4 +1,4 @@
-"""Structure checks of the local UI in a browser (plan R7 step 7b).
+"""Structure checks of the local UI in a browser.
 
 At 1440 x 900 and 390 x 844, light and dark: the screen has one h1, no
 horizontal page scroll, the rail and the work area do not overlap, each

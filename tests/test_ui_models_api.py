@@ -441,7 +441,7 @@ def test_local_default_keeps_a_choice():
 
 
 def test_local_default_takes_the_measured_model_first():
-    """R4 step 18: qwen2.5:7b had the best kind accuracy of the local models,
+    """qwen2.5:7b had the best kind accuracy of the local models,
     then llama3.2. Another size of qwen2.5 is not the measured model."""
     empty = dict.fromkeys(profile.TASKS)
     cfg = profile.ModelConfig(profiles={}, use=empty, chosen=frozenset())

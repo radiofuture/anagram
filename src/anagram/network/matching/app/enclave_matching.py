@@ -70,7 +70,7 @@ if TYPE_CHECKING:
 
 PERSON_KEY = "person-ed25519"
 REPLY_KEY = "enclave-reply-x25519"
-LENS_TYPES = {  # lens match types (plan net 13) -> pack match types (pack.md 3.3)
+LENS_TYPES = {  # lens match types -> pack match types (spec/pack.md 3.3)
     "T1": "research_fit",
     "T2": "method_help",
     "T3": "instrument_access",

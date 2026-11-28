@@ -1,6 +1,6 @@
-"""The act queue (open-agents stage 2, net 06 step 4, primitive
-`agent-grant` rule 5): an act tool only queues a proposal; the person
-approves or declines it in the local UI, never in the agent's chat. A
+"""The act queue (primitive `agent-grant` rule 5): an act tool only queues a
+proposal; the person approves or declines it in the local UI, never in the
+agent's chat. A
 planted order that the agent obeys does not create an approved act.
 
 The UI is the real local UI app (test client); the gateway runs on the same

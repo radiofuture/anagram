@@ -1,4 +1,4 @@
-"""Verify page in a real browser (R5 step 13): the content digest of the
+"""Verify page in a real browser: the content digest of the
 browser equals the Python digest, a dropped certificate and its files are
 checked, and a published proof opens at its link. Chromium only; skipped
 when Playwright or Chromium is not installed. The node runs on 127.0.0.1

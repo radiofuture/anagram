@@ -1,4 +1,4 @@
-"""R5 step 7a: the sharing routes of the local UI (`shell/ui/routers/sharing.py`),
+"""The sharing routes of the local UI (`shell/ui/routers/sharing.py`),
 the history, the live events, and the task `shares.sync`. Two members, each
 with a UI of their own, on one node with the read ledger. No network."""
 
@@ -48,7 +48,7 @@ ROUTES = (
     ("GET", "/api/shared/ab/figures/0/f"),
     ("GET", "/api/shared/ab/proof"),
     ("POST", "/api/shared/ab/save"),
-    ("GET", "/api/reader-claims"),  # R8, security review P1-3
+    ("GET", "/api/reader-claims"),
     ("POST", "/api/reader-claims/ab"),
     # The rings and the inbox of the first screens.
     ("POST", "/api/findings/ab/share"),

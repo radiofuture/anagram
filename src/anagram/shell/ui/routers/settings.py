@@ -27,13 +27,13 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return settings.detect_ollama()
 
     @app.put("/api/settings/drafting")
-    def set_drafting(body: dict = Body(...)) -> dict:  # noqa: B008
+    def set_drafting(body: dict = Body(...)) -> dict:
         return settings.set_drafting(
             body_text(body, "mode"), body_text(body, "model", required=False)
         )
 
     @app.put("/api/settings/model")
-    def set_model(body: dict = Body(...)) -> dict:  # noqa: B008
+    def set_model(body: dict = Body(...)) -> dict:
         return settings.set_model(
             bool(body.get("enabled")),
             body_text(body, "provider", required=False),

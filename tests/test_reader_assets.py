@@ -1,4 +1,4 @@
-"""R5 step 7b: the reading view (`src/anagram/web/reader/`).
+"""The reading view (`src/anagram/web/reader/`).
 
 Static rules (no browser): pdf.js is vendored with a manifest; one module
 loads it; the local UI serves `/reader` under its CSP. Browser tests

@@ -1,12 +1,12 @@
 """Member and node credentials (spec/network.md sections 5 to 7).
 
-Format `biscuit-v3` (decision R4 default): one Biscuit v3 authority block,
+Format `biscuit-v3`: one Biscuit v3 authority block,
 root key = the node key (member) or the roster key (node). The block must
 hold exactly the facts and the one check of the spec: a verifier rebuilds
 the source from the facts that it read and compares it with the block, so
-an extra fact, rule or check is refused (W4 finding M-a). Format
+an extra fact, rule or check is refused. Format
 `anagram-json-v1` is the bespoke fallback of a member credential, not
-accepted in v1; a node credential has no fallback (W4 ruling 4).
+accepted in v1; a node credential has no fallback.
 
 `biscuit-python` is a dev dependency, imported only where a Biscuit is made
 or read.

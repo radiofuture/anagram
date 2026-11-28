@@ -1,4 +1,4 @@
-"""The trust policy (plan net 05 step 1, spec/trust.md): format, signature,
+"""The trust policy (spec/trust.md): format, signature,
 tiers (the narrower wins), reach (deny wins), store, vectors, speed."""
 
 from __future__ import annotations

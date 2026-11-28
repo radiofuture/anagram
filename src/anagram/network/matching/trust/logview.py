@@ -139,8 +139,8 @@ class LogView:
         """True if 2 distinct pinned witnesses cosigned the entry with this
         digest (enclave_entry_cosign), at or before `before`. The plain quorum
         needs 1 independent witness; `independent_only` needs both cosigners
-        to be independent (W4 ruling 7: the `security_fix` path, quorum
-        revokes and new lines)."""
+        to be independent (required for `security_fix`, quorum revokes, and
+        new lines)."""
         by_key = {w.entry_key: w for w in roots.witnesses}
         seen: dict[str, Witness] = {}
         for _, e in self.of_kind("enclave_entry_cosign"):

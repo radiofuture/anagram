@@ -1,4 +1,4 @@
-"""R5 step 5: the reading copy. Local converters only; a bad file gives view
+"""The reading copy. Local converters only; a bad file gives view
 `file` and never stops a share. No network."""
 
 from __future__ import annotations

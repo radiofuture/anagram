@@ -49,11 +49,7 @@ from anagram.network.matching.node.enclave_node import (
     member_session,
     node_record,
 )
-from anagram.network.matching.node.enclave_relay import (
-    EnclaveRelay,
-    enclave_router,
-)
-from anagram.network.matching.trust.release import NOTICE
+from anagram.network.matching.node.enclave_relay import enclave_router
 from anagram.network.matching.trust.translog import EntryWitness, LogStore, TransparencyLog
 from anagram.network.sharing.app.grants import COMMUNITY, Grants, ThirdPartyWarning
 from anagram.network.sharing.app.invites import ReaderInvites
@@ -77,7 +73,6 @@ __all__ = [
     "HttpLog",
     "LogService",
     "LogStore",
-    "NOTICE",
     "Operator",
     "ReleaseFile",
     "RosterService",
@@ -141,7 +136,6 @@ __all__ = [
     "reads_router",
     "vault_router",
     # Matching
-    "EnclaveRelay",
     "NodeEnclave",
     "EnclaveMatching",
     "control_router",

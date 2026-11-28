@@ -1,4 +1,4 @@
-"""R5 step 4a: find a member by email address (findable flag, rate limit,
+"""Find a member by email address (findable flag, rate limit,
 audit, one 404 for all refusals)."""
 
 from __future__ import annotations

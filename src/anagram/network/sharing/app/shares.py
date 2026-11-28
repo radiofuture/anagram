@@ -35,7 +35,7 @@ from anagram.network.sharing.app.received import TITLE_MAX, reading_model
 from anagram.network.sharing.app.tables import INVITE_TARGET, LAB_TARGET, ShareStore
 from anagram.proofs.records import LINK_INCLUDES, finding_links
 
-log = logging.getLogger("anagram.client")
+log = logging.getLogger(__name__)
 
 SET_DEPTH = 3  # `includes` links followed when a set is shared
 LAB_ORIGIN = {"media_type": "text/plain", "name": "finding", "source_kind": "anagram", "time": None}

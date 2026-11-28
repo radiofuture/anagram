@@ -1,4 +1,4 @@
-"""Lab settings and policy (plan R2, step S6)."""
+"""Lab settings and policy."""
 
 from __future__ import annotations
 

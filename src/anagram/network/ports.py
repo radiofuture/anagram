@@ -1,4 +1,4 @@
-"""Ports of the network layer (layers plan, section 4).
+"""Ports of the network layer.
 
 `AdmissionCheck`: the checks of the `invite` and `join` entries of a group
 roster. L4 gives it; the roster (`network.formats.lab`) uses it. (What the

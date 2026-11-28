@@ -1,4 +1,4 @@
-"""Grants: client vault sharing (P3b): encrypted upload, rings, grants, grant receipts,
+"""Grants: client vault sharing: encrypted upload, rings, grants, grant receipts,
 public release, revocation, and the recipient side. See spec/vault.md.
 
 Rules:

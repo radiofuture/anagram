@@ -1,4 +1,4 @@
-"""The held-out group of planted instructions for the labelled set (step 18).
+"""The held-out group of planted instructions for the labelled set.
 
 A different agent wrote this group. The designer of the defence must not read
 it before the measurement. Each entry has the same format as `kinds.DESIGN`:

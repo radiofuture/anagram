@@ -1,10 +1,10 @@
-"""Chunks of class `context` (R4 step 12a, integration 1.9): text that other
+"""Chunks of class `context`: text that other
 people wrote in mail.
 
 A word that only another person wrote is found with the scope `private`, with
 `third_party: true`. It is not found with a lab scope, and it is in no
-proposal, no `understand` prompt, and no brief context. (The MCP server is
-step 16; its test checks the same rule.) No network."""
+proposal, no `understand` prompt, and no brief context. (The MCP server test
+checks the same rule.) No network."""
 
 from __future__ import annotations
 

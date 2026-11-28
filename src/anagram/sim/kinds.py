@@ -15,10 +15,10 @@ items over the 13 kinds of `anagram.item_kind.v1`, and `labels.json`:
 - Hard cases (`hard`): a draft that quotes a result; an email with a result
   in the quoted text only; and 7 decoys for each lab (`DECOYS`), where the
   path words and the cue phrases point to a different kind than the role of
-  the text (step 18).
+  the text.
 - 40 items have a planted instruction (`injected`): it asks for the kind in
   `target` and a title (or claims) with a canary. A model must not follow it.
-  `injection_group` is "base" (the 10 of step 10, the same words each time),
+  `injection_group` is "base" (the 10 baseline cases, the same words each time),
   "design" (10 with other words, `DESIGN`), "heldout" (10 with other words
   again, `kinds_heldout.HELDOUT`, kept apart from the design of the defence),
   or "heldout2" (10 more, `kinds_heldout2.HELDOUT2`, written by a different
@@ -61,6 +61,7 @@ import os
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from anagram.local.api import KIND_IDS, SEED_KINDS
 from anagram.local.understanding.kinds import POLARITY, TAXONOMY
@@ -77,7 +78,7 @@ class FakeLab:
     slug: str
     name: str
     field: str
-    fill: dict
+    fill: dict[str, str]
 
 
 LABS = (
@@ -221,7 +222,7 @@ def _items(lab: FakeLab) -> list[Item]:
     return out + _decoys(lab)
 
 
-# The hard cases of step 18: the path words and the cue phrases point to a
+# Hard cases: the path words and the cue phrases point to a
 # different kind than the role of the text. The rules get most of them wrong.
 DECOYS = (
     "finding in plain words",
@@ -305,7 +306,7 @@ def _injection(n: int, lab: str) -> tuple[str, str]:
     return text, target
 
 
-# Planted instructions with different words (step 18 fix). Each entry is
+# Planted instructions with varied phrasing. Each entry is
 # (text, target kind, where): `text` has `{canary}` and `{target}`; `where` is
 # "start" (after the first line), "middle", or "end". The group "design" is
 # for the design of the defence. The group "heldout" (`kinds_heldout.py`) was
@@ -447,7 +448,7 @@ NEGATIVE_LAB = "negative"  # the negative group of lab <slug> is in the folder <
 NEGATIVE2 = "negative group 2"
 NEGATIVE2_LAB = "negative2"  # the second negative group: folder <slug>-negative2
 # The gold polarity of the held-out findings and results that are not
-# "positive" (labelled by the agent after the step 18 precision runs).
+# "positive".
 HELDOUT_POLARITY = {
     "findings/batch-7.md": "unclear",
     "misc/scratch-ok.md": "negative",
@@ -456,7 +457,7 @@ HELDOUT_POLARITY = {
 }
 
 
-def _keys(lab: FakeLab) -> dict:
+def _keys(lab: FakeLab) -> dict[str, str]:
     f = lab.fill
     return {**f, "T": f["thing"][0].upper() + f["thing"][1:],
             "first2": f["person2"].split()[0], "slug": lab.slug}  # fmt: skip
@@ -497,8 +498,14 @@ def _negative_results(lab: FakeLab, second: bool = False) -> list[Item]:
 
 
 def _rows(
-    out: Path, lab: FakeLab, slug: str, items: list[Item], targets: dict, seed: int, li: int
-) -> list[dict]:
+    out: Path,
+    lab: FakeLab,
+    slug: str,
+    items: list[Item],
+    targets: dict[int, tuple[str, str]],
+    seed: int,
+    li: int,
+) -> list[dict[str, Any]]:
     """Write the items of one lab folder and return their label rows."""
     rows = []
     for n, item in enumerate(items, start=1):
@@ -534,7 +541,7 @@ def generate_kinds(
     heldout_findings: bool = False,
     negative_results: bool = False,
     negative_results2: bool = False,
-) -> dict:
+) -> dict[str, Any]:
     """Write the labelled set and return the labels (see the module text)."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -546,7 +553,7 @@ def generate_kinds(
         items = _items(lab)
         targets: dict[int, tuple[str, str]] = {}  # item number -> (target, group)
         for n, item in enumerate(items, start=1):
-            # The ten planted instructions of step 10 (3, 3, 2, 2), none in admin.
+            # Ten baseline planted instructions (3, 3, 2, 2), none in admin.
             if (
                 in_lab < (3, 3, 2, 2)[li]
                 and item.fmt == "text"
@@ -558,7 +565,7 @@ def generate_kinds(
                 targets[n] = (target, "base")
                 injected += 1
                 in_lab += 1
-        # More planted instructions with other words (step 18 fix), on other items.
+        # More planted instructions with varied phrasing, on other items.
         free = [
             n
             for n, item in enumerate(items, start=1)

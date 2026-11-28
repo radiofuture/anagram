@@ -1,4 +1,4 @@
-"""Preprint draft (R5 step 14): a zip from a set of three findings has all
+"""Preprint draft: a zip from a set of three findings has all
 parts, the proofs inside it verify, and the TeX file passes a syntax check
 that needs no TeX install. No network, no model call."""
 
@@ -208,7 +208,7 @@ def test_ui_route_gives_the_zip(net, tmp_path):
     assert not [n for n in z.namelist() if n.startswith("supplement/")]
     assert "Adaeze Okafor" in z.read("manuscript.md").decode()
 
-    # The page sends the authors and the abstract (R7 step 10).
+    # The page sends the authors and the abstract.
     body = {
         "include_files": False,
         "abstract": "We show that the pocket binds the ligand.",

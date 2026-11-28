@@ -1,4 +1,4 @@
-"""Test tools for the retrieval store port (plan net 01).
+"""Test tools for the retrieval store port.
 
 - `bm25`: the FTS5 BM25 score (k1 = 1.2, b = 0.75), in plain Python.
 - `ExactStore`: a brute-force adapter of `store_port.RetrievalStore`. It is

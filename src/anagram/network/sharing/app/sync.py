@@ -18,7 +18,7 @@ from anagram.network.sharing.app.records import ReadRecords
 from anagram.network.sharing.app.shares import Shares
 from anagram.network.sharing.app.tables import INVITE_TARGET
 
-log = logging.getLogger("anagram.client")
+log = logging.getLogger(__name__)
 
 
 class ShareSync:

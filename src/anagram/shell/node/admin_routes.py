@@ -48,7 +48,7 @@ def admin_api_router(admin: Admin, labs) -> APIRouter:
         return _json(labs.node_stats() if labs is not None else [])
 
     @router.post("/labs/{lab_id}")
-    def set_lab(request: Request, lab_id: str, body: dict = Body(...)) -> JSONResponse:  # noqa: B008
+    def set_lab(request: Request, lab_id: str, body: dict = Body(...)) -> JSONResponse:
         if checked(admin, request, str(body.get("csrf", "")), required=True) is None:
             return refused()
         if labs is None:
@@ -64,7 +64,7 @@ def admin_api_router(admin: Admin, labs) -> APIRouter:
         return _json(row)
 
     @router.post("/invites")
-    def invite(request: Request, body: dict = Body(...)) -> JSONResponse:  # noqa: B008
+    def invite(request: Request, body: dict = Body(...)) -> JSONResponse:
         sess = checked(admin, request, str(body.get("csrf", "")), required=True)
         if sess is None:
             return refused()

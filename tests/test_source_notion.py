@@ -1,6 +1,6 @@
 """Notion source (contract v2) against `FakeNotion`. No network.
 
-Cases of plan R3 section 5: first sync newest first, no change (one search
+Cases: first sync newest first, no change (one search
 call), edit, archive, page that left the selection (daily ID list), a reset
 after "Choose pages", rate limit, sign-in needed, Markdown, and the OAuth
 token call with HTTP Basic."""

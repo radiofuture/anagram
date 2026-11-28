@@ -1,11 +1,11 @@
-"""The sharing screens of track R5 (step 7c) in a browser, with two people.
+"""The sharing screens in a browser, with two people.
 
 Chen (owner) and Okafor (reader) each have their own UI on one demo
 community (Playwright, headless Chromium). Chen shares a finding by name,
 Okafor reads it in the reading view, and Chen's row changes to "Read" with no
 reload of the page. Then Chen stops sharing and invites a person who is not a
 member. A second test follows a reader invite from the node page to "Shared
-with me" (R5 plan 6.5 rule 8).
+with me".
 
 The task `shares.sync` runs every 60 s while a page is open; the tests call
 one run of it (`app.state.sharing.sync()`) where the product waits for the
@@ -76,7 +76,7 @@ def no_page_scroll(page) -> str:
 
 def looks(page, name: str) -> None:
     """The screen at 390 and 1440 px, light and dark: no page scroll, and no
-    motion left running (R7 plan 5.2 rule 3)."""
+    motion left running."""
     for scheme in ("light", "dark"):
         page.emulate_media(color_scheme=scheme)
         for width in (390, 1440):
@@ -178,7 +178,7 @@ def test_share_read_live_and_stop(browser, demo, tmp_path):
     expect(page.locator("main").get_by_text(CLAIM)).to_be_visible()
     looks(page, "by-me")
 
-    # Stop sharing (decision P3): the sheet says what it does and does not do.
+    # Stop sharing: the sheet says what it does and does not do.
     chen.go(f"#/finding/{root}", "finding")
     row.get_by_role("button", name=copy("sharing.stop_name", name="Chidi Okafor")).click()
     expect(
@@ -230,7 +230,7 @@ def test_share_read_live_and_stop(browser, demo, tmp_path):
 def test_reader_invite_ends_on_shared_with_me(browser, tmp_path):
     """A person who is not a member gets a reader invite for an ORCID iD,
     opens the link, joins with no lab, and lands on "Shared with me" with
-    the finding ready to read (R5 plan 6.5 rule 8)."""
+    the finding ready to read."""
     from test_app_runtime import FakeIndexer
     from test_ui_browser_join import INSTITUTIONS, Site, open_from_node_page, sign_in_at_fake_orcid
 
@@ -266,8 +266,8 @@ def test_reader_invite_ends_on_shared_with_me(browser, tmp_path):
         page.get_by_label(copy("welcome.kit_check")).check()
         page.get_by_role("button", name=copy("welcome.kit_continue")).click()
         expect(page.get_by_role("heading", name=copy("details.setup_title"))).to_be_visible()
-        # The owner's computer sees the claim; the owner confirms the person
-        # (security review P1-3), then the finding goes.
+        # The owner's computer sees the claim; the owner confirms the person,
+        # then the finding goes.
         site.pi.share_sync.sync_shares()
         (claim,) = site.pi.invites.reader_claims()
         assert claim["name"] == "Ada Lind"

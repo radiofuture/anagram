@@ -1,4 +1,4 @@
-"""Ports of the model part (layers plan, section 4): what the model profiles
+"""Ports of the model layer: what the model profiles
 need from a higher layer. The keystore of the device (L1) gives
 `SecretStore`; models does not import it."""
 

@@ -1,5 +1,4 @@
-"""Find plaintext on disk (plan net 01 step 4; plan net 02 runs it in each
-converter test).
+"""Find plaintext on disk (also run in each converter test).
 
 A test plants known bytes (canary words, the raw float32 bytes of a known
 vector) in the data, runs the code, and then:
@@ -224,7 +223,7 @@ class FdWatch:
             self._thread.start()
         return self
 
-    def __exit__(self, *exc) -> None:
+    def __exit__(self, *exc: object) -> None:
         self._stop.set()
         if self._thread is not None:
             self._thread.join()

@@ -1,4 +1,4 @@
-// Sources: what Anagram reads. Track R3 owns this screen (step S15).
+// Sources: what Anagram reads.
 //
 // With no source, the screen is the choice of the kinds; after that, the
 // list comes first and "Add a source" opens the same choice. A row shows

@@ -1,4 +1,4 @@
-/* The reading view of a shared finding (track R5, step 7b). Class prefix rd-.
+/* The reading view of a shared finding. Class prefix rd-.
    Load the brand tokens first (tokens.css, product-ui/tokens.css). In the
    member app, ui/static/css/base.css gives the --ag- roles and their dark
    pairs; each role here has a brand fallback for a page with no base.css.

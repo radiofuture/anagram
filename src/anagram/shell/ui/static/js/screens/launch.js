@@ -1,5 +1,5 @@
 // Shown when the server refuses the cookie (401). It has no route. The one
-// next step opens the app (URL scheme of track R1), which opens a new window.
+// next step opens the app via its URL scheme, which opens a new window.
 import { html, useEffect } from '../core/html.js';
 import { t } from '../core/copy.js';
 

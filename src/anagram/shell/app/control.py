@@ -231,7 +231,7 @@ def register(app: FastAPI, runtime) -> None:
         return {"instance": runtime.instance, "ok": True, "version": runtime.version}
 
     @app.post("/control/open")
-    def control_open(body: dict = Body(default={})) -> JSONResponse:  # noqa: B008
+    def control_open(body: dict = Body(default={})) -> JSONResponse:
         body = body if isinstance(body, dict) else {}
         route, invite = body.get("route"), body.get("invite")
         if route is not None and route not in ROUTES:

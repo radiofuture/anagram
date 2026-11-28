@@ -341,7 +341,7 @@ def roster_checkpoint(
     network: str, seq: int, head: bytes, time: int, key: SigningKey
 ) -> JsonObject:
     """A roster checkpoint. It is also a `roster_checkpoint` entry of the
-    enclave transparency log (W4 ruling 2), so it has a `kind`."""
+    enclave transparency log, so it has a `kind`."""
     doc = {
         "head": head.hex(),
         "kind": "roster_checkpoint",

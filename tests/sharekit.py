@@ -1,4 +1,4 @@
-"""Test helpers of release track R5 (sharing): a community node with the read
+"""Test helpers for sharing: a community node with the read
 ledger, members, and small findings. No network."""
 
 from __future__ import annotations

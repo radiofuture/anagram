@@ -1,4 +1,4 @@
-"""Identity (layer L1 of the layers plan): registration of a person, the
+"""Identity (layer L1): registration of a person, the
 person ID, device keys and the key directory, sign-in, recovery, and links
 (ORCID).
 

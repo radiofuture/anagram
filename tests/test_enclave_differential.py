@@ -1,4 +1,4 @@
-"""Differential tests (plan scenario 3): the same evidence through Anagram's
+"""Differential tests: the same evidence through Anagram's
 verifiers and Google's reference verifiers (go-sev-guest, go-tdx-guest, run
 by `tests/differential/refverify`). The real evidence passes both; and over
 thousands of changed copies, the two give the same verdict, except where

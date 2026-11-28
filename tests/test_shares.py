@@ -1,4 +1,4 @@
-"""R5 step 4a: shares to people, sets (`includes` links), audience, and new
+"""Shares to people, sets (`includes` links), audience, and new
 versions that follow the audience. People in two labs on one node."""
 
 from __future__ import annotations

@@ -1,5 +1,5 @@
 """The matching part of an enclave instance: live packs, the sweep, the
-reveal and the day batch (plan net 14b; spec/enclave-messages.md 6;
+reveal and the day batch (spec/enclave-messages.md 6;
 spec/enclave-trust.md 7.1).
 
 `Matching` reads and changes only the ledger that it is given and the
@@ -109,8 +109,8 @@ class Matching:
 
     def try_reveal(self, ledger: Ledger, pair_id: str, now: int) -> None:
         """Both said yes: check the credentials, deny and block again on the
-        current packs (14b step 9). Wait while a credential is only expired;
-        end the pair on any other failed check (6.6)."""
+        current packs. Wait while a credential is only expired;
+        end the pair on any other failed check (spec/enclave-messages.md 6.6)."""
         pair = ledger.pairs[pair_id]
         records = [f for s in (pair.a, pair.b) if (f := ledger.subjects[s].facts) is not None]
         if len(records) < 2:

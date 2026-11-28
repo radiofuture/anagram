@@ -182,7 +182,7 @@ class DemoPerson:
     name: str
     role: str
     orcid: str
-    lab: dict
+    lab: dict[str, Any]
     folder: Path
     service: UIService
     email: str = ""
@@ -293,7 +293,7 @@ class Demo:
     def _start_node(self, n: int) -> DemoNode:
         from anagram.shell.node.home import NodeHome
 
-        nh = NodeHome(node_dir(self.root, n))
+        nh: Any = NodeHome(node_dir(self.root, n))
         # A second `up` in the same folder keeps the node address: the members'
         # configs and the signed trust document name it.
         # The socket stays bound until the node server takes it (no launch race).
@@ -431,7 +431,7 @@ class Demo:
             wants or [x["label"] for x in profile["needs"]],
         )
 
-    def card(self, person: DemoPerson) -> dict:
+    def card(self, person: DemoPerson) -> dict[str, str | None]:
         return {
             "email": person.email,
             "institution": person.institution,
@@ -489,9 +489,12 @@ class Demo:
         if not svc.joined():
             # The join with the invite only (the name from `prepare`).
             svc.join.start_join()
-            svc.join.task.thread.join(120)
-            if svc.join.task.state != "joined":
-                raise RuntimeError(f"demo join failed: {svc.join.task.error}")
+            task = svc.join.task
+            if task is None or task.thread is None:
+                raise RuntimeError("demo join task did not start")
+            task.thread.join(120)
+            if task.state != "joined":
+                raise RuntimeError(f"demo join failed: {task.error}")
         if not svc.state.get("kit_saved"):
             svc.account.kit_saved()
 
@@ -546,7 +549,7 @@ def serve(
     return 0
 
 
-def summary(doc: dict, root: Path) -> list[str]:
+def summary(doc: dict[str, Any], root: Path) -> list[str]:
     """The lines that `up` prints: each node, each person with the link
     and the node, and how the days go on."""
     nodes = doc.get("nodes") or [{"n": 1, "name": COMMUNITY, "url": doc["node"]}]

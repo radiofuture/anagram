@@ -1,7 +1,7 @@
 """Gmail source (contract v2) against the Gmail model of `FakeGoogle`. No
 network.
 
-Cases of plan R3 section 5: first sync (mode `mine` and the P1 defaults),
+Cases: first sync (mode `mine` and default filters),
 no change (one history call), new message, delete, trash, history expired
 (reconcile), filter change, attachments, third-party text, private space
 only, and scale."""

@@ -1,5 +1,5 @@
 /* The model of a person (slot `account.sections`) and of a lab (slot
-   `lab.models`), and the kind of an item (track R4, step 11b). */
+   `lab.models`), and the kind of an item. */
 
 .ag-model-uses {
   display: grid;

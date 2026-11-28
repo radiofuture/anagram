@@ -1,4 +1,4 @@
-"""Temp-file canary scan (net 01 step 4, net 02 step 2; review finding M6).
+"""Temp-file canary scan.
 
 Put a unique canary string in the input, run the code under the
 `no_plaintext_temp` context, and the test fails if a temp file that changed

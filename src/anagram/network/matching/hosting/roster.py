@@ -208,7 +208,7 @@ def roster_app(service: RosterService, tick_every: float = TICK_SECONDS) -> Fast
     app = FastAPI(title="Anagram network roster (simulated profile)", lifespan=lifespan)
 
     @app.get("/net/roster/events")
-    def events(after: int = Query(0, ge=0)) -> JsonObject:  # noqa: B008
+    def events(after: int = Query(0, ge=0)) -> JsonObject:
         return {"count": service.store.count(), "events": service.store.events(after, MAX_EVENTS)}
 
     @app.get("/net/roster/checkpoint")

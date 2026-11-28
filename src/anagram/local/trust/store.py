@@ -2,11 +2,11 @@
 
 - `trust_policy`: the current signed document.
 - `trust_policy_history`: the documents before it, newest first, at most
-  `KEEP` (for the undo of net 05 step 4).
+  `KEEP` (for undo).
 
 A save needs a document that `verify_policy` accepts, with the same owner
 and a higher `rev` than the current one (no rollback). With no saved
-document, `current` gives the default policy (decision N5).
+document, `current` gives the default policy.
 """
 
 from __future__ import annotations

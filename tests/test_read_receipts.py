@@ -1,4 +1,4 @@
-"""R5 step 3: the reader's client posts read receipts (also from an offline
+"""Read receipts: the reader's client posts read receipts (also from an offline
 queue); the owner's client fetches and checks them (forged read, event gap)."""
 
 from __future__ import annotations

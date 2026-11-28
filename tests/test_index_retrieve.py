@@ -1,4 +1,4 @@
-"""Scoped retrieval (R4 step 12): a hit outside the scope is never returned.
+"""Scoped retrieval: a hit outside the scope is never returned.
 
 One word is planted in two spaces (a private source and a lab source). No
 network; no embedder (full-text only)."""

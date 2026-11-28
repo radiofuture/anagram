@@ -1,4 +1,4 @@
-"""Spans in the document (net 02 step 1).
+"""Spans in the document.
 
 - Round trip of `Document.to_json` / `from_json` with each block kind.
 - Migration: a store of schema version 2 with schema-1 documents (written by
@@ -7,7 +7,7 @@
 - Anchor stability under a small edit, for each type: insert one paragraph
   near the start, change one cell, add one slide. At least 95 % of the
   unchanged blocks keep their anchors. Each conversion runs under the temp
-  file canary scan (net 01 step 4).
+  file canary scan.
 - Facts get a span and `converter@version`.
 """
 

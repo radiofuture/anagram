@@ -26,8 +26,7 @@ Rules, by section:
 - deletion on withdrawal, removal and expiry (spec/enclave-trust.md 7.1);
 - decline records: a `no` keeps the pair apart for 365 days for the declined
   match type, also after the other person withdraws and comes back; the
-  decliner's own withdrawal deletes them (spec/enclave-trust.md 7.1; W5;
-  decision C46).
+  decliner's own withdrawal deletes them (spec/enclave-trust.md 7.1).
 
 A rule that refuses raises `Refused` with the receipt code of section 10.
 """

@@ -1,4 +1,4 @@
-"""Ports of the app (layers plan, section 4). The `Client`
+"""Ports of the app layer. The `Client`
 composition root gives them; the app does not import the code that
 gives them.
 

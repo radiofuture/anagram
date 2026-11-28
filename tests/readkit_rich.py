@@ -1,4 +1,4 @@
-"""Larger fixture files for the reading view (R5 step 7b): a finding as a
+"""Larger fixture files for the reading view: a finding as a
 research group shares it, with a paper (PDF), a slide deck (PDF and PPTX), a
 figure, a data table, a notebook, a Word document with a table, notes, and a
 source file. Valid files, made with the standard library and the libraries in

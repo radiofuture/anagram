@@ -11,8 +11,7 @@ Rules that each read tool keeps:
   agent, readable on this device, and, for a lab, allowed by the lab for
   the class of the agent).
 - Only items whose tier in the trust policy is `discoverable` or `shared`
-  (`Context.open_items`). A `private` item never goes to an agent
-  (net 05 step 2, interaction point I2).
+  (`Context.open_items`). A `private` item never goes to an agent.
 - No text of other people: `retrieve.search(..., context=False)`, and
   `read_item` reads the table `chunk` only and refuses an item that another
   person wrote (`local/understanding/third_party.py`).

@@ -1,5 +1,5 @@
-"""Browser test of Home, Ask, Timeline, and Assistant access (R4, review item
-W2, step 15b). The Home field opens the Ask screen. With no model the same
+"""Browser test of Home, Ask, Timeline, and Assistant access.
+The Home field opens the Ask screen. With no model the same
 field searches: the passages are the answer and one calm line says how to set
 up a model. With a fake model the answer streams, each [n] goes to its source
 row, and a reload shows the same answer. The timeline shows the weeks, and a
@@ -147,7 +147,7 @@ def test_with_a_model_the_answer_streams_with_citations(browser, person):
         ctx.close()
 
 
-# --------------------------------------------- model settings (step 11b)
+# ---------------------------------------------------------- model settings
 
 LOCAL_ID = re.compile("^llama3-2-")
 OUT_OF_SOURCES = "No source permits this model to read its text."
@@ -416,7 +416,7 @@ def test_assistant_access_is_added_and_stopped(browser, person):
 
 
 def test_the_person_approves_a_proposal_of_an_assistant(browser, person):
-    """Open-agents stage 2: the proposal shows its exact lines; the approval
+    """The proposal shows its exact lines; the approval
     is a click in the local UI."""
     from anagram.gateway import access, acts
 
@@ -448,7 +448,7 @@ def test_the_person_approves_a_proposal_of_an_assistant(browser, person):
 
 
 def test_a_negative_result_shows_one_quiet_word(browser, person):
-    """Decision C12: the Library row and the item show the word, no icon."""
+    """The Library row and the item show the word, no icon."""
     with person.service.session(index=True) as (_, idx):
         (vid, iid) = idx.store.one(
             "SELECT v.id, v.item_id FROM version v ORDER BY v.id DESC LIMIT 1"

@@ -37,15 +37,15 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return {**join.invite_info(), "status": join.status()}
 
     @app.post("/api/join")
-    def join_invite(body: dict = Body(default={})) -> dict:  # noqa: B008
+    def join_invite(body: dict = Body(default={})) -> dict:
         return join.start_join(body_text(body, "invite", required=False))
 
     @app.post("/api/join/start")
-    def join_start(body: dict = Body(default={})) -> dict:  # noqa: B008
+    def join_start(body: dict = Body(default={})) -> dict:
         return join.start_join(_text(body, "invite"), _text(body, "name"), _text(body, "email"))
 
     @app.post("/api/join/code")
-    def join_code(body: dict = Body(...)) -> dict:  # noqa: B008
+    def join_code(body: dict = Body(...)) -> dict:
         return join.give_code(_text(body, "code") or "")
 
     @app.post("/api/join/cancel")

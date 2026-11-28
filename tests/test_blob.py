@@ -1,4 +1,4 @@
-"""P3b: chunked blob encryption and Shamir shares (unit tests, no node)."""
+"""Chunked blob encryption and Shamir shares (unit tests, no node)."""
 
 import io
 import os

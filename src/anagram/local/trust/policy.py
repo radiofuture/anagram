@@ -1,4 +1,4 @@
-"""The trust policy (spec/trust.md, plan net 05 step 1): one signed,
+"""The trust policy (spec/trust.md): one signed,
 versioned document for each person that says which items the agent of the
 person may use, and which people, labs, organisations and communities the
 person may reach.
@@ -16,14 +16,14 @@ Rules:
 
 - The narrower tier wins: source, then folder, then item, then reading (a
   reading is never wider than the narrowest tier of its basis items).
-- A source with no mark has the default of own items (decision N5:
-  `discoverable`). An item that another person wrote (`third_party` mark,
-  spec/threat-model.md section 16) is always `private`, whatever the marks.
+- A source with no mark has the default of own items (`discoverable`). An
+  item that another person wrote (`third_party` mark, spec/threat-model.md
+  section 16) is always `private`, whatever the marks.
 - Deny wins over allow. Allow only widens who may be a candidate across a
   boundary (`in_scope=False`). Deny matches any verified attribute of the
   peer: pid, lab, organisation (`ror:<ROR ID>` or `domain:<verified email
   domain>`), community (host name). Self-stated attributes must not go into
-  a `Peer` (decision N7 default).
+  a `Peer`.
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ SHARED = "shared"
 TIERS = (PRIVATE, DISCOVERABLE, SHARED)  # narrow to wide
 _RANK = {tier: n for n, tier in enumerate(TIERS)}
 
-OWN_DEFAULT = DISCOVERABLE  # decision N5 (Ashish, 2026-11-18)
+OWN_DEFAULT = DISCOVERABLE
 
 PEOPLE = "people"
 LABS = "labs"

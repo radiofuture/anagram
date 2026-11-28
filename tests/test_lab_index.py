@@ -1,4 +1,4 @@
-"""The lab space in the local index (plan R2, step S7): the `labspace`
+"""The lab space in the local index: the `labspace`
 source, publish from a source in a lab space, withdraw, and the `own` guards
 (no lab item in a checkpoint, a finding draft, or a brief)."""
 

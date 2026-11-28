@@ -3,12 +3,12 @@
     got = read_item(model, item, cache)   # -> ItemSignals
 
 The reader asks one small question for each own sentence of the item: its
-kind (`ask`, `offer`, `stuck`, `method`, `solved`, `other`) and the class of
-the thing (plan 12 line classes). One more question gives the research
+kind (`ask`, `offer`, `stuck`, `method`, `solved`, `other`) and the line
+class. One more question gives the research
 topics of the item. A 7B local model chooses one label for one sentence
-much better than it lists the sentences of a kind in an item: prompt v1
-(one question for each kind) mixed asks and offers and took greetings and
-method steps as open problems (plan net-03b progress, run r1).
+much better than it lists the sentences of a kind in an item: an earlier
+prompt (one question for each kind) mixed asks and offers and took greetings
+and method steps as open problems.
 
 Rules (layer 1 and 2 of primitive `planted-instructions`):
 

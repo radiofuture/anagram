@@ -1,5 +1,5 @@
 # ruff: noqa: F811 - the fixture `lib` from test_mcp
-"""MCP over loopback HTTP (open-agents stage 3, decision A1): the checks of
+"""MCP over loopback HTTP: the checks of
 `local-ui-boundary` for a route that a browser must not use, and a bearer
 key for each grant. A real HTTP server on 127.0.0.1 with a free port."""
 

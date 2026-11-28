@@ -1,4 +1,4 @@
-"""Small fixture files for the reading copy tests (R5 step 5). Each builder
+"""Small fixture files for the reading copy tests. Each builder
 gives the bytes of a valid file with a known text. Standard library and the
 libraries in the dependencies only."""
 

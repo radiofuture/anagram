@@ -34,7 +34,6 @@ pins the keys of `devnet.json` (`simulated` profile: development only).
 
 from __future__ import annotations
 
-import hashlib
 import re
 import secrets
 import ssl
@@ -248,17 +247,18 @@ def _merge_deny(base: JsonObject, extra: JsonObject) -> JsonObject:
     domains = sorted(set(base.get("domains") or ()) | set(extra.get("domains") or ()))
     nodes = sorted(set(base.get("nodes") or ()) | set(extra.get("nodes") or ()))
     rors = sorted(set(base.get("rors") or ()) | set(extra.get("rors") or ()))
-    # Respect MAX_DENY deterministically when combining explicit and policy entries.
-    out: dict[str, list[str]] = {"domains": [], "nodes": [], "rors": []}
-    budget = MAX_DENY
-    for key, values in (("nodes", nodes), ("rors", rors), ("domains", domains)):
-        take = values[:budget]
-        out[key] = take
-        budget -= len(take)
-    return out
+    total = len(domains) + len(nodes) + len(rors)
+    if total > MAX_DENY:
+        raise ClientError(
+            f"Combined deny list has {total} entries, exceeding the network limit of {MAX_DENY}. "
+            "Reduce deny entries before matching can upload."
+        )
+    return {"domains": domains, "nodes": nodes, "rors": rors}
 
 
-def _merge_block(base: JsonObject, extra: JsonObject, line_ids: set[str]) -> JsonObject:
+def _merge_block(
+    base: JsonObject, extra: JsonObject, line_ids: set[str] | None = None
+) -> JsonObject:
     people = sorted(set(base.get("people") or ()) | set(extra.get("people") or ()))
     hide_raw = [*(base.get("hide") or ()), *(extra.get("hide") or ())]
     valid_hide = [
@@ -268,13 +268,17 @@ def _merge_block(base: JsonObject, extra: JsonObject, line_ids: set[str]) -> Jso
         and isinstance(h.get("from"), str)
         and isinstance(h.get("line"), str)
         and packs.SUBJECT_REF.match(h["from"])
-        and h["line"] in line_ids
+        and (line_ids is None or h["line"] in line_ids)
     ]
     dedup_hide = list({(h["from"], h["line"]): h for h in valid_hide}.values())
     dedup_hide.sort(key=lambda h: (h["from"], h["line"]))
-    kept_people = people[:MAX_BLOCK]
-    kept_hide = dedup_hide[: max(0, MAX_BLOCK - len(kept_people))]
-    return {"hide": kept_hide, "people": kept_people}
+    total = len(people) + len(dedup_hide)
+    if total > MAX_BLOCK:
+        raise ClientError(
+            f"Combined block list has {total} entries, exceeding the network limit of {MAX_BLOCK}. "
+            "Reduce block entries before matching can upload."
+        )
+    return {"hide": dedup_hide, "people": people}
 
 
 def _prune(st: JsonObject, today: int) -> None:
@@ -342,6 +346,8 @@ class EnclaveMatching:
         st.setdefault("deny", {"domains": [], "nodes": [], "rors": []})
         st.setdefault("block", {"hide": [], "people": []})
         st.setdefault("rules", {})
+        st.setdefault("mode", "manual")
+        st.setdefault("excluded_lines", [])
         return st
 
     def _save(self, st: JsonObject) -> None:
@@ -444,87 +450,97 @@ class EnclaveMatching:
         pack_lines(draft)  # the same checks as at approval
         st = self._load()
         kept: JsonObject = {"offers": draft.get("offers") or [], "wants": draft.get("wants") or []}
+        typed = {
+            " ".join(str(ln.get("text", "")).split())
+            for side in ("offers", "wants")
+            for ln in kept[side]
+        }
+        st["excluded_lines"] = sorted(set(st.get("excluded_lines") or ()) - typed)
         st["draft"] = kept
-        if st.get("suggested_draft") and _same_draft(kept, st["suggested_draft"]):
-            st.pop("suggested_draft", None)
         self._save(st)
         return kept
 
-    def set_suggested_draft(
-        self, draft: JsonObject, *, fingerprint: str | None = None
-    ) -> JsonObject | None:
-        """Store ambient candidate lines without changing the user's draft or
-        sending anything to the enclave."""
-        try:
-            pack_lines(draft)
-        except ClientError:
-            return None
-        kept: JsonObject = {"offers": draft.get("offers") or [], "wants": draft.get("wants") or []}
-        fp = fingerprint or hashlib.sha256(canonical_json(kept)).hexdigest()
+    def ambient_active(self) -> bool:
+        """True only after explicit ambient consent AND matching is currently on."""
         st = self._load()
-        st["last_suggestion_fp"] = fp
-        if st.get("dismissed_suggestion_fp") == fp:
-            self._save(st)
-            return None
-        current = st.get("draft")
-        if current and _same_draft(current, kept):
-            st.pop("suggested_draft", None)
-            self._save(st)
-            return None
-        st["suggested_draft"] = kept
-        st["suggested_fp"] = fp
-        self._save(st)
-        return kept
-
-    def suggestion_fingerprints(self) -> tuple[str | None, str | None]:
-        """Return `(last_computed_fp, dismissed_fp)` for skipping redundant ambient runs."""
-        st = self._load()
-        last = st.get("last_suggestion_fp")
-        dismissed = st.get("dismissed_suggestion_fp")
-        return (
-            last if isinstance(last, str) else None,
-            dismissed if isinstance(dismissed, str) else None,
+        approved = st.get("approved")
+        return bool(
+            st["on"]
+            and st.get("mode") == "ambient"
+            and isinstance(approved, dict)
+            and approved.get("ambient") is True
         )
 
-    def apply_suggested_draft(self) -> JsonObject:
-        """Copy `suggested_draft` into `draft` (never auto-approves or uploads)."""
+    def ambient_fingerprint(self) -> str | None:
+        """Return the last processed indexed-items fingerprint to skip redundant runs."""
         st = self._load()
-        suggested = st.get("suggested_draft")
-        if not suggested:
-            raise ClientError("no suggested updates to apply")
-        pack_lines(suggested)
-        st["draft"] = {
-            "offers": list(suggested.get("offers") or []),
-            "wants": list(suggested.get("wants") or []),
-        }
-        st.pop("suggested_draft", None)
-        st.pop("suggested_fp", None)
-        self._save(st)
-        return self.status()
+        last = st.get("last_ambient_fp")
+        return last if isinstance(last, str) else None
 
-    def dismiss_suggested_draft(self) -> JsonObject:
-        """Dismiss the current suggested draft until the underlying work changes."""
+    def update_ambient_lines(
+        self, draft: JsonObject, *, fingerprint: str | None = None
+    ) -> JsonObject | None:
+        """Background ambient update: once the person has given ambient consent
+        and matching is on, update the active matching lines directly while
+        respecting `excluded_lines` and `MAX_LINES` without requiring a new
+        approval click per index change."""
         st = self._load()
-        suggested = st.get("suggested_draft")
-        fp = st.get("suggested_fp")
-        if not isinstance(fp, str) and suggested:
-            fp = hashlib.sha256(canonical_json(suggested)).hexdigest()
-        if isinstance(fp, str):
-            st["dismissed_suggestion_fp"] = fp
-        st.pop("suggested_draft", None)
-        st.pop("suggested_fp", None)
+        approved = st.get("approved")
+        if not (
+            st["on"]
+            and st.get("mode") == "ambient"
+            and isinstance(approved, dict)
+            and approved.get("ambient") is True
+        ):
+            return None
+        excluded = set(st.get("excluded_lines") or ())
+        filtered: JsonObject = {
+            side: [
+                ln
+                for ln in (draft.get(side) or [])
+                if " ".join(str(ln.get("text", "")).split()) not in excluded
+            ][:MAX_LINES]
+            for side in ("offers", "wants")
+        }
+        if fingerprint is not None:
+            st["last_ambient_fp"] = fingerprint
+        if not filtered["offers"] and not filtered["wants"]:
+            self._save(st)
+            return None
+        try:
+            packed = pack_lines(filtered)
+        except ClientError:
+            self._save(st)
+            return None
+        if packed == approved.get("lines") and st.get("draft") == filtered:
+            self._save(st)
+            return None
+        st["draft"] = filtered
+        approved["lines"] = packed
+        self._save(st)
+        return filtered
+
+    def switch_to_manual(self) -> JsonObject:
+        """Stop automatic background updates and switch back to manual lines."""
+        st = self._load()
+        st["mode"] = "manual"
+        approved = st.get("approved")
+        if isinstance(approved, dict):
+            approved["ambient"] = False
         self._save(st)
         return self.status()
 
     def remove_draft_line(self, text: str) -> JsonObject:
-        """Strictly local helper: remove a line matching `text` from the local
-        draft without touching wire answers or sending anything."""
+        """Remove a line matching `text` and record it in `excluded_lines` so
+        ambient indexing never silently re-adds it. Does not contact the enclave."""
         target = " ".join(text.split())
         if not target:
             raise ClientError("give the line text to remove")
         st = self._load()
+        st["excluded_lines"] = sorted(set(st.get("excluded_lines") or ()) | {target})
         draft = st.get("draft")
         if not isinstance(draft, dict):
+            self._save(st)
             return self.status()
         offers = [
             ln
@@ -537,10 +553,40 @@ class EnclaveMatching:
             if " ".join(str(ln.get("text", "")).split()) != target
         ]
         st["draft"] = {"offers": offers, "wants": wants}
+        approved = st.get("approved")
+        if (
+            st.get("mode") == "ambient"
+            and isinstance(approved, dict)
+            and approved.get("ambient") is True
+        ):
+            if offers or wants:
+                approved["lines"] = pack_lines(st["draft"])
+            else:
+                st["approved"] = None
         self._save(st)
         return self.status()
 
     # ---- pack.v1 controls: deny, block, charter rules ------------------------
+
+    def _validate_combined_controls(
+        self,
+        st: JsonObject,
+        *,
+        deny: JsonObject | None = None,
+        block: JsonObject | None = None,
+        policy_deny: JsonObject | None = None,
+        policy_block: JsonObject | None = None,
+    ) -> None:
+        base_deny = deny if deny is not None else (st.get("deny") or {})
+        base_block = block if block is not None else (st.get("block") or {})
+        p_deny = policy_deny if policy_deny is not None else (st.get("policy_deny") or {})
+        p_block = policy_block if policy_block is not None else (st.get("policy_block") or {})
+        merged_deny = _merge_deny(base_deny, p_deny)
+        merged_block = _merge_block(base_block, p_block, line_ids=None)
+        if self.trust_deny is not None:
+            live_deny, live_block = trust_policy_controls(self.trust_deny())
+            _merge_deny(merged_deny, live_deny)
+            _merge_block(merged_block, live_block, line_ids=None)
 
     def set_deny(
         self,
@@ -551,7 +597,9 @@ class EnclaveMatching:
     ) -> JsonObject:
         """Set the `pack.v1` deny lists (domains, nodes, ROR IDs)."""
         st = self._load()
-        st["deny"] = normalize_deny(domains=domains, nodes=nodes, rors=rors)
+        clean = normalize_deny(domains=domains, nodes=nodes, rors=rors)
+        self._validate_combined_controls(st, deny=clean)
+        st["deny"] = clean
         self._save(st)
         return self.status()
 
@@ -563,7 +611,9 @@ class EnclaveMatching:
     ) -> JsonObject:
         """Set the `pack.v1` block lists (people and per-line hides)."""
         st = self._load()
-        st["block"] = normalize_block(people=people, hide=hide)
+        clean = normalize_block(people=people, hide=hide)
+        self._validate_combined_controls(st, block=clean)
+        st["block"] = clean
         self._save(st)
         return self.status()
 
@@ -582,9 +632,11 @@ class EnclaveMatching:
         return self.status()
 
     def sync_trust_policy(self, deny_subjects: JsonObject) -> JsonObject:
-        """Persist `TrustPolicy` deny entries so future uploads include them."""
+        """Persist `TrustPolicy` deny entries so future uploads include them,
+        failing closed if combined deny or block lists exceed network limits."""
         deny, block = trust_policy_controls(deny_subjects)
         st = self._load()
+        self._validate_combined_controls(st, policy_deny=deny, policy_block=block)
         st["policy_deny"] = deny
         st["policy_block"] = block
         self._save(st)
@@ -633,9 +685,11 @@ class EnclaveMatching:
         self._save(st)
         return self.status()
 
-    def approve(self, statement_hash: str) -> JsonObject:
+    def approve(self, statement_hash: str, *, ambient: bool = False) -> JsonObject:
         """The person approves the draft lines and the statement whose hash
-        the UI showed. A changed release needs a new approval."""
+        the UI showed. When `ambient=True`, the person consents once to keep
+        the active matching lines updated in the background from indexed work.
+        A changed release always needs a new approval."""
         st = self._load()
         if not st.get("draft"):
             raise ClientError("make or type a draft first")
@@ -645,12 +699,14 @@ class EnclaveMatching:
         lines = pack_lines(st["draft"])
         st = self._load()
         approved: JsonObject = {
+            "ambient": bool(ambient),
             "at": self.now(),
             "descriptor_set": consent["descriptor_set"],
             "lines": lines,
             "statement_hash": statement_hash,
         }
         st["approved"] = approved
+        st["mode"] = "ambient" if ambient else "manual"
         self._save(st)
         return approved
 
@@ -736,9 +792,9 @@ class EnclaveMatching:
             st["on"], st["approved"] = False, None
             c.cover(cred)
             return
+        deny, block = self._effective_controls(st, approved["lines"])
         st["version"] = self._version(st)
         cap = min(st["weekly_cap"], target.matching["weekly_cap_max"])
-        deny, block = self._effective_controls(st, approved["lines"])
         doc = pack_doc(
             c.subject,
             c.reply_key,
@@ -849,6 +905,8 @@ class EnclaveMatching:
             "deny": st["deny"],
             "draft": st.get("draft"),
             "enrolled": st["enrolled"],
+            "excluded_lines": list(st.get("excluded_lines") or []),
+            "mode": st.get("mode", "manual"),
             "on": st["on"],
             "open_requests": len(st["unconfirmed"]),
             "receipts": sorted(
@@ -856,7 +914,6 @@ class EnclaveMatching:
             ),
             "rules": st["rules"],
             "set_up": self.settings() is not None,
-            "suggested_draft": st.get("suggested_draft"),
             "uploaded_day": st.get("uploaded_day"),
             "weekly_cap": st["weekly_cap"],
         }
@@ -865,13 +922,6 @@ class EnclaveMatching:
 def _same_lines(draft: JsonObject, approved: JsonObject) -> bool:
     try:
         return bool(pack_lines(draft) == approved["lines"])
-    except (ClientError, KeyError, TypeError, ValueError):
-        return False
-
-
-def _same_draft(a: JsonObject, b: JsonObject) -> bool:
-    try:
-        return bool(pack_lines(a) == pack_lines(b))
     except (ClientError, KeyError, TypeError, ValueError):
         return False
 

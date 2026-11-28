@@ -414,7 +414,7 @@ def run_indexer(
         poll_s=poll_s or POLL_S,
         watch=watch and not once,
         ignore=(home.resolve(),),
-        on_indexed=service.enclave.refresh_suggestions,
+        on_indexed=service.enclave.refresh_ambient,
     )
     if once:
         if not service.joined():

@@ -13,6 +13,7 @@ import { store } from '../core/store.js';
 import {
   ActionButton,
   Card,
+  Check,
   Disclosure,
   ErrorLine,
   Facts,
@@ -152,13 +153,17 @@ function Start({ s }) {
       wants: d.wants.length ? d.wants : [blank()],
     };
   });
+  const [ambient, setAmbient] = useState(() => s.mode === 'ambient' && Boolean(s.can_ambient));
   const [error, setError] = useState('');
   const c = consent.data.value;
   const ready = filled(lines).offers.length + filled(lines).wants.length > 0;
   const start = async () => {
     try {
       await mutate('PUT', '/api/enclave/draft', filled(lines));
-      await mutate('POST', '/api/enclave/approve', { statement_hash: c.statement_hash });
+      await mutate('POST', '/api/enclave/approve', {
+        statement_hash: c.statement_hash,
+        ambient: Boolean(s.can_ambient && ambient),
+      });
       await call('POST', '/api/enclave/on', { on: true });
     } catch (err) {
       // The statement may have changed: show the current one and the current state.
@@ -184,6 +189,13 @@ function Start({ s }) {
     <//>
     <${Section} title=${t('netmatch.consent_title')}>
       ${c && html`<${Pledge} c=${c} />`}
+      ${
+        s.can_ambient &&
+        html`
+          <${Check} id="nm-ambient" label=${t('netmatch.ambient_opt_in')} checked=${ambient} onChange=${setAmbient} />
+          <p class="rf-ui-help">${t('netmatch.ambient_opt_in_help')}</p>
+        `
+      }
       <${ErrorLine} text=${error || (consent.error.value ? consent.error.value.message : '')} />
       <div class="rf-ui-actions">
         <${ActionButton} label=${t('netmatch.start')} busyLabel=${t('netmatch.starting')} run=${start} errorTo=${setError}
@@ -230,36 +242,56 @@ function Change({ s }) {
     </div>`;
 }
 
-function SuggestedUpdates({ suggested }) {
-  const [error, setError] = useState('');
-  const apply = async () => {
-    await call('POST', '/api/enclave/suggestions/apply');
-    announce(t('netmatch.suggestions_applied'));
+/** Calm view of lines Anagram is using from indexed work, with direct removal. */
+function AmbientLineList({ draft, setError }) {
+  const remove = (text) => async () => {
+    await call('POST', '/api/enclave/draft/archive-line', { text });
+    announce(t('netmatch.ambient_removed'));
   };
-  const dismiss = async () => {
-    await call('POST', '/api/enclave/suggestions/dismiss');
-  };
+  const side = (name) =>
+    draft[name].length
+      ? html`
+      <div class="ag-nm-side">
+        <h3 class="ag-subtitle">${t(`netmatch.${name}`)}</h3>
+        <ul class="ag-nm-list">${draft[name].map(
+          (l) => html`
+            <li key=${l.text}>
+              <span>${l.text}</span>
+              <${ActionButton} kind="quiet" label=${t('netmatch.remove_line')} busyLabel=${t('netmatch.ambient_removing')}
+                run=${remove(l.text)} errorTo=${setError} />
+            </li>`,
+        )}</ul>
+      </div>`
+      : null;
   return html`
-    <${Section} title=${t('netmatch.suggestions_title')}>
-      <p class="rf-ui-help">${t('netmatch.suggestions_help')}</p>
-      <${LineList} draft=${suggested} />
-      <${ErrorLine} text=${error} />
-      <div class="rf-ui-actions">
-        <${ActionButton} kind="secondary" label=${t('netmatch.suggestions_apply')} busyLabel=${t('netmatch.suggestions_applying')} run=${apply} errorTo=${setError} />
-        <${ActionButton} kind="quiet" label=${t('netmatch.suggestions_dismiss')} busyLabel=${t('netmatch.suggestions_dismissing')} run=${dismiss} errorTo=${setError} />
-      </div>
-    <//>`;
+    <p class="rf-ui-help">${t('netmatch.ambient_lines_help')}</p>
+    <div class="ag-nm-lines">${side('offers')}${side('wants')}</div>`;
 }
 
 /** Stage 2: matching is on. The approved lines, and the quiet controls. */
 function On({ s }) {
   const [error, setError] = useState('');
+  const isAmbient = s.mode === 'ambient';
+  const switchManual = async () => {
+    await call('POST', '/api/enclave/mode/manual');
+    announce(t('netmatch.switched_manual'));
+  };
   return html`
     <${Section} title=${t('netmatch.on_title')}>
-      <${StatusLine} state="active" text=${t('netmatch.on_status')} />
-      ${!s.draft_approved && html`<${StatusLine} state="pending" text=${t('netmatch.draft_not_approved')} />`}
-      <${LineList} draft=${s.draft} />
-      <${Disclosure} kind="add" summary=${t('netmatch.change')}><${Change} s=${s} /><//>
+      <${StatusLine} state="active" text=${t(isAmbient ? 'netmatch.ambient_on_status' : 'netmatch.on_status')} />
+      ${!isAmbient && !s.draft_approved && html`<${StatusLine} state="pending" text=${t('netmatch.draft_not_approved')} />`}
+      ${
+        isAmbient
+          ? html`
+            <${AmbientLineList} draft=${s.draft} setError=${setError} />
+            <div class="rf-ui-actions">
+              <${ActionButton} kind="quiet" label=${t('netmatch.switch_manual')} busyLabel=${t('netmatch.switching_manual')}
+                run=${switchManual} errorTo=${setError} />
+            </div>`
+          : html`
+            <${LineList} draft=${s.draft} />
+            <${Disclosure} kind="add" summary=${t('netmatch.change')}><${Change} s=${s} /><//>`
+      }
       <${Disclosure} kind="add" summary=${t('netmatch.settings')}>
         <${WeeklyCap} value=${s.weekly_cap} />
         <div class="rf-ui-actions">
@@ -527,7 +559,6 @@ function View() {
               }
             <//>`
           }
-          ${s.suggested_draft && html`<${SuggestedUpdates} suggested=${s.suggested_draft} />`}
           ${s.on ? html`<${On} s=${s} />` : html`<${Start} s=${s} />`}
           ${s.on && !cards.length && html`<p class="rf-ui-help">${t('netmatch.no_cards')}</p>`}`;
       }}

@@ -46,17 +46,13 @@ def register(app: FastAPI, ctx: UIContext) -> None:
     def save_draft(body: dict = Body(...)) -> dict:
         return part.save_draft(body_dict(body))
 
-    @app.post("/api/enclave/suggestions/apply")
-    def apply_suggestions() -> dict:
-        return part.apply_suggestions()
-
-    @app.post("/api/enclave/suggestions/dismiss")
-    def dismiss_suggestions() -> dict:
-        return part.dismiss_suggestions()
-
     @app.post("/api/enclave/draft/archive-line")
-    def archive_line(body: dict = Body(...)) -> dict:  # noqa: B008
+    def archive_line(body: dict = Body(...)) -> dict:
         return part.archive_line(body_text(body_dict(body), "text"))
+
+    @app.post("/api/enclave/mode/manual")
+    def switch_manual() -> dict:
+        return part.switch_manual()
 
     @app.get("/api/enclave/consent")
     def consent() -> dict:
@@ -64,7 +60,11 @@ def register(app: FastAPI, ctx: UIContext) -> None:
 
     @app.post("/api/enclave/approve")
     def approve(body: dict = Body(...)) -> dict:
-        return part.approve(body_text(body_dict(body), "statement_hash"))
+        data = body_dict(body)
+        return part.approve(
+            body_text(data, "statement_hash"),
+            ambient=bool(data.get("ambient", False)),
+        )
 
     @app.post("/api/enclave/on")
     def set_on(body: dict = Body(...)) -> dict:

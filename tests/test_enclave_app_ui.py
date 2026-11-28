@@ -217,18 +217,22 @@ def test_private_tier_files_never_leak_into_beacon_draft(world, tmp_path) -> Non
     assert all(private_canary not in seen for seen in fake.read)
 
 
-def test_ambient_suggestions_apply_dismiss_and_local_archive(world, tmp_path) -> None:
-    """Ambient `refresh_suggestions()` writes `suggested_draft` without changing
-    `draft` or `approved`; Apply copies to `draft`, Dismiss suppresses repeat,
-    and local decline archive removes a line without touching wire answers."""
+def test_ambient_consent_background_updates_remove_and_switch_manual(world, tmp_path) -> None:
+    """One-time ambient consent flow:
+    - Matching stays off and `refresh_ambient()` does nothing until explicit
+      ambient approval (`approve(..., ambient=True)`) and turning on;
+    - Once consented, `refresh_ambient()` updates active matching lines in the
+      background without requiring a new approval click;
+    - Removing a line deletes it immediately and records `excluded_lines` so
+      background indexing never silently re-adds it;
+    - Switching to manual stops background updates cleanly.
+    """
     from anagram.local.api import FolderConnector
     from anagram.models.embed import FakeEmbedder
     from anagram.models.providers.fake import FakeTextModel
 
     ui = UI(world, "nina")
     ui.svc.embedder = FakeEmbedder()
-    initial = lines("Old spectroscopy service", "Access to 300 kV microscope")
-    ui.join_matching(world, initial)
 
     folder = tmp_path / "nina-notes"
     folder.mkdir()
@@ -246,37 +250,187 @@ def test_ambient_suggestions_apply_dismiss_and_local_archive(world, tmp_path) ->
 
     ui.svc.settings.draft_model = lambda _c, _idx: (FakeTextModel(local_model), None)  # type: ignore[method-assign]
 
-    suggested = ui.svc.enclave.refresh_suggestions()
-    assert suggested is not None
-    st = ui.json("GET", "/api/enclave")
-    assert st["suggested_draft"] is not None
-    # User's approved draft is completely untouched!
-    assert st["draft"] == initial
-    assert st["draft_approved"] is True
+    initial = lines("Old spectroscopy service", "Access to 300 kV microscope")
+    ui.json("PUT", "/api/enclave/setup", {"log_url": LOG_URL, "pins": world.pins.to_json()})
+    ui.json("PUT", "/api/enclave/draft", initial)
+    # Before ambient consent, refresh_ambient does nothing and matching stays off.
+    assert ui.svc.enclave.refresh_ambient() is None
+    st0 = ui.json("GET", "/api/enclave")
+    assert st0["on"] is False and st0["mode"] == "manual" and st0["can_ambient"] is True
+    assert st0["draft"] == initial
 
-    # Dismiss clears suggestion and suppresses re-surfacing until work changes.
-    st = ui.json("POST", "/api/enclave/suggestions/dismiss")
-    assert st["suggested_draft"] is None
-    assert ui.svc.enclave.refresh_suggestions() is None
+    # Opt in once to ambient matching via consent approval and turn matching on.
+    consent = ui.json("GET", "/api/enclave/consent")
+    ui.json(
+        "POST",
+        "/api/enclave/approve",
+        {"statement_hash": consent["statement_hash"], "ambient": True},
+    )
+    st_on = ui.json("POST", "/api/enclave/on", {"on": True})
+    assert st_on["on"] is True and st_on["mode"] == "ambient" and st_on["draft_approved"] is True
 
-    # A new file changes the fingerprint -> new suggestion surfaces.
+    # Background refresh updates active lines directly without needing re-approval!
+    updated = ui.svc.enclave.refresh_ambient()
+    assert updated is not None
+    st1 = ui.json("GET", "/api/enclave")
+    assert st1["draft_approved"] is True
+    assert any("reconstruction pipelines" in ln["text"] for ln in st1["draft"]["offers"])
+
+    # Removing a line updates active lines and adds to excluded_lines so refresh won't re-add it.
+    removed_text = st1["draft"]["offers"][0]["text"]
+    st2 = ui.json("POST", "/api/enclave/draft/archive-line", {"text": removed_text})
+    assert removed_text in st2["excluded_lines"]
+    assert all(ln["text"] != removed_text for ln in st2["draft"]["offers"])
+
+    # Index a new file: the new line appears, while the removed line stays excluded!
     (folder / "newer.md").write_text(
         "# Update\n\nWe can offer native mass spectrometry calibration standards.\n"
     )
     with ui.svc.session(index=True) as (_c, idx):
         idx.scan(process=True)
-    assert ui.svc.enclave.refresh_suggestions() is not None
+    # Re-approve one line first if removing the sole line cleared approval, or verify via fresh file.
+    if not st2["approved"]:
+        ui.json("PUT", "/api/enclave/draft", initial)
+        consent = ui.json("GET", "/api/enclave/consent")
+        ui.json(
+            "POST",
+            "/api/enclave/approve",
+            {"statement_hash": consent["statement_hash"], "ambient": True},
+        )
+        ui.json("POST", "/api/enclave/on", {"on": True})
 
-    # Apply copies suggestion into draft and marks draft_approved False (explicit re-approval).
-    st = ui.json("POST", "/api/enclave/suggestions/apply")
-    assert st["suggested_draft"] is None
-    assert st["draft_approved"] is False
-    assert any("calibration standards" in ln["text"] for ln in st["draft"]["offers"])
+    ui.svc.enclave.refresh_ambient()
+    st3 = ui.json("GET", "/api/enclave")
+    assert any("calibration standards" in ln["text"] for ln in st3["draft"]["offers"])
+    assert all(ln["text"] != removed_text for ln in st3["draft"]["offers"])
 
-    # Local archive-line removes one line cleanly without sending anything.
-    target_text = st["draft"]["offers"][0]["text"]
-    st2 = ui.json("POST", "/api/enclave/draft/archive-line", {"text": target_text})
-    assert all(ln["text"] != target_text for ln in st2["draft"]["offers"])
+    # Switching back to manual stops automatic background updates.
+    st4 = ui.json("POST", "/api/enclave/mode/manual")
+    assert st4["mode"] == "manual" and st4["on"] is True
+    (folder / "third.md").write_text(
+        "# Later\n\nWe can offer automated X-ray crystallography beamtime scheduling.\n"
+    )
+    with ui.svc.session(index=True) as (_c, idx):
+        idx.scan(process=True)
+    assert ui.svc.enclave.refresh_ambient() is None
+    st5 = ui.json("GET", "/api/enclave")
+    assert all("beamtime scheduling" not in ln["text"] for ln in st5["draft"]["offers"])
+
+
+def test_tick_runs_matching_even_when_ambient_model_crashes(world, tmp_path) -> None:
+    """Regression: a RuntimeError/OSError from the local model during ambient
+    refresh in `tick()` must NEVER skip or block `c.enclave.run()`."""
+    from anagram.local.api import FolderConnector
+    from anagram.models.embed import FakeEmbedder
+
+    ui = UI(world, "priya")
+    ui.svc.embedder = FakeEmbedder()
+    folder = tmp_path / "priya-notes"
+    folder.mkdir()
+    (folder / "doc.md").write_text("# Doc\n\nWe can offer cryo-EM grid screening.\n")
+    with ui.svc.session(index=True) as (_c, idx):
+        sid = idx.add_source(FolderConnector(folder))
+        idx.scan([sid], process=True)
+
+    class CrashingModel:
+        external = False
+
+        def generate(self, *_args, **_kwargs):
+            raise RuntimeError("local model crashed")
+
+    ui.svc.settings.draft_model = lambda _c, _idx: (CrashingModel(), None)  # type: ignore[method-assign]
+
+    ui.json("PUT", "/api/enclave/setup", {"log_url": LOG_URL, "pins": world.pins.to_json()})
+    ui.json("PUT", "/api/enclave/draft", lines("Cryo-EM screening", "Native mass spectrometry"))
+    consent = ui.json("GET", "/api/enclave/consent")
+    ui.json(
+        "POST",
+        "/api/enclave/approve",
+        {"statement_hash": consent["statement_hash"], "ambient": True},
+    )
+    ui.json("POST", "/api/enclave/on", {"on": True})
+
+    # Advance to the next UTC day so tick() MUST perform a fresh daily upload.
+    next_day = world.now() // DAY + 1
+    world.at(next_day * DAY + HOUR)
+    assert ui.json("GET", "/api/enclave")["uploaded_day"] < next_day
+
+    # tick() must complete without raising AND complete the daily upload!
+    ui.svc.enclave.tick()
+    st = ui.json("GET", "/api/enclave")
+    assert st["uploaded_day"] == next_day
+
+
+def test_over_limit_combined_block_and_deny_lists_refuse_instead_of_truncating(world) -> None:
+    """Regression: combining explicit block/deny lists with TrustPolicy entries
+    above network limits (128 block / 32 deny) MUST raise ClientError and NEVER
+    upload a silently truncated pack."""
+    from datetime import UTC, datetime
+
+    from anagram.core.errors import ClientError
+    from anagram.local.api import TrustStore
+    from anagram.local.trust.policy import make_policy
+
+    ui = UI(world, "quinn")
+    ui.json("PUT", "/api/enclave/setup", {"log_url": LOG_URL, "pins": world.pins.to_json()})
+    ui.json("PUT", "/api/enclave/draft", lines("Cryo-EM screening", "Native mass spectrometry"))
+    consent = ui.json("GET", "/api/enclave/consent")
+    ui.json("POST", "/api/enclave/approve", {"statement_hash": consent["statement_hash"]})
+
+    # 80 explicit blocked people + 60 TrustPolicy blocked people = 140 > 128 -> must refuse!
+    explicit_people = [f"pid:{i:032x}" for i in range(80)]
+    policy_people = [f"pid:{i + 1000:032x}" for i in range(60)]
+    with ui.svc.session(index=True) as (c, idx):
+        c.enclave.set_block(people=explicit_people)
+        policy_doc = make_policy(
+            owner=c.device.subject,
+            rev=1,
+            key=c.device.device_key(),
+            updated_at=datetime.fromtimestamp(world.now(), UTC),
+            deny={"people": policy_people},
+        )
+        TrustStore(idx.store, c.device.subject, [c.device.device_key().public_bytes()]).save(
+            policy_doc
+        )
+        with pytest.raises(ClientError, match="128"):
+            c.enclave.sync_trust_policy(
+                TrustStore(idx.store, c.device.subject, [c.device.device_key().public_bytes()])
+                .current()
+                .subjects("deny")
+            )
+
+    # Turning matching on via API refuses with 400 and does NOT upload a truncated pack!
+    err = ui.json("POST", "/api/enclave/on", {"on": True}, status=400)
+    assert "128" in err["error"]
+    with ui.svc.session() as c:
+        subject = c.enclave.person_key().public_bytes().hex()
+    assert subject not in world.hosts[0].instance.ledger.subjects
+
+    # Same fail-closed check for combined deny list exceeding 32 entries.
+    explicit_domains = [f"d{i}.example.org" for i in range(20)]
+    policy_domains = [f"domain:p{i}.example.org" for i in range(20)]
+    with ui.svc.session(index=True) as (c, idx):
+        c.enclave.set_block(people=[])
+        c.enclave.set_deny(domains=explicit_domains)
+        policy_doc2 = make_policy(
+            owner=c.device.subject,
+            rev=2,
+            key=c.device.device_key(),
+            updated_at=datetime.fromtimestamp(world.now(), UTC),
+            deny={"orgs": policy_domains},
+        )
+        TrustStore(idx.store, c.device.subject, [c.device.device_key().public_bytes()]).save(
+            policy_doc2
+        )
+        with pytest.raises(ClientError, match="32"):
+            c.enclave.sync_trust_policy(
+                TrustStore(idx.store, c.device.subject, [c.device.device_key().public_bytes()])
+                .current()
+                .subjects("deny")
+            )
+    err_deny = ui.json("POST", "/api/enclave/on", {"on": True}, status=400)
+    assert "32" in err_deny["error"]
+    assert subject not in world.hosts[0].instance.ledger.subjects
 
 
 def test_pack_controls_max_lines_deny_block_rules_and_trust_policy(world) -> None:

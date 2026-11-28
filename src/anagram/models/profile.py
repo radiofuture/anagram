@@ -23,7 +23,7 @@ from __future__ import annotations
 import hashlib
 import re
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Any
@@ -45,6 +45,7 @@ from anagram.models.budget import (
     usage_path,
 )
 from anagram.models.http import check_url, host_of, is_loopback
+from anagram.models.ledger import ANTHROPIC_PRICES, OPENROUTER_PRICES
 from anagram.models.providers import openai_compat
 from anagram.models.providers.anthropic import AnthropicModel
 from anagram.models.providers.ollama import OllamaModel
@@ -138,21 +139,28 @@ def _host(provider: str, base_url: str | None) -> str:
     return host_of(base_url) if base_url else OLLAMA_HOST
 
 
-def _suffix(provider: str, base_url: str | None) -> str:
-    text = f"{provider}|{_host(provider, base_url)}"
+def _suffix(provider: str, base_url: str | None, route: Sequence[str] = ()) -> str:
+    host = _host(provider, base_url)
+    if provider == "openrouter":
+        canon = ",".join(sorted({r.strip() for r in route if isinstance(r, str) and r.strip()}))
+        text = f"{provider}|{host}|{canon}"
+    else:
+        text = f"{provider}|{host}"
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:8]
 
 
-def profile_id(provider: str, label: str, base_url: str | None = None) -> str:
-    """`<slug of the label>-<8 hex of sha256(provider | host)>`: lower case,
-    at most 40 characters. A new host gives a new id, so a key and an opt-in
-    never move to a different host."""
-    return f"{_slug(label)}-{_suffix(provider, base_url)}"
+def profile_id(
+    provider: str, label: str, base_url: str | None = None, route: Sequence[str] = ()
+) -> str:
+    """`<slug of the label>-<8 hex of sha256(provider | host [| route])>`:
+    lower case, at most 40 characters. A new host or OpenRouter route gives a
+    new id, so a key and an opt-in never move to a different party."""
+    return f"{_slug(label)}-{_suffix(provider, base_url, route)}"
 
 
-def same_party(pid: str, provider: str, base_url: str | None) -> bool:
-    """True if the id `pid` was made for this provider and this host."""
-    return pid.endswith("-" + _suffix(provider, base_url))
+def same_party(pid: str, provider: str, base_url: str | None, route: Sequence[str] = ()) -> bool:
+    """True if the id `pid` was made for this provider, host, and route."""
+    return pid.endswith("-" + _suffix(provider, base_url, route))
 
 
 def check_id(pid: object) -> str:
@@ -216,9 +224,24 @@ def make_profile(data: object, *, origin: str = "member", keep_id: str | None = 
     if provider == "openrouter" and not route:
         raise ModelError("no_route")
     prices = parse_prices(data.get("prices"))
+    if origin.startswith("lab:") and prices is not None:
+        table = (
+            ANTHROPIC_PRICES
+            if provider == "anthropic"
+            else OPENROUTER_PRICES
+            if provider == "openrouter"
+            else {}
+        )
+        floor = table.get(model)
+        if floor is not None and (prices[0] < floor[0] or prices[1] < floor[1]):
+            raise ModelError("invalid_prices")
     limit = _limit(data.get("limit"))
-    pid = profile_id(provider, label, base_url)
-    if keep_id is not None and _ID.match(keep_id) and same_party(keep_id, provider, base_url):
+    pid = profile_id(provider, label, base_url, route)
+    if (
+        keep_id is not None
+        and _ID.match(keep_id)
+        and same_party(keep_id, provider, base_url, route)
+    ):
         pid = keep_id
     profile = Profile(
         id=pid,

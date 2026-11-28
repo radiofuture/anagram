@@ -35,6 +35,7 @@ An access token goes only to `www.googleapis.com` (`CredentialStore`).
 from __future__ import annotations
 
 import logging
+import re
 import time
 from collections.abc import Iterator, Mapping
 from datetime import datetime
@@ -114,6 +115,17 @@ FILE_FIELDS = (
 MY_DRIVE = "my_drive"
 MAX_DEPTH = 100
 RATE_PER_S = 10.0  # requests each second for one person (verify the project quota)
+_DRIVE_ID = re.compile(r"^[A-Za-z0-9_-]{1,200}$")
+
+
+def _check_drive_id(value: object, what: str = "ID") -> str:
+    if not isinstance(value, str) or not _DRIVE_ID.match(value):
+        raise ConnectorError(f"invalid Google Drive {what}")
+    return value
+
+
+def _quote_q(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("'", "\\'")
 
 
 def _rfc3339_ns(value: str | None) -> int | None:
@@ -134,7 +146,7 @@ def check_include(include: object) -> dict:
     for key in ("folders", "shared_drives"):
         values = include.get(key) or []
         if not isinstance(values, list) or not all(
-            isinstance(v, str) and 0 < len(v) <= 200 for v in values
+            isinstance(v, str) and _DRIVE_ID.match(v) for v in values
         ):
             raise ConnectorError(f"include.{key} must be a list of IDs")
         out[key] = sorted(set(values))
@@ -450,6 +462,7 @@ class GoogleDriveConnector(Connector):
     def _tree(self, folder: str, depth: int) -> Iterator[dict]:
         if depth > MAX_DEPTH:
             return
+        safe_folder = _quote_q(_check_drive_id(folder, "folder ID"))
         page = None
         while True:
             params = {
@@ -458,7 +471,7 @@ class GoogleDriveConnector(Connector):
                 "includeItemsFromAllDrives": "true",
                 "pageSize": PAGE,
                 # Also trashed files: the children of a trashed folder are trashed.
-                "q": f"'{folder}' in parents",
+                "q": f"'{safe_folder}' in parents",
                 "supportsAllDrives": "true",
             }
             if page:
@@ -500,7 +513,12 @@ class GoogleDriveConnector(Connector):
         suffix = SUFFIXES.get(export_type) if export_type else None
         if suffix and not name.endswith(suffix):
             name += suffix
-        owners = [o.get("emailAddress") for o in f.get("owners") or [] if o.get("emailAddress")]
+        raw_owners = f.get("owners") or []
+        owners = [
+            o.get("emailAddress")
+            for o in raw_owners
+            if isinstance(o, dict) and o.get("emailAddress")
+        ]
         me = getattr(self.api, "email", None)
         extra = {
             "fetch": {"export": export_type, "id": f["id"]},
@@ -509,11 +527,12 @@ class GoogleDriveConnector(Connector):
             "project": f"gdrive:{project}",
             "url": f.get("webViewLink"),
         }
-        # A file with owners that do not include the member is the text of
-        # another person. With no known address of the member, the file is
-        # third-party (fail closed). A file in a shared drive has no owner:
-        # it is lab work and stays own text (threat model section 16).
-        if owners and not (me and me.lower() in (o.lower() for o in owners)):
+        # A file with owners that do not include the member (including an
+        # owner entry without an email address) is the text of another person.
+        # With no known address of the member, the file is third-party (fail
+        # closed). A file in a shared drive has no owner: it is lab work and
+        # stays own text (threat model section 16).
+        if raw_owners and not (me and me.lower() in (o.lower() for o in owners)):
             extra[third_party.MARK] = True
             name = third_party.shared_file_name(f.get("modifiedTime"), Path(name).suffix)
         item = EvidenceItem(
@@ -594,7 +613,8 @@ class GoogleDriveConnector(Connector):
                 if not page:
                     break
             return {"items": items}
-        folder = "root" if parent == MY_DRIVE else parent
+        folder = "root" if parent == MY_DRIVE else _check_drive_id(parent, "parent ID")
+        safe_folder = _quote_q(folder)
         page = None
         while True:
             params = {
@@ -603,7 +623,7 @@ class GoogleDriveConnector(Connector):
                 "includeItemsFromAllDrives": "true",
                 "orderBy": "name",
                 "pageSize": PAGE,
-                "q": f"'{folder}' in parents and mimeType='{FOLDER}' and trashed=false",
+                "q": f"'{safe_folder}' in parents and mimeType='{FOLDER}' and trashed=false",
                 "supportsAllDrives": "true",
             }
             if page:

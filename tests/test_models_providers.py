@@ -239,3 +239,55 @@ def test_probe_reasons():
     assert refused.probe()["reason"] == "key_refused"
     down = OpenAICompatModel("a", UNI, transport=FakeHTTP([OSError("down")]))
     assert down.probe() == {"models": [], "ok": False, "reason": "unreachable", "structured": None}
+
+
+def test_text_mode_retry_sums_tokens_and_cost_across_attempts():
+    from decimal import Decimal
+
+    first = chat("not valid json")
+    first["usage"] = {"cost": "0.0001", "prompt_tokens": 30, "completion_tokens": 10}
+    second = chat('{"kind": "note"}')
+    second["usage"] = {"cost": "0.0002", "prompt_tokens": 50, "completion_tokens": 15}
+    http = FakeHTTP([(200, first), (200, second)])
+    model = OpenAICompatModel("m", UNI, structured="text", transport=http)
+    reply = model.generate(REQ)
+    assert reply.data == {"kind": "note"}
+    assert reply.input_tokens == 80
+    assert reply.output_tokens == 25
+    assert reply.cost == Decimal("0.0003")
+
+
+def test_ollama_and_loopback_transport_disable_proxies_and_redirects():
+    import io
+    import urllib.request
+
+    from anagram.models import http as models_http
+    from anagram.models import ollama_client
+    from anagram.models.ollama_client import OllamaError
+
+    # OllamaClient rejects embedded credentials and non-loopback URLs.
+    with pytest.raises(OllamaError, match="invalid_url"):
+        OllamaClient(url="http://user:pass@127.0.0.1:11434")
+    with pytest.raises(OllamaError, match="loopback"):
+        OllamaClient(url="https://ollama.example.edu")
+
+    # Both OllamaClient._OPENER and UrllibTransport._loopback_opener disable proxies and redirects.
+    transport = UrllibTransport()
+    for opener in (ollama_client._OPENER, transport._loopback_opener):
+        # Passing ProxyHandler({}) suppresses the default ProxyHandler so no proxy handler is active.
+        proxy_handlers = [h for h in opener.handlers if isinstance(h, urllib.request.ProxyHandler)]
+        assert all(h.proxies == {} for h in proxy_handlers)
+        redir_handlers = [
+            h for h in opener.handlers if isinstance(h, urllib.request.HTTPRedirectHandler)
+        ]
+        assert redir_handlers
+        req = urllib.request.Request("http://127.0.0.1:11434/api/tags")  # noqa: S310
+        assert (
+            redir_handlers[0].redirect_request(
+                req, io.BytesIO(b""), 302, "Found", {}, "https://evil.example/"
+            )
+            is None
+        )
+
+    assert models_http.is_loopback("http://127.0.0.1:8000/v1/models") is True
+    assert models_http.is_loopback("https://llm.example.edu/v1/models") is False

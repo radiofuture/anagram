@@ -112,3 +112,41 @@ def test_approved_finding_flags_third_party_evidence(chen, tmp_path):
     notes = next(d for d in draft_findings(chen) if d.where == "mei-lin-chen/notes")
     plain = approve_finding(client, notes, claim=None)
     assert client.grants.third_party_items(plain.subject.root.hex()) == []
+
+
+def test_approve_finding_uses_source_qualified_third_party_items(tmp_path):
+    from anagram.local.understanding.drafts import FindingDraft
+
+    client = Client.init(tmp_path / "home")
+    r1, r2 = tmp_path / "src1", tmp_path / "src2"
+    (r1 / "shared").mkdir(parents=True)
+    (r2 / "shared").mkdir(parents=True)
+    (r1 / "shared" / "note.md").write_text("# Own note\n\nOwn result.\n")
+    (r2 / "shared" / "note.md").write_text("# Third party\n\nOther result.\n")
+    index = LocalIndex.for_client(client)
+    try:
+        s1 = index.add_source(FolderConnector(r1))
+        s2 = index.add_source(FolderConnector(r2))
+        index.scan()
+        it1 = next(i for i in index.items(s1) if i.key == "shared/note.md")
+        it2 = next(i for i in index.items(s2) if i.key == "shared/note.md")
+        draft = FindingDraft(
+            id="d1",
+            title="Mixed",
+            claim_suggestion="Own result.",
+            items=[it1, it2],
+            start=None,
+            end=None,
+            topics=[],
+            third_party=True,
+            drafted_by="deterministic",
+            third_party_keys=frozenset({"shared/note.md"}),
+            third_party_items=frozenset({(s2, "shared/note.md")}),
+            where="shared",
+        )
+        bundle = approve_finding(client, draft, claim="Own result.")
+        flagged = client.grants.third_party_items(bundle.subject.root.hex())
+        assert len(flagged) == 1
+    finally:
+        index.close()
+        client.vault.close()

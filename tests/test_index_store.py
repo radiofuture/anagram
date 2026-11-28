@@ -91,3 +91,47 @@ def test_the_page_cache_holds_the_vector_pages(tmp_path):
         assert s.one("PRAGMA temp_store")[0] == 2
     finally:
         s.close()
+
+
+def test_store_savepoint_mode_leftovers_and_vec_search_termination(tmp_path, monkeypatch):
+    from anagram.local.index.store_port import Filter
+    from anagram.local.index.vec_store import SqliteVecStore
+    from anagram.local.localdb import erase_plain_leftovers
+
+    db = tmp_path / "index.sqlite"
+    s = IndexStore(db, KEY)
+    try:
+        assert db.stat().st_mode & 0o777 == 0o600
+        # Nested transaction uses SAVEPOINT so inner failure keeps outer work.
+        with s.transaction():
+            s.set_meta("outer", "kept")
+            with pytest.raises(RuntimeError), s.transaction():
+                s.set_meta("inner", "dropped")
+                raise RuntimeError("boom")
+        assert s.get_meta("outer") == "kept"
+        assert s.get_meta("inner") is None
+
+        # vector_search terminates when fewer vectors exist than count() reported (concurrent delete).
+        s.ensure_vec("test", 3)
+        vs = SqliteVecStore(s)
+        vs.upsert(1, [1.0, 0.0, 0.0])
+        monkeypatch.setattr(vs, "count", lambda: 1000)
+        got = vs.vector_search(
+            [1.0, 0.0, 0.0], k=5, filter=Filter(spaces=frozenset({"nonexistent"}))
+        )
+        assert got == []
+    finally:
+        s.close()
+
+    # erase_plain_leftovers removes .plain-old and -wal/-journal/-shm sidecars while keeping db.
+    leftovers = [
+        tmp_path / "index.sqlite.plain-old",
+        tmp_path / "index.sqlite-wal",
+        tmp_path / "index.sqlite-journal",
+        tmp_path / "index.sqlite-shm",
+    ]
+    for p in leftovers:
+        p.write_bytes(b"secret")
+    erase_plain_leftovers(db)
+    assert db.exists()
+    assert all(not p.exists() for p in leftovers)

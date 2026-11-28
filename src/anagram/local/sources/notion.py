@@ -394,14 +394,18 @@ class NotionConnector(Connector):
         newest = after or ""
         cursor = None
         while True:
+            if ctx.stop() or time.monotonic() > ctx.deadline:
+                return
             body = self.api.search(cursor)
             for page in body.get("results") or []:
                 edited = page.get("last_edited_time") or ""
-                if stop_at is not None and _iso(edited) < stop_at:
+                edited_iso = _iso(edited) if edited else ""
+                if stop_at is not None and edited_iso and edited_iso < stop_at:
                     state["edited_after"] = newest or None
                     yield Cursor(copy_cursor_state(state))
                     return
-                newest = max(newest, edited)
+                if edited_iso:
+                    newest = max(newest, edited)
                 if page.get("archived") or page.get("in_trash"):
                     if ctx.known(page["id"]) is not None:
                         yield Delete(page["id"])
@@ -421,6 +425,8 @@ class NotionConnector(Connector):
         ids: set[str] = set()
         cursor = None
         while True:
+            if ctx.stop() or time.monotonic() > ctx.deadline:
+                return  # incomplete listing: never delete based on partial IDs
             body = self.api.search(cursor)
             for page in body.get("results") or []:
                 if page.get("archived") or page.get("in_trash"):
@@ -433,6 +439,8 @@ class NotionConnector(Connector):
             cursor = body.get("next_cursor") if body.get("has_more") else None
             if not cursor:
                 break
+        if ctx.stop() or time.monotonic() > ctx.deadline:
+            return
         for key in list(ctx.known_keys("")):
             if key not in ids:
                 yield Delete(key)

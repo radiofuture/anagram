@@ -22,7 +22,9 @@ and use the Git connector.
 
 from __future__ import annotations
 
+import re
 import time
+import urllib.parse
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass, field
 
@@ -117,6 +119,18 @@ class GitHubDeviceFlow:
         raise DeviceFlowError("device flow timed out")
 
 
+_REPO = re.compile(r"^[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}$")
+
+
+def _check_repo(repo: object) -> str:
+    if not isinstance(repo, str) or not _REPO.match(repo):
+        raise ConnectorError("invalid GitHub repository")
+    owner, name = repo.split("/", 1)
+    if owner in (".", "..") or name in (".", ".."):
+        raise ConnectorError("invalid GitHub repository")
+    return repo
+
+
 class GitHubConnector(Connector):
     kind = "github"
     label = "GitHub"
@@ -131,7 +145,7 @@ class GitHubConnector(Connector):
         self, token: str, repos: list[str], transport: Transport | None = None, per_page: int = 100
     ) -> None:
         self._token = token
-        self.repos = sorted(repos)  # "owner/name"
+        self.repos = sorted(_check_repo(r) for r in repos)  # "owner/name"
         self.transport = transport or urllib_transport()
         self.per_page = per_page
 
@@ -154,11 +168,15 @@ class GitHubConnector(Connector):
         return body
 
     def commits(self, repo: str) -> list[dict]:
+        owner, name = _check_repo(repo).split("/", 1)
+        safe_owner = urllib.parse.quote(owner, safe="")
+        safe_name = urllib.parse.quote(name, safe="")
         out: list[dict] = []
         page = 1
         while True:
             url = with_query(
-                f"{API}/repos/{repo}/commits", {"per_page": self.per_page, "page": page}
+                f"{API}/repos/{safe_owner}/{safe_name}/commits",
+                {"per_page": self.per_page, "page": page},
             )
             batch = self._get(url)
             if not isinstance(batch, list) or not batch:

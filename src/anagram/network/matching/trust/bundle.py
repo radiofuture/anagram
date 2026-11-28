@@ -21,12 +21,25 @@ from anagram.network.matching.trust import descriptor as dsc
 from anagram.network.matching.trust.attestation import verify_attestation
 from anagram.network.matching.trust.follow import LogFollower
 from anagram.network.matching.trust.release import APP_VERSION, accept_release
-from anagram.network.matching.trust.roots import Roots, app_now
+from anagram.network.matching.trust.roots import Roots, app_now, quorum_times
 
 SCHEMA = "anagram.enclave.attestation_bundle.v1"
 # The domain tag of an attestation digest (3.4). The name is locked; the
 # node-run matching room used it first.
 TAG_ATTESTATION = "anagram/v1/room/attestation"
+
+
+# The app seals only while its view of the log is fresh: every witness of
+# the quorum cosigned the bundle's checkpoint at most this long ago (3.7).
+MAX_VIEW_AGE = 3600
+
+
+class StaleView(Refused):
+    """The bundle's checkpoint is older than `MAX_VIEW_AGE`: the app's view
+    of the log may miss a revoke or a newer release, so it sends nothing."""
+
+    def __init__(self, detail: str) -> None:
+        super().__init__("log_view_stale", detail)
 
 
 class NotSealable(Refused):
@@ -50,6 +63,11 @@ class Target:
     release: JsonObject
     descriptors: dict[str, list[JsonObject]]
     output_keys: frozenset[str]
+    checked_at: int = 0  # signed lower time of the checkpoint it was checked under
+
+    def fresh(self, clock: int) -> bool:
+        """The view that chose this target is still fresh (3.7)."""
+        return clock - self.checked_at <= MAX_VIEW_AGE
 
     @property
     def digest(self) -> bytes:
@@ -99,6 +117,9 @@ def check_bundle(
     checkpoint, descriptors, docs = _form(bundle)
     view = follower.follow(checkpoint)
     now = app_now(clock, checkpoint, roots)
+    lower = quorum_times(checkpoint, roots)[2]
+    if clock - lower > MAX_VIEW_AGE:
+        raise StaleView(f"the newest checkpoint is {(clock - lower) // 60} minutes old")
     for doc in docs:
         release_hex = doc.get("release") if isinstance(doc, dict) else None
         if not (
@@ -120,7 +141,7 @@ def check_bundle(
             for _, e in view.of_kind("enclave_instance_key")
             if e["line_id"] == doc["line_id"]
         )
-        return Target(doc, release, by_kind, keys)
+        return Target(doc, release, by_kind, keys, lower)
     raise NotSealable("no document passes")
 
 

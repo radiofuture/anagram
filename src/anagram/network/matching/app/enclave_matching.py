@@ -60,6 +60,7 @@ from anagram.network.matching.app.enclave_client import (
 )
 from anagram.network.matching.hosting.clients import HttpLog
 from anagram.network.matching.trust import descriptor as dsc
+from anagram.network.matching.trust.bundle import StaleView
 from anagram.network.matching.trust.pins import Pins
 
 if TYPE_CHECKING:
@@ -159,6 +160,21 @@ def default_connect(base_url: str, token: str | None) -> httpx.Client:
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     return httpx.Client(
         base_url=base_url, headers=headers, timeout=TIMEOUT, verify=ssl.create_default_context()
+    )
+
+
+STALE_VIEW_TEXT = (
+    "Anagram sends nothing now: its view of the enclave log is more than an hour "
+    "old, so it could miss a revoked release. It tries again soon."
+)
+
+
+def remote_fault(exc: Exception) -> ClientError:
+    """What the person sees when the work with the node or the log stops."""
+    if isinstance(exc, StaleView):
+        return ClientError(STALE_VIEW_TEXT)
+    return ClientError(
+        f"the matching enclave cannot be reached or checked now ({type(exc).__name__})"
     )
 
 
@@ -305,9 +321,7 @@ class EnclaveMatching:
         try:
             yield st, c
         except (Refused, httpx.HTTPError) as exc:  # NotSealable is a refusal too
-            raise ClientError(
-                f"the matching enclave cannot be reached or checked now ({type(exc).__name__})"
-            ) from exc
+            raise remote_fault(exc) from exc
         finally:
             self._keep(st, c)
             self._save(st)

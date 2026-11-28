@@ -58,11 +58,34 @@ def meets(name: str, value: object, floor: object) -> bool:
     return value == floor
 
 
+# The floor item that lets an `OutOfDate` status pass when every advisory
+# of the evidence is on it (section 4.8). Only the release carries it, so
+# it goes through the full notice and the rebuilds; an enclave_floor entry
+# (the release key alone) can shorten it but never add it.
+ADVISORY_ALLOW = "advisory_allow"
+ALLOWABLE_STATUSES = ("OutOfDate", "OutOfDateConfigurationNeeded")
+
+
+def advisories_allowed(floor: JsonObject, advisory_ids: object) -> bool:
+    """Every advisory of the evidence is on the floor's allowlist."""
+    allow = floor.get(ADVISORY_ALLOW)
+    return (
+        isinstance(allow, list)
+        and isinstance(advisory_ids, list)
+        and bool(advisory_ids)
+        and all(isinstance(a, str) and a in allow for a in advisory_ids)
+    )
+
+
 def raise_floor(floor: JsonObject, raised: JsonObject) -> JsonObject:
     """Merge an enclave_floor entry. It may only narrow (spec section 7.2)."""
     out = dict(floor)
     for name, new in raised.items():
         old = out.get(name)
+        if name == ADVISORY_ALLOW:
+            if isinstance(old, list) and isinstance(new, list):
+                out[name] = [v for v in old if v in new]
+            continue  # never added: no allowlist lets nothing through
         if old is None:
             out[name] = new
         elif isinstance(old, list) and isinstance(new, list):

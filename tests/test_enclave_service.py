@@ -4,12 +4,16 @@ trust/simulated.py), on the in-process world of enclavekit."""
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 from enclavekit import HOUR, LINE, World, line
 
 from anagram.network.formats import enclave as m
 from anagram.network.formats.strict import DAY, Refused, fmt_time, parse_time
+from anagram.network.matching.app.enclave_matching import STALE_VIEW_TEXT, remote_fault
 from anagram.network.matching.enclave.slot_release import ReleaseDenied, check_item, check_reveal
+from anagram.network.matching.trust.bundle import StaleView
 
 TEXT = "Single-particle cryo-EM map refinement of membrane proteins"
 OTHER = "Molecular dynamics simulations of membrane transporters"
@@ -59,10 +63,37 @@ def test_a_stale_attestation_is_refused_after_the_document_changes(world: World)
     p.client.refresh()
     world.advance(13 * HOUR)  # the lease renewal makes a new document
     p.version += 1
+    # The app checked its target within the hour (3.7), so it seals to it;
+    # the enclave refuses a document that is no longer the writer's.
+    p.client.target = dataclasses.replace(p.client.target, checked_at=world.now())
     old_target = p.client.target
     digest = p.client.withdraw(p.version)  # sealed to the old document
     assert old_target is p.client.target
     assert settled(world, p, digest)["reason"] == "stale_attestation"
+
+
+def test_an_app_with_an_hour_old_view_checks_again_before_it_seals(world: World) -> None:
+    p = alice(world)
+    first = p.client.refresh()
+    world.advance(2 * HOUR)  # fresh checkpoints meanwhile
+    p.version += 1
+    p.client.withdraw(p.version)
+    assert p.client.target is not first and p.client.target.fresh(world.now())
+
+
+def test_an_app_whose_newest_checkpoint_is_two_hours_old_refuses_to_seal(world: World) -> None:
+    """Scenario 3 of the strict policy: no fresh checkpoint for 2 hours (a
+    log or a node that stalls), so the app sends nothing and says why."""
+    p = alice(world)
+    p.client.refresh()
+    world.t += 2 * HOUR  # the clock moves; no new checkpoint
+    p.version += 1
+    sent = dict(p.client.unconfirmed)
+    with pytest.raises(StaleView):
+        p.client.withdraw(p.version)
+    assert p.client.unconfirmed == sent  # nothing went out
+    text = str(remote_fault(StaleView("x")))
+    assert "more than an hour old" in text and text == STALE_VIEW_TEXT
 
 
 def test_the_relay_refuses_unsigned_and_replayed_requests(world: World) -> None:

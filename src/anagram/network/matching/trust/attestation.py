@@ -35,7 +35,13 @@ from anagram.network.matching.trust.policy import (
     check_policy,
 )
 from anagram.network.matching.trust.profiles import evidence_object
-from anagram.network.matching.trust.release import effective_floor, meets
+from anagram.network.matching.trust.release import (
+    ADVISORY_ALLOW,
+    ALLOWABLE_STATUSES,
+    advisories_allowed,
+    effective_floor,
+    meets,
+)
 from anagram.network.matching.trust.roots import Roots, quorum_times
 
 ATTESTATION_SCHEMA = "anagram.operator_attestation.v3"
@@ -252,10 +258,15 @@ def _check_floor(floor: JsonObject, cpu: JsonObject, gpu: JsonObject | None) -> 
     for name, minimum in floor.items():
         if name.startswith("gpu_") and gpu is None:
             continue  # no GPU evidence: rule 6 refuses it if the release needs a GPU
-        if name in skip:
+        if name in skip or name == ADVISORY_ALLOW:
             continue
         if name not in claims or not meets(name, claims[name], minimum):
-            raise Refused("tcb_below_floor", name)
+            if not (
+                name.endswith("_status")
+                and claims.get(name) in ALLOWABLE_STATUSES
+                and advisories_allowed(floor, cpu.get("advisory_ids"))
+            ):
+                raise Refused("tcb_below_floor", name)
 
 
 def _check_binding(

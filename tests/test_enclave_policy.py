@@ -197,3 +197,60 @@ def test_rule_9_runs_before_rule_4(monkeypatch) -> None:
         attestation.verify_attestation, case["doc"], rel, lv, t.roots(), t.now_of(case), subject
     )
     assert got == "evidence_not_cloud_bound"
+
+
+# --- scenario 4: the Intel advisory allowlist lives in the release ----------------
+
+SA_1, SA_2 = "INTEL-SA-00837", "INTEL-SA-00960"
+TDX_FLOOR = {
+    "qe_tcb_status": ["UpToDate"],
+    "tcb_evaluation_data_number": 17,
+    "tcb_status": ["UpToDate", "SWHardeningNeeded"],
+    "tdx_module_tcb_status": ["UpToDate"],
+}
+
+
+def tdx_claims_with(status: str, advisories: list[str]) -> dict:
+    return {
+        "advisory_ids": advisories,
+        "tcb": {
+            "qe_tcb_status": "UpToDate",
+            "tcb_evaluation_data_number": 17,
+            "tcb_status": status,
+            "tdx_module_tcb_status": "UpToDate",
+        },
+        "tcb_required": sorted(TDX_FLOOR),
+    }
+
+
+def floor_code(floor: dict, cpu: dict) -> str:
+    return code(attestation._check_floor, floor, cpu, None)
+
+
+def test_a_release_allowlist_lets_an_out_of_date_platform_pass() -> None:
+    floor = {**TDX_FLOOR, "advisory_allow": [SA_1, SA_2]}
+    assert floor_code(floor, tdx_claims_with("OutOfDate", [SA_1])) == "ok"
+    assert floor_code(floor, tdx_claims_with("OutOfDateConfigurationNeeded", [SA_1, SA_2])) == "ok"
+
+
+def test_the_allowlist_never_lowers_the_bar_further() -> None:
+    floor = {**TDX_FLOOR, "advisory_allow": [SA_1]}
+    assert floor_code(floor, tdx_claims_with("OutOfDate", [SA_1, SA_2])) == "tcb_below_floor"
+    assert floor_code(floor, tdx_claims_with("OutOfDate", [])) == "tcb_below_floor"
+    assert floor_code(floor, tdx_claims_with("Revoked", [SA_1])) == "tcb_below_floor"
+    assert floor_code(floor, tdx_claims_with("Unsupported", [SA_1])) == "tcb_below_floor"
+    assert floor_code(floor, tdx_claims_with("ConfigurationNeeded", [SA_1])) == "tcb_below_floor"
+    assert floor_code(TDX_FLOOR, tdx_claims_with("OutOfDate", [SA_1])) == "tcb_below_floor"
+
+
+def test_a_floor_entry_signed_by_the_release_key_can_not_add_an_allowlist() -> None:
+    from anagram.network.matching.trust.release import raise_floor
+
+    added = raise_floor(TDX_FLOOR, {"advisory_allow": [SA_1]})
+    assert "advisory_allow" not in added
+    assert floor_code(added, tdx_claims_with("OutOfDate", [SA_1])) == "tcb_below_floor"
+    narrowed = raise_floor(
+        {**TDX_FLOOR, "advisory_allow": [SA_1, SA_2]}, {"advisory_allow": [SA_2]}
+    )
+    assert narrowed["advisory_allow"] == [SA_2]
+    assert floor_code(narrowed, tdx_claims_with("OutOfDate", [SA_1])) == "tcb_below_floor"

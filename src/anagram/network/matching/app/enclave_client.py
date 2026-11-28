@@ -113,7 +113,10 @@ class EnclaveClient:
         return check_bundle(bundle, self.follower, self.roots, self.clock(), subject)
 
     def _target(self) -> Target:
-        return self.target if self.target is not None else self.refresh()
+        """The checked target, checked again once its view is an hour old."""
+        if self.target is not None and self.target.fresh(self.clock()):
+            return self.target
+        return self.refresh()
 
     # ---- requests --------------------------------------------------------------
 

@@ -144,7 +144,7 @@ class BudgetLedger:
             return self._retry(once)
 
     def reserve(self, route: str, amount_nano: int) -> str:
-        if type(amount_nano) is not int or amount_nano < 0:
+        if type(amount_nano) is not int or amount_nano <= 0:
             raise EngineError("invalid_reservation")
 
         def body(db: sqlite3.Connection) -> str:
@@ -163,35 +163,47 @@ class BudgetLedger:
 
     def finish(self, key: str, usage: dict | None = None) -> None:
         usage = usage or {}
-        reported = None
+        reported: int | None = None
+        invalid_cost = False
         if "cost" in usage:
-            try:
-                amount = Decimal(str(usage["cost"])) * 10**9
-                if amount.is_finite() and 0 <= amount <= 10**15:
-                    reported = int(amount.to_integral_value(rounding=ROUND_CEILING))
-            except (InvalidOperation, ValueError):
-                reported = None
+            raw_cost = usage["cost"]
+            if isinstance(raw_cost, bool) or raw_cost is None:
+                invalid_cost = True
+            else:
+                try:
+                    amount = Decimal(str(raw_cost)) * 10**9
+                except (InvalidOperation, ValueError):
+                    invalid_cost = True
+                else:
+                    if amount.is_finite() and 0 <= amount <= 10**15:
+                        reported = int(amount.to_integral_value(rounding=ROUND_CEILING))
+                    else:
+                        invalid_cost = True
 
-        def body(db: sqlite3.Connection) -> bool:
+        def body(db: sqlite3.Connection) -> str | None:
             reserved = db.execute(
                 "SELECT reserved_nano FROM calls WHERE id = ?", (key,)
             ).fetchone()[0]
-            breached = reported is not None and reported > reserved
+            if invalid_cost:
+                reason: str | None = "invalid_reported_cost"
+                status = "cost_invalid"
+            elif reported is not None and reported > reserved:
+                reason = "provider_exceeded_reservation"
+                status = "reported"
+            else:
+                reason = None
+                status = "reported" if reported is not None else "cost_unknown"
             db.execute(
                 "UPDATE calls SET status = ?, reported_nano = ?, usage = ? WHERE id = ?",
-                (
-                    "reported" if reported is not None else "cost_unknown",
-                    reported,
-                    json.dumps(usage),
-                    key,
-                ),
+                (status, reported, json.dumps(usage), key),
             )
-            if breached:
+            if reason is not None:
                 db.execute("UPDATE budget SET breached = 1")
-            return breached
+            return reason
 
-        if self._write(body):
-            raise EngineError("provider_exceeded_reservation")
+        reason = self._write(body)
+        if reason is not None:
+            raise EngineError(str(reason))
 
     def halt(self) -> None:
         self._write(lambda db: db.execute("UPDATE budget SET breached = 1"))

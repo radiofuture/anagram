@@ -27,7 +27,8 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Callable
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from datetime import UTC, date, datetime
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from anagram.gateway import access
 from anagram.gateway.server import Policy, Server, Session
@@ -38,17 +39,25 @@ LOOPBACK = "127.0.0.1"
 PATH = "/mcp"
 MAX_BODY = 1_000_000
 DEFAULT_PORT = 47830
+REQUEST_TIMEOUT_S = 30.0
 BROWSER_HEADERS = ("Origin", "Cookie", "Sec-Fetch-Site", "Sec-Fetch-Mode")
 
 
-def resolve_grant(open_session: Session, key: str) -> str | None:
+def resolve_grant(open_session: Session, key: str, *, today: date | None = None) -> str | None:
+    day = today or datetime.now(UTC).date()
     with open_session() as (_, index):
         grant = access.find_by_key(index, key)
-    return None if grant is None else grant.id
+    if grant is None or grant.state(day) != access.ACTIVE:
+        return None
+    return grant.id
 
 
-class Gateway(HTTPServer):
+class Gateway(ThreadingHTTPServer):
     """The loopback HTTP server. `port` 0 takes a free port (`self.port`)."""
+
+    daemon_threads = True
+    block_on_close = False
+    allow_reuse_address = True
 
     def __init__(
         self,
@@ -79,17 +88,23 @@ class _Handler(BaseHTTPRequestHandler):
     sys_version = ""
     protocol_version = "HTTP/1.1"
 
+    def setup(self) -> None:
+        super().setup()
+        self.connection.settimeout(REQUEST_TIMEOUT_S)
+
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002
         pass  # no access log (local-ui-boundary)
 
     def _send(self, status: int, body: dict | None = None, extra: dict | None = None) -> None:
         data = b"" if body is None else json.dumps(body, ensure_ascii=False).encode()
+        self.close_connection = True
         self.send_response(status)
         if body is not None:
             self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
-        for k, v in (extra or {}).items():
+        headers = {"Connection": "close", **(extra or {})}
+        for k, v in headers.items():
             self.send_header(k, v)
         self.end_headers()
         if data:
@@ -101,7 +116,8 @@ class _Handler(BaseHTTPRequestHandler):
         self._send(status, {"error": message}, {**(extra or {}), "Connection": "close"})
 
     def _guard(self) -> bool:
-        if self.headers.get("Host", "") not in self.server.hosts:
+        hosts = self.headers.get_all("Host") or []
+        if len(hosts) != 1 or hosts[0] not in self.server.hosts:
             self._refuse(421, "wrong host")
             return False
         if any(self.headers.get(h) is not None for h in BROWSER_HEADERS):
@@ -123,8 +139,15 @@ class _Handler(BaseHTTPRequestHandler):
             return
         auth = self.headers.get("Authorization", "")
         scheme, _, key = auth.partition(" ")
+        today = (
+            datetime.fromtimestamp(self.server.clock(), UTC).date()
+            if self.server.clock is not None
+            else None
+        )
         grant_id = (
-            resolve_grant(self.server.open_session, key.strip()) if scheme == "Bearer" else None
+            resolve_grant(self.server.open_session, key.strip(), today=today)
+            if scheme == "Bearer"
+            else None
         )
         if grant_id is None:
             self._refuse(401, "give the key of the setup text", {"WWW-Authenticate": "Bearer"})

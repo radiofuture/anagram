@@ -73,12 +73,14 @@ def is_plain_sqlite(path: str | Path) -> bool:
 
 
 def erase_plain_leftovers(path: str | Path) -> None:
-    """Erase the old plain copy that an `encrypt_in_place` that stopped left
-    next to the store. Call it only after the store at `path` opened with its
-    key."""
+    """Erase the old plain copy and any plain SQLite side files that an
+    `encrypt_in_place` that stopped left next to the store. Call it only after
+    the store at `path` opened with its key."""
     path = Path(path)
     if not is_plain_sqlite(path):
         erase_file(path.with_name(path.name + OLD_SUFFIX))
+        for extra in ("-journal", "-wal", "-shm"):
+            erase_file(path.with_name(path.name + extra))
 
 
 def _counts(db: sqlcipher3.Connection, schema: str) -> dict[str, int]:

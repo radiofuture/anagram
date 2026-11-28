@@ -408,3 +408,18 @@ def test_scale_100000_messages(env, monkeypatch):
     assert len([u for u in calls if "/messages?" in u]) == 40
     assert max(peak) <= 200
     assert ss.get(env.idx.store, sid).cursor["backfill"]["done"]
+
+
+def test_gmail_labels_mode_syncs_added_and_removed_labels(env):
+    lab_id = env.mail.add_label("LabWork")
+    m1, t1 = env.mail.add_message("Keep", "in label", sender="peer@uni.example", labels=(lab_id,))
+    m2, t2 = env.mail.add_message("Later", "added later", sender="peer@uni.example", labels=())
+    sid = env.add({"labels": ["LabWork"], "mode": "labels"})
+    env.sync(sid)
+    assert env.keys(sid) == {f"{t1}/{m1}"}
+
+    # Add label to m2 and remove label from m1 via FakeGmail history.
+    env.mail.label(m2, add=(lab_id,))
+    env.mail.label(m1, remove=(lab_id,))
+    env.sync(sid)
+    assert env.keys(sid) == {f"{t2}/{m2}"}

@@ -108,6 +108,13 @@ class GitConnector(Connector):
         return out
 
     def __init__(self, repo: str | Path, rev: str = "HEAD") -> None:
+        if (
+            not isinstance(rev, str)
+            or not rev
+            or rev.startswith("-")
+            or any(c.isspace() or ord(c) < 0x20 or ord(c) == 0x7F for c in rev)
+        ):
+            raise ConnectorError("invalid git revision")
         self.repo = Path(repo).resolve()
         self.rev = rev
         self._git = shutil.which("git")
@@ -134,16 +141,27 @@ class GitConnector(Connector):
         return res.stdout
 
     def commits(self) -> list[dict]:
-        fmt = "%H%x00%T%x00%P%x00%an%x00%aI%x00%cI%x00%B%x1e"
+        fmt = "%H%x00%T%x00%P%x00%an%x00%aI%x00%cI%x00%B"
         out = self._run(
-            "log", "--no-show-signature", "--reverse", f"--format={fmt}", self.rev, "--"
+            "log",
+            "-z",
+            "--no-show-signature",
+            "--reverse",
+            f"--format={fmt}",
+            "--end-of-options",
+            self.rev,
+            "--",
         )
+        if not out:
+            return []
+        parts = out.decode("utf-8", "replace").split("\x00")
+        if parts and parts[-1] == "":
+            parts.pop()
+        if len(parts) % 7 != 0:
+            raise ConnectorError("unexpected git log output")
         commits = []
-        for rec in out.decode("utf-8", "replace").split("\x1e"):
-            rec = rec.lstrip("\n")
-            if not rec:
-                continue
-            sha, tree, parents, author, atime, ctime, message = rec.split("\x00", 6)
+        for i in range(0, len(parts), 7):
+            sha, tree, parents, author, atime, ctime, message = parts[i : i + 7]
             commits.append(
                 {
                     "author": author,
@@ -176,12 +194,23 @@ class GitConnector(Connector):
         out = self._run("cat-file", "--batch", data=("\n".join(todo) + "\n").encode())
         pos = 0
         for oid in todo:
-            nl = out.index(b"\n", pos)
-            header = out[pos:nl].decode().split()
-            size = int(header[2])
-            body = out[nl + 1 : nl + 1 + size]
+            try:
+                nl = out.index(b"\n", pos)
+            except ValueError as exc:
+                raise ConnectorError(f"truncated git cat-file header for {oid}") from exc
+            header = out[pos:nl].decode("utf-8", "replace").split()
+            if len(header) < 3 or header[1] == "missing":
+                raise ConnectorError(f"git blob missing: {oid}")
+            try:
+                size = int(header[2])
+            except ValueError as exc:
+                raise ConnectorError(f"invalid git blob size for {oid}") from exc
+            end = nl + 1 + size
+            if size < 0 or end > len(out):
+                raise ConnectorError(f"git blob truncated: {oid}")
+            body = out[nl + 1 : end]
             cache[oid] = hashlib.sha256(body).hexdigest()
-            pos = nl + 1 + size + 1
+            pos = end + 1
 
     def tree_sha256(self, commit: str, cache: dict[str, str]) -> tuple[str, int]:
         entries = self._tree(commit)

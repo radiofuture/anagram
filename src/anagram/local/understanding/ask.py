@@ -35,7 +35,7 @@ from anagram.local.index import retrieve
 from anagram.local.index.local import LocalIndex
 from anagram.local.index.retrieve import Hit
 from anagram.local.understanding import understand_schema
-from anagram.models import ModelError, TextModel, TextRequest
+from anagram.models import BudgetRefused, ModelError, TextModel, TextRequest
 
 K = 8
 MAX_QUESTION = 500
@@ -195,6 +195,9 @@ def answer(p: Prepared, model: TextModel | None) -> Iterator[AskEvent]:
             if piece:
                 parts.append(piece)
                 yield AskEvent("delta", {"text": piece})
+    except BudgetRefused as exc:
+        yield AskEvent("error", {"code": exc.code or "budget_reached", "left_out": p.left_out})
+        return
     except ModelError as exc:
         yield AskEvent("error", {"code": exc.code or "unreachable", "left_out": p.left_out})
         return
@@ -242,6 +245,18 @@ def record(index: LocalIndex, p: Prepared, done: dict, model: TextModel | None) 
     return row
 
 
+_NOT_SENT_CODES = frozenset(
+    {"no_key", "spend_limit_reached", "usage_limit", "no_budget", "no_prices", "budget_reached"}
+)
+
+
+def log_failed_disclosure(index: LocalIndex, p: Prepared, model: TextModel | None) -> None:
+    """Log disclosure for an external model call that failed after sending text."""
+    if model is not None and model.external and p.hits:
+        for sid in dict.fromkeys(h.source_id for h in p.hits):
+            index.log_disclosure(model.recipient, model.recipient_id, WHAT, sid)
+
+
 def ask(
     index: LocalIndex,
     question: str,
@@ -257,6 +272,8 @@ def ask(
         yield event
         if event.type == "done":
             record(index, p, event.data, model)
+        elif event.type == "error" and event.data.get("code") not in _NOT_SENT_CODES:
+            log_failed_disclosure(index, p, model)
 
 
 def history(index: LocalIndex, *, scope: frozenset[str] | None = None) -> list[dict]:

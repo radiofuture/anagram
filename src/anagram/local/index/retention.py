@@ -206,6 +206,10 @@ def _remove_items(index: LocalIndex, sid: str, kept_items: set) -> int:
     row with no path. Return the count of deleted items."""
     store = index.store
     items = [r[0] for r in store.q("SELECT id FROM item WHERE source_id = ?", (sid,))]
+    has_override = (
+        store.one("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'kind_override'")
+        is not None
+    )
     removed = 0
     for part in _chunks(items):
         with store.transaction():
@@ -217,7 +221,10 @@ def _remove_items(index: LocalIndex, sid: str, kept_items: set) -> int:
             )
             gone = [i for i in part if i not in kept_items]
             if gone:
-                store.x(f"DELETE FROM item WHERE id IN ({placeholders(len(gone))})", gone)  # noqa: S608
+                gm = placeholders(len(gone))
+                if has_override:
+                    store.x(f"DELETE FROM kind_override WHERE item_id IN ({gm})", gone)  # noqa: S608
+                store.x(f"DELETE FROM item WHERE id IN ({gm})", gone)  # noqa: S608
                 removed += len(gone)
             keep = [i for i in part if i in kept_items]
             if keep:

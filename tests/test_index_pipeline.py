@@ -536,3 +536,87 @@ def test_structural_relations(tmp_path):
     (root / "notes" / "a.md").write_text("# A\n\nNew text.\n")
     index.scan()
     assert len(index.relations("version_of")) == 1
+
+
+def test_external_enricher_strips_quoted_skips_third_party_and_logs_disclosure(tmp_path):
+    from anagram.local.index.enrich import Enricher
+    from anagram.local.sources import source_state as ss
+    from anagram.sim.writers import eml_bytes
+
+    class FakeExtEnricher(Enricher):
+        name = "ext-enrich"
+        external = True
+        recipient = "Ext Enricher"
+
+        def __init__(self) -> None:
+            self.seen: list[tuple[str, str, str]] = []
+
+        def enrich(self, doc, ctx):
+            name = ctx.item.name if ctx.item is not None else ""
+            self.seen.append((name, doc.markdown, doc.quoted))
+            return []
+
+    root = tmp_path / "lab"
+    root.mkdir()
+    (root / "own.eml").write_bytes(
+        eml_bytes(
+            sender=("Me", "me@lab.org"),
+            to=("Other", "other@lab.org"),
+            subject="Own",
+            date="Mon, 02 Nov 2026 10:00:00 +0000",
+            message_id="<own@lab.org>",
+            body="My own result.\n\nOn Sun, Other wrote:\n> SECRET QUOTED\n",
+        )
+    )
+    (root / "theirs.eml").write_bytes(
+        eml_bytes(
+            sender=("Other", "other@lab.org"),
+            to=("Me", "me@lab.org"),
+            subject="Theirs",
+            date="Mon, 02 Nov 2026 11:00:00 +0000",
+            message_id="<theirs@lab.org>",
+            body="Someone else text.\n",
+        )
+    )
+    ext = FakeExtEnricher()
+    index = LocalIndex(
+        tmp_path / "idx.sqlite",
+        KEY,
+        enrichers=[ext],
+        owner_emails=["me@lab.org"],
+    )
+    try:
+        sid = index.add_source(FolderConnector(root))
+        index.set_source_prefs(sid, allow_external=["ext-enrich"])
+        index.scan()
+        # Only own.eml reached the external enricher, with quoted stripped.
+        assert [k for k, _, _ in ext.seen] == ["own.eml"]
+        assert ext.seen[0][2] == "" and "SECRET QUOTED" not in ext.seen[0][1]
+        assert any(d["adapter"] == "ext-enrich" for d in index.disclosures())
+
+        # Lab space source must not be sent to external enricher.
+        ext.seen.clear()
+        lab_root = tmp_path / "shared"
+        lab_root.mkdir()
+        (lab_root / "a.md").write_text("# Shared\n\nLab text.\n")
+        lab_sid = index.add_source(FolderConnector(lab_root))
+        ss.set_space(index.store, lab_sid, "lab:lab-0123456789abcdef", now=1.0)
+        index.set_source_prefs(lab_sid, allow_external=["ext-enrich"])
+        index.scan([lab_sid])
+        assert ext.seen == []
+    finally:
+        index.close()
+
+
+def test_read_file_refuses_symlinks(tmp_path):
+    from anagram.core.crypto.chunked import hash_bytes
+    from anagram.local.index.pipeline import Skip, _read_file
+
+    secret = tmp_path / "secret.txt"
+    secret.write_text("secret data")
+    link = tmp_path / "link.txt"
+    link.symlink_to(secret)
+    digest = hash_bytes(b"secret data")
+    res = _read_file(link, digest)
+    assert isinstance(res, Skip) and "symlink" in res.reason
+    assert _read_file(secret, digest) == b"secret data"

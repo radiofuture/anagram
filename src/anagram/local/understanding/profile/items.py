@@ -11,6 +11,9 @@ source of other people's work. The text is `Document.markdown`, never
 
 from __future__ import annotations
 
+import email.utils
+import re
+from datetime import UTC, date
 from typing import TYPE_CHECKING
 
 from anagram.local.trust.policy import OWN_DEFAULT
@@ -23,6 +26,26 @@ if TYPE_CHECKING:
 CODE = (".py", ".r", ".jl", ".m", ".c", ".cpp", ".rs", ".go", ".js", ".ts", ".sh", ".do")
 PUBLICATION_KINDS = frozenset({"orcid_work"})
 CODE_KINDS = frozenset({"git_commit", "github_commit"})
+_ISO_PREFIX = re.compile(r"^\d{4}-\d{2}-\d{2}")
+
+
+def _parse_date(value: str | None) -> str:
+    """Extract YYYY-MM-DD from an ISO date/timestamp or RFC 2822 email Date."""
+    if not value:
+        return ""
+    text = value.strip()
+    if _ISO_PREFIX.match(text):
+        try:
+            return date.fromisoformat(text[:10]).isoformat()
+        except ValueError:
+            pass
+    try:
+        dt = email.utils.parsedate_to_datetime(text)
+    except (TypeError, ValueError):
+        return ""
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(UTC)
+    return dt.date().isoformat()
 
 
 def role_of(view: ItemView) -> str:
@@ -53,12 +76,13 @@ def from_index(index: LocalIndex, policy: TrustPolicy | None = None) -> list[Len
             if policy is not None
             else OWN_DEFAULT
         )
-        when = doc.meta.get("date") if isinstance(doc.meta.get("date"), str) else view.time
+        meta_date = doc.meta.get("date") if isinstance(doc.meta.get("date"), str) else None
+        day = _parse_date(meta_date) or _parse_date(view.time)
         out.append(
             LensItem(
                 id=f"{view.source_id}:{view.key}",
                 role=role_of(view),
-                date=(when or "")[:10],
+                date=day,
                 text=doc.markdown,
                 tier=tier,
                 published=view.kind in PUBLICATION_KINDS,

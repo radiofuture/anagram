@@ -243,7 +243,7 @@ class GmailFilter:
     def _after_ms(self) -> float:
         return datetime.fromisoformat(self.after).replace(tzinfo=UTC).timestamp() * 1000
 
-    def _labels_match(self, label_ids: set[str], label_names: Mapping[str, str] | None) -> bool:
+    def labels_match(self, label_ids: set[str], label_names: Mapping[str, str] | None) -> bool:
         """False for an excluded label or category, or (mode `labels`) for no
         selected label."""
         if label_ids & ALWAYS_OUT:
@@ -254,6 +254,8 @@ class GmailFilter:
             names = {(label_names or {}).get(i, i) for i in label_ids}
             return bool(names & set(self.labels))
         return True
+
+    _labels_match = labels_match
 
     def _sender_ok(self, headers: Mapping[str, str]) -> bool:
         """False for a no-reply sender, a sender out of `senders`, or an
@@ -603,20 +605,38 @@ class GmailConnector(Connector):
             yield Cursor(copy_cursor_state(state))
             return
 
+    def _history_labels(
+        self, h: dict, flt: GmailFilter, label_names: dict[str, str], added: list[dict]
+    ) -> Iterator[Delete]:
+        selected = set(flt.labels)
+        for e in h.get("labelsAdded") or []:
+            m = e.get("message") or {}
+            mid, tid = m.get("id"), m.get("threadId") or m.get("id")
+            if not mid:
+                continue
+            added_ids = set(e.get("labelIds") or [])
+            if added_ids & {"TRASH", "SPAM"}:
+                yield from _delete_message(f"{tid}/{mid}")
+            elif flt.mode == "labels" and {label_names.get(i, i) for i in added_ids} & selected:
+                added.append(m)
+        for e in h.get("labelsRemoved") or []:
+            m = e.get("message") or {}
+            mid, tid = m.get("id"), m.get("threadId") or m.get("id")
+            if not mid:
+                continue
+            removed_ids = set(e.get("labelIds") or [])
+            if removed_ids & {"TRASH", "SPAM"}:
+                added.append(m)
+            elif flt.mode == "labels" and {label_names.get(i, i) for i in removed_ids} & selected:
+                if not flt.labels_match(set(m.get("labelIds") or []), label_names):
+                    yield from _delete_message(f"{tid}/{mid}")
+
     def _history(self, ctx, state, flt: GmailFilter, h: dict) -> Iterator:
         for e in h.get("messagesDeleted") or []:
             m = e.get("message") or {}
             yield from _delete_message(f"{m.get('threadId') or m.get('id')}/{m.get('id')}")
-        for e in h.get("labelsAdded") or []:
-            m = e.get("message") or {}
-            if set(e.get("labelIds") or []) & {"TRASH", "SPAM"}:
-                yield from _delete_message(f"{m.get('threadId') or m.get('id')}/{m.get('id')}")
         added = [e.get("message") or {} for e in h.get("messagesAdded") or []]
-        added += [
-            e.get("message") or {}
-            for e in h.get("labelsRemoved") or []
-            if set(e.get("labelIds") or []) & {"TRASH", "SPAM"}
-        ]
+        yield from self._history_labels(h, flt, state.get("labels") or {}, added)
         for m in added:
             mid, tid = m.get("id"), m.get("threadId") or m.get("id")
             if not mid or ctx.known(f"{tid}/{mid}") is not None:

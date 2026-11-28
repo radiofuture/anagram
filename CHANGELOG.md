@@ -41,6 +41,18 @@ The first release for labs, and private matching through a network enclave.
   the whole network on one computer, with no Docker.
 - **Specs and vectors.** The wire formats and protocols are in `spec/`, with
   test vectors that an independent implementation can check.
+- **Local OCR with Datalab Indra.** Added optional `IndraConverter` (`name = "indra"`,
+  `external = False`) for 100% local CPU / Apple Silicon ONNX OCR of PDFs and
+  images (`PNG`, `JPEG`, `WebP`, `TIFF`) via `indra-ocr`, rendering pages in
+  memory with `pypdfium2`/Pillow (zero plaintext temp files), emitting
+  `Span(page=..., bbox=...)` blocks, and falling back automatically to
+  `markitdown` and `basic` when unavailable or offline without cached weights.
+- **Native `.ipynb` and `.tex` extraction.** Added stdlib-only extractors for
+  Jupyter notebooks (`application/x-ipynb+json` — markdown cells, fenced code
+  cells, and concise plain-text outputs with binary/base64 blobs skipped) and
+  LaTeX manuscripts (`text/x-tex` — title/author/abstract extraction, preamble
+  and `%` comment stripping, section headings, inline macro unwrapping, and
+  compact math preservation).
 - **Project tooling.** CI checks, type checks on a strict set, coverage
   floor, dependency audit, secret scan, pre-commit hooks, Dependabot, and the
   contributor, security and conduct files.

@@ -6,6 +6,8 @@ nothing here is committed. Each extractor is deterministic.
 | Format | What we read |
 | --- | --- |
 | text, markdown, code | the text (code: no need or offer cues) |
+| LaTeX (.tex) | title, authors, abstract, headings, cleaned prose and compact math |
+| Jupyter (.ipynb) | markdown cells, fenced code cells, concise plain-text outputs |
 | CSV | the header and the first rows |
 | .pptx, .docx | text from the zip XML parts (slide titles become headings) |
 | .eml | the body; quoted third-party text is kept apart in `quoted` |
@@ -35,11 +37,17 @@ import struct
 import subprocess  # git is called with fixed arguments only
 import zipfile
 import zlib
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from anagram.local.index.media import CODE_SUFFIXES, MEDIA_TYPES, media_type_for  # noqa: F401
+from anagram.local.index.media import (  # noqa: F401
+    CODE_SUFFIXES,
+    IPYNB,
+    MEDIA_TYPES,
+    media_type_for,
+)
 
 MAX_TEXT_BYTES = 4 * 1024 * 1024
 MAX_ZIP_PART = 16 * 1024 * 1024
@@ -47,6 +55,11 @@ MAX_ZIP_TOTAL = 32 * 1024 * 1024
 MAX_PDF_STREAM = 4 * 1024 * 1024
 MAX_PDF_TOTAL = 16 * 1024 * 1024
 CSV_SAMPLE_ROWS = 5
+MAX_IPYNB_CELLS = 2000
+MAX_IPYNB_CELL_CHARS = 65_536
+MAX_IPYNB_OUTPUT_CHARS = 2048
+MAX_IPYNB_OUTPUTS_PER_CELL = 8
+MAX_IPYNB_UNBROKEN_LINE = 512
 
 
 def _zlib_decompress(data: bytes, max_bytes: int) -> bytes:
@@ -601,12 +614,508 @@ def extract_json(data: bytes, name: str, media_type: str) -> Extracted:
     return Extracted(kind="data", prose=False, meta={"json_type": type(obj).__name__})
 
 
+# ------------------------------------------------------------------ Jupyter (.ipynb)
+
+
+def _ipynb_join(value: object, limit: int) -> str:
+    """Join a Jupyter string-or-list-of-strings field, capped at `limit` chars."""
+    if isinstance(value, str):
+        return value[:limit]
+    if isinstance(value, list):
+        parts: list[str] = []
+        total = 0
+        for item in value:
+            if not isinstance(item, str):
+                continue
+            rem = limit - total
+            if rem <= 0:
+                break
+            parts.append(item[:rem])
+            total += len(parts[-1])
+        return "".join(parts)
+    return ""
+
+
+def _ipynb_language(metadata: object) -> str:
+    if not isinstance(metadata, dict):
+        return ""
+    ks = metadata.get("kernelspec")
+    raw = ks.get("language") if isinstance(ks, dict) else None
+    if not isinstance(raw, str) or not raw.strip():
+        li = metadata.get("language_info")
+        raw = li.get("name") if isinstance(li, dict) else None
+    if not isinstance(raw, str):
+        return ""
+    cleaned = re.sub(r"[^a-zA-Z0-9_+#.-]", "", raw.strip().lower())
+    return cleaned[:32]
+
+
+def _ipynb_fence(code: str, lang: str) -> str:
+    """Wrap `code` in a Markdown code fence that does not collide with backticks inside it."""
+    longest = 0
+    for match in re.finditer(r"`+", code):
+        longest = max(longest, len(match.group(0)))
+    fence = "`" * max(3, longest + 1)
+    body = code.rstrip("\n")
+    return f"{fence}{lang}\n{body}\n{fence}"
+
+
+def _clean_plain_output(text: str) -> str:
+    """Keep concise plain-text lines; drop huge unbroken base64-like lines."""
+    lines = [
+        line.rstrip()
+        for line in text.replace("\r\n", "\n").splitlines()
+        if len(line.strip()) <= MAX_IPYNB_UNBROKEN_LINE or " " in line.strip()
+    ]
+    return "\n".join(lines).strip()
+
+
+def _ipynb_cell_outputs(outputs: object) -> list[str]:
+    """Extract concise plain-text outputs, skipping binary/image/HTML blobs."""
+    if not isinstance(outputs, list):
+        return []
+    out: list[str] = []
+    for item in outputs[:MAX_IPYNB_OUTPUTS_PER_CELL]:
+        if not isinstance(item, dict):
+            continue
+        otype = item.get("output_type")
+        text = ""
+        if otype == "stream":
+            text = _ipynb_join(item.get("text"), MAX_IPYNB_OUTPUT_CHARS)
+        elif otype in ("execute_result", "display_data"):
+            data = item.get("data")
+            if isinstance(data, dict) and "text/plain" in data:
+                text = _ipynb_join(data.get("text/plain"), MAX_IPYNB_OUTPUT_CHARS)
+        elif otype == "error":
+            ename = str(item.get("ename") or "").strip()
+            evalue = str(item.get("evalue") or "").strip()
+            if ename or evalue:
+                text = f"{ename}: {evalue}" if ename and evalue else (ename or evalue)
+        cleaned = _clean_plain_output(text)
+        if cleaned:
+            out.append(cleaned[:MAX_IPYNB_OUTPUT_CHARS])
+    return out
+
+
+def _first_title_line(text: str) -> str | None:
+    for line in text.splitlines():
+        s = line.strip().lstrip("#").strip()
+        if s:
+            return s[:200]
+    return None
+
+
+def _ipynb_cell_chunk(cell: dict, lang: str) -> tuple[str, str]:
+    """Return `(cell_type, markdown_chunk)` for one notebook cell."""
+    ctype = str(cell.get("cell_type") or "")
+    src = _ipynb_join(cell.get("source"), MAX_IPYNB_CELL_CHARS).replace("\r\n", "\n").strip()
+    if ctype == "markdown":
+        return ctype, src
+    if ctype == "code":
+        pieces: list[str] = []
+        if src:
+            pieces.append(_ipynb_fence(src, lang))
+        outs = _ipynb_cell_outputs(cell.get("outputs"))
+        if outs:
+            pieces.append("Output:\n" + "\n".join(outs))
+        return ctype, "\n\n".join(pieces)
+    if ctype == "raw":
+        return ctype, src
+    return ctype, ""
+
+
+def extract_ipynb(data: bytes, name: str = "notebook.ipynb", media_type: str = IPYNB) -> Extracted:
+    """Extract markdown cells, fenced code cells, and concise plain-text outputs
+    from a Jupyter notebook (`.ipynb`). Standard library only."""
+    try:
+        obj = json.loads(decode_text(data))
+    except ValueError:
+        return Extracted(kind="notebook", prose=True, note="ipynb: does not parse")
+    if not isinstance(obj, dict) or not isinstance(obj.get("cells"), list):
+        return Extracted(kind="notebook", prose=True, note="ipynb: missing cells list")
+
+    cells = obj["cells"]
+    lang = _ipynb_language(obj.get("metadata"))
+    parts: list[str] = []
+    title: str | None = None
+    md_count = 0
+    code_count = 0
+    total_chars = 0
+    truncated = len(cells) > MAX_IPYNB_CELLS
+
+    for cell in cells[:MAX_IPYNB_CELLS]:
+        if not isinstance(cell, dict):
+            continue
+        ctype, chunk = _ipynb_cell_chunk(cell, lang)
+        if ctype == "markdown":
+            md_count += 1
+            if chunk and title is None:
+                title = _first_title_line(chunk)
+        elif ctype == "code":
+            code_count += 1
+        if not chunk:
+            continue
+        if total_chars + len(chunk) > MAX_TEXT_BYTES:
+            truncated = True
+            break
+        parts.append(chunk)
+        total_chars += len(chunk) + 2
+
+    text = "\n\n".join(parts)
+    if text:
+        text += "\n"
+    meta: dict = {
+        "cells": len(cells),
+        "code_cells": code_count,
+        "language": lang,
+        "markdown_cells": md_count,
+    }
+    if truncated:
+        meta["truncated"] = True
+    return Extracted(
+        kind="notebook",
+        title=title or (Path(name).stem if name else None),
+        text=text,
+        prose=True,
+        meta=meta,
+    )
+
+
+# ------------------------------------------------------------------ LaTeX (.tex)
+
+_TEX_SECTIONS: tuple[tuple[str, str], ...] = (
+    ("chapter", "#"),
+    ("section", "#"),
+    ("subsection", "##"),
+    ("subsubsection", "###"),
+    ("paragraph", "####"),
+)
+_TEX_UNWRAP: tuple[str, ...] = (
+    "textbf",
+    "textit",
+    "emph",
+    "texttt",
+    "text",
+    "textrm",
+    "textsf",
+    "textsc",
+    "underline",
+    "mbox",
+    "hbox",
+    "mathrm",
+    "mathbf",
+    "mathit",
+    "mathsf",
+    "mathcal",
+    "operatorname",
+    "caption",
+    "footnote",
+)
+_TEX_DROP_2: tuple[str, ...] = (
+    "setlength",
+    "setcounter",
+    "newcommand",
+    "renewcommand",
+    "providecommand",
+    "addtolength",
+)
+_TEX_DROP_1: tuple[str, ...] = (
+    "label",
+    "vspace",
+    "hspace",
+    "usepackage",
+    "documentclass",
+    "bibliographystyle",
+    "bibliography",
+    "pagestyle",
+    "thispagestyle",
+    "graphicspath",
+    "includegraphics",
+    "input",
+    "include",
+    "thanks",
+    "affil",
+    "institute",
+    "hypersetup",
+    "geometry",
+)
+_TEX_STANDALONE_RE = re.compile(
+    r"\\(?:maketitle|tableofcontents|listoffigures|listoftables|centering|noindent|"
+    r"newpage|clearpage|pagebreak|medskip|bigskip|smallskip|hfill|vfill|hline|"
+    r"toprule|midrule|bottomrule|quad|qquad|small|normalsize|large|Large|LARGE|"
+    r"footnotesize|tiny|bfseries|itshape|rmfamily)\b[ \t]*"
+)
+_TEX_ENV_WRAPPER_RE = re.compile(
+    r"\\(?:begin|end)\{(?:itemize|enumerate|description|figure\*?|table\*?|center|"
+    r"quote|quotation|minipage|equation\*?|align\*?|gather\*?|multline\*?|tabular|"
+    r"verbatim)\}(?:\[[^\]\n]{0,64}\])?(?:\{[^}\n]{0,64}\})?"
+)
+_TEX_ABSTRACT_RE = re.compile(r"\\begin\{abstract\}(.*?)\\end\{abstract\}", re.S)
+_TEX_ITEM_OPT_RE = re.compile(r"\\item\s*\[([^\]\n]{1,120})\]\s*")
+_TEX_ITEM_RE = re.compile(r"\\item\b[ \t]*")
+_TEX_LINEBREAK_RE = re.compile(r"\\\\(?:\[[^\]\n]{0,32}\])?")
+
+
+def _strip_tex_comments(text: str) -> str:
+    """Remove unescaped `%` line comments while preserving `\\%`."""
+    out: list[str] = []
+    for line in text.splitlines():
+        cut: int | None = None
+        i = 0
+        n = len(line)
+        while i < n:
+            if line[i] == "%":
+                bs = 0
+                j = i - 1
+                while j >= 0 and line[j] == "\\":
+                    bs += 1
+                    j -= 1
+                if bs % 2 == 0:
+                    cut = i
+                    break
+            i += 1
+        out.append(line if cut is None else line[:cut].rstrip())
+    return "\n".join(out)
+
+
+def _read_balanced(
+    text: str, pos: int, open_ch: str = "{", close_ch: str = "}"
+) -> tuple[str, int] | None:
+    """Read a balanced delimiter group starting at `pos`, skipping escaped delimiters."""
+    n = len(text)
+    if pos >= n or text[pos] != open_ch:
+        return None
+    depth = 0
+    i = pos
+    while i < n:
+        ch = text[i]
+        if ch == "\\" and i + 1 < n:
+            i += 2
+            continue
+        if ch == open_ch:
+            depth += 1
+        elif ch == close_ch:
+            depth -= 1
+            if depth == 0:
+                return text[pos + 1 : i], i + 1
+        i += 1
+    return None
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in " \t\n":
+        pos += 1
+    return pos
+
+
+def _read_tex_arg(text: str, pos: int) -> tuple[str, int] | None:
+    """Read optional `*`, optional `[...]`, then required `{...}` after a command name."""
+    n = len(text)
+    if pos < n and text[pos] == "*":
+        pos += 1
+    pos = _skip_ws(text, pos)
+    if pos < n and text[pos] == "[":
+        opt = _read_balanced(text, pos, "[", "]")
+        if opt is None:
+            return None
+        pos = _skip_ws(text, opt[1])
+    return _read_balanced(text, pos, "{", "}")
+
+
+def _find_tex_command(text: str, cmd: str, start: int = 0) -> int:
+    """Return index of `\\cmd` followed by a non-letter (or -1)."""
+    needle = "\\" + cmd
+    n = len(text)
+    pos = start
+    while True:
+        idx = text.find(needle, pos)
+        if idx == -1:
+            return -1
+        end = idx + len(needle)
+        if end < n and text[end].isalpha():
+            pos = end
+            continue
+        # Ensure the backslash itself is not escaped (`\\cmd`).
+        bs = 0
+        j = idx - 1
+        while j >= 0 and text[j] == "\\":
+            bs += 1
+            j -= 1
+        if bs % 2 == 1:
+            pos = end
+            continue
+        return idx
+
+
+def _extract_tex_command(text: str, cmd: str) -> str | None:
+    idx = _find_tex_command(text, cmd)
+    if idx == -1:
+        return None
+    arg = _read_tex_arg(text, idx + 1 + len(cmd))
+    return arg[0] if arg is not None else None
+
+
+def _replace_tex_command(
+    text: str,
+    cmd: str,
+    transform: Callable[[str], str],
+    *,
+    second_arg: bool = False,
+) -> str:
+    """Replace every `\\cmd[*][...]{arg}` (or `{arg1}{arg2}` when `second_arg=True`)."""
+    out: list[str] = []
+    pos = 0
+    while True:
+        idx = _find_tex_command(text, cmd, pos)
+        if idx == -1:
+            out.append(text[pos:])
+            return "".join(out)
+        out.append(text[pos:idx])
+        after_cmd = idx + 1 + len(cmd)
+        first = _read_tex_arg(text, after_cmd)
+        if first is None:
+            out.append(text[idx:after_cmd])
+            pos = after_cmd
+            continue
+        val, next_pos = first
+        if second_arg:
+            second = _read_balanced(text, _skip_ws(text, next_pos))
+            if second is None:
+                out.append(text[idx:next_pos])
+                pos = next_pos
+                continue
+            val, next_pos = second
+        out.append(transform(val))
+        pos = next_pos
+
+
+def _drop_tex_command(text: str, cmd: str, nargs: int = 1) -> str:
+    """Drop `\\cmd[*][...]{arg1}...{argN}` cleanly."""
+    out: list[str] = []
+    pos = 0
+    while True:
+        idx = _find_tex_command(text, cmd, pos)
+        if idx == -1:
+            out.append(text[pos:])
+            return "".join(out)
+        out.append(text[pos:idx])
+        cur = idx + 1 + len(cmd)
+        ok = True
+        for i in range(nargs):
+            arg = _read_tex_arg(text, cur) if i == 0 else _read_balanced(text, _skip_ws(text, cur))
+            if arg is None:
+                ok = False
+                break
+            cur = arg[1]
+        if not ok:
+            out.append(text[idx : idx + 1 + len(cmd)])
+            pos = idx + 1 + len(cmd)
+        else:
+            pos = cur
+
+
+def _clean_tex_inline(text: str) -> str:
+    """Unwrap inline formatting macros, strip noisy layout commands, and unescape."""
+    s = _replace_tex_command(text, "href", lambda v: v, second_arg=True)
+    s = _replace_tex_command(s, "url", lambda v: v)
+    for cmd in _TEX_DROP_2:
+        s = _drop_tex_command(s, cmd, nargs=2)
+    for cmd in _TEX_DROP_1:
+        s = _drop_tex_command(s, cmd, nargs=1)
+    for _ in range(6):
+        prev = s
+        for cmd in _TEX_UNWRAP:
+            s = _replace_tex_command(s, cmd, lambda v: v)
+        if s == prev:
+            break
+    s = _TEX_STANDALONE_RE.sub("", s)
+    s = re.sub(r"\\par\b[ \t]*", "\n\n", s)
+    s = _TEX_ITEM_OPT_RE.sub(r"- \1: ", s)
+    s = _TEX_ITEM_RE.sub("- ", s)
+    s = _TEX_LINEBREAK_RE.sub("\n", s)
+    s = s.replace("~", " ")
+    for esc, rep in (("\\%", "%"), ("\\&", "&"), ("\\#", "#"), ("\\_", "_"), ("\\$", "$")):
+        s = s.replace(esc, rep)
+    return s
+
+
+def _clean_tex_meta_value(raw: str) -> str:
+    cleaned = _clean_tex_inline(re.sub(r"\s*\\and\b\s*", ", ", raw))
+    cleaned = cleaned.replace("{", "").replace("}", "")
+    cleaned = re.sub(r"\s+,", ",", cleaned)
+    return " ".join(cleaned.split())
+
+
+def _normalize_tex_whitespace(text: str) -> str:
+    lines = [line.rstrip() for line in text.splitlines()]
+    collapsed = re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
+    return collapsed + "\n" if collapsed else ""
+
+
+def extract_tex(
+    data: bytes, name: str = "document.tex", media_type: str = "text/x-tex"
+) -> Extracted:
+    """Clean LaTeX source into readable Markdown prose and metadata. Standard
+    library only, with linear-time brace scanning."""
+    raw = _strip_tex_comments(decode_text(data).replace("\r\n", "\n"))
+    raw_title = _extract_tex_command(raw, "title")
+    raw_author = _extract_tex_command(raw, "author")
+    title = _clean_tex_meta_value(raw_title)[:200] if raw_title else None
+    authors = _clean_tex_meta_value(raw_author) if raw_author else None
+
+    begin = raw.find("\\begin{document}")
+    if begin != -1:
+        body = raw[begin + len("\\begin{document}") :]
+        end = body.find("\\end{document}")
+        if end != -1:
+            body = body[:end]
+    else:
+        body = raw
+
+    abstract: str | None = None
+    abs_match = _TEX_ABSTRACT_RE.search(body)
+    if abs_match is not None:
+        abstract = _normalize_tex_whitespace(_clean_tex_inline(abs_match.group(1))).strip()
+        body = body[: abs_match.start()] + "\n\n" + body[abs_match.end() :]
+
+    for cmd, hashes in _TEX_SECTIONS:
+        body = _replace_tex_command(
+            body,
+            cmd,
+            lambda val, h=hashes: f"\n\n{h} {' '.join(_clean_tex_inline(val).split())}\n\n",
+        )
+    body = _TEX_ENV_WRAPPER_RE.sub("\n", body)
+    body = _normalize_tex_whitespace(_clean_tex_inline(body)).strip()
+
+    sections: list[str] = []
+    if title:
+        sections.append(f"# {title}")
+    if abstract:
+        sections.append(f"## Abstract\n\n{abstract}")
+    if body:
+        sections.append(body)
+    text = _normalize_tex_whitespace("\n\n".join(sections))
+    meta: dict = {"format": "tex"}
+    if authors:
+        meta["authors"] = authors
+    if abstract:
+        meta["abstract"] = abstract
+    return Extracted(
+        kind="document",
+        title=title or _first_title_line(text),
+        text=text,
+        prose=True,
+        meta=meta,
+    )
+
+
 # ------------------------------------------------------------------ dispatch
 
 _EXTRACTORS = {
     "text/markdown": extract_text,
     "text/plain": extract_text,
-    "text/x-tex": extract_text,
+    "text/x-tex": extract_tex,
     "text/x-python": extract_text,
     "text/x-code": extract_text,
     "text/x-r": extract_text,
@@ -614,6 +1123,7 @@ _EXTRACTORS = {
     "text/yaml": extract_text,
     "text/csv": extract_csv,
     "text/tab-separated-values": extract_csv,
+    IPYNB: extract_ipynb,
     "application/vnd.openxmlformats-officedocument.presentationml.presentation": extract_pptx,
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": extract_docx,
     "image/png": extract_png,

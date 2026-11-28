@@ -221,3 +221,15 @@ def test_get_or_create_uses_the_key_of_a_faster_writer(ks):
 
     assert ks.get_or_create("local-store-key", factory) == OLD
     assert ks.get_or_create("local-store-key", lambda: NEW) == OLD
+
+
+def test_erase_old_does_not_zero_multi_linked_inode(tmp_path):
+    ks = FileKeystore(tmp_path / "keys")
+    ks.put("acct-1", OLD)
+    live = tmp_path / "keys" / "acct-1.key"
+    stale = tmp_path / "keys" / ".acct-1.deadbeef.old"
+    os.link(live, stale)
+    # Simulate a concurrent/stale .old link still pointing to the live inode.
+    ks._erase_old("acct-1")
+    assert ks.get("acct-1") == OLD
+    assert stale.exists()

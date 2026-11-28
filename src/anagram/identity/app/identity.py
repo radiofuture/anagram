@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 from anagram.core.crypto.hashing import new_salt
+from anagram.core.crypto.signing import SigningKey
 from anagram.core.errors import ClientError, FormatError
 from anagram.core.nodeapi import HttpNode, NodeHTTPError, Transport
 from anagram.identity.app.browsers import Browser, LoopbackBrowser, pkce
@@ -33,6 +34,7 @@ from anagram.identity.formats.documents import (
     check_orcid_opening,
     new_pid,
     sign_device_signin,
+    sign_invite_rejoin,
     sign_possession,
     validate_orcid,
     verify_assertion,
@@ -123,6 +125,8 @@ class SignInWith:
     invite: str | None = None
     stated_email: str | None = None
     on_code_sent: Callable[[str], None] | None = None
+    device_key: SigningKey | None = None
+    sign_invite: Callable[[str, str, str], str] | None = None
 
 
 def sign_in(
@@ -162,6 +166,12 @@ def _invite_answer(
     body = {"device_key": me.hex(), "invite": via.invite, "nonce": nonce}
     if person.get("pid"):
         body["pid"] = person["pid"]
+        if via.device_key is not None and via.invite is not None:
+            body["device_signature"] = sign_invite_rejoin(
+                via.invite, person["pid"], nonce, via.device_key
+            )
+    if via.sign_invite is not None and via.invite is not None:
+        body["invite_signature"] = via.sign_invite(via.invite, me.hex(), nonce)
     if via.stated_email:
         body["email"] = via.stated_email
     signed = node.call("POST", "/auth/invite", body)
@@ -290,7 +300,9 @@ def device_sign_in(node: HttpNode, subject: str, key, node_key: str) -> dict:
     )["session"]
 
 
-def bind_this_device(client: Home, subject: str, assertion: dict, reset: bool) -> bool | None:
+def bind_this_device(
+    client: Home, subject: str, assertion: dict | None, reset: bool
+) -> bool | None:
     """Bind this device if it is not active (key-binding rules: `add` for the
     first device, `reset` to replace all devices). Return True if it bound,
     False if the device was active, None if another device must approve it."""
@@ -300,6 +312,8 @@ def bind_this_device(client: Home, subject: str, assertion: dict, reset: bool) -
     if mine["ed25519"] not in state.devices:
         if state.devices and not reset:
             return None
+        if assertion is None:
+            raise ClientError("cannot bind this device without a sign-in assertion")
         client.directory.bind(
             state,
             # Seq 0 is an `add`. Later, an assertion can only `reset` (rule 4).
@@ -320,7 +334,7 @@ def bind_this_device(client: Home, subject: str, assertion: dict, reset: bool) -
 def finish_join(
     client: Home,
     subject: str,
-    assertion: dict,
+    assertion: dict | None,
     receipt: dict | None,
     display_name: str | None,
     institution: str | None,

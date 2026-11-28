@@ -14,7 +14,7 @@ from softauthn import SoftAuthenticator
 from anagram.admission.formats import parse_invite_url
 from anagram.core.canonical import canonical_json
 from anagram.core.crypto.signing import SigningKey
-from anagram.core.errors import ClientError, LogMisbehaved
+from anagram.core.errors import ClientError, LogMisbehaved, NodeError
 from anagram.core.nodeapi import NodeHTTPError
 from anagram.core.signed import b64url, unb64url
 from anagram.identity.app.kit import parse_kit, recover
@@ -740,3 +740,172 @@ def test_log_service_takes_only_the_public_kinds_it_is_given():
         validate_entry(entry)
     with pytest.raises(EntryRejected, match="bad key binding"):
         validate_entry(entry, PUBLIC_LOG_KINDS)
+
+
+def test_smtp_starttls_uses_ssl_context_and_rejects_multi_recipient(monkeypatch):
+    import smtplib
+    import ssl
+
+    from anagram.identity.node.mailer import SMTPMailer
+
+    calls = {}
+
+    class FakeSMTP:
+        def __init__(self, host, port, timeout=30):
+            calls["init"] = (host, port)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def starttls(self, *, context=None):
+            calls["context"] = context
+
+        def login(self, user, password):
+            calls["login"] = (user, password)
+
+        def send_message(self, msg, from_addr=None, to_addrs=None):
+            calls["send"] = (from_addr, to_addrs)
+
+    monkeypatch.setattr(smtplib, "SMTP", FakeSMTP)
+    mailer = SMTPMailer("mail.example.org", 587, "noreply@example.org", "u", "p")
+    mailer.send("alice@example.org", "Code", "12345678")
+    assert isinstance(calls["context"], ssl.SSLContext)
+    assert calls["send"] == ("noreply@example.org", ["alice@example.org"])
+    for bad in (
+        "a@b.org,evil@c.org",
+        "a@b.org;evil@c.org",
+        "<a@b.org>",
+        "a@b@c.org",
+        "a@b.org\nBcc:x@y.org",
+        '"a"@b.org',
+    ):
+        with pytest.raises(NodeError):
+            mailer.send(bad, "Code", "body")
+    with pytest.raises(ValueError, match="newlines"):
+        mailer.send("alice@example.org", "Hi\r\nBcc: evil@c.org", "body")
+
+
+def test_email_injection_rejected_and_key_state_is_read_only(net):
+    from anagram.admission.node.reader import normalize_contact
+    from anagram.identity.node.vouch import stated_email
+
+    for bad in (
+        "a@b.org,evil@c.org",
+        "a@b.org;evil@c.org",
+        "<a@b.org>",
+        "a@b@c.org",
+        "a@b.org\n",
+        "user@localhost",
+    ):
+        with pytest.raises(NodeError):
+            net.identity.email_signin.start(bad, "11" * 32, "22" * 16)
+        with pytest.raises(NodeError):
+            stated_email(bad)
+        with pytest.raises(NodeError):
+            normalize_contact({"kind": "email", "value": bad})
+
+    # H16: key_state() must not mutate _dir.
+    unknown = "pid:" + "ff" * 16
+    assert net.identity.keys_of(unknown) is None
+    st = net.identity.key_state(unknown)
+    assert st.subject == unknown and not st.devices
+    assert net.identity.keys_of(unknown) is None
+
+
+def test_orcid_callback_releases_lock_and_caps_attempts(net):
+    import threading
+
+    from anagram.identity.app.browsers import pkce
+    from anagram.identity.node.challenges import MAX_ATTEMPTS
+    from anagram.identity.node.orcid import OrcidError, OrcidUser
+    from anagram.identity.node.orcid_signin import FlowStart
+
+    lock_was_free = False
+    orig_exchange = net.identity.orcid_signin.orcid.exchange
+
+    def checking_exchange(code, callback_url):
+        nonlocal lock_was_free
+        acquired = []
+
+        def probe():
+            got = net.identity.lock.acquire(blocking=False)
+            if got:
+                net.identity.lock.release()
+            acquired.append(got)
+
+        t = threading.Thread(target=probe)
+        t.start()
+        t.join()
+        lock_was_free = acquired == [True]
+        return orig_exchange(code, callback_url)
+
+    net.identity.orcid_signin.orcid.exchange = checking_exchange
+    _, challenge = pkce()
+    browser = net.browser()
+    started = net.identity.orcid_signin.start(
+        FlowStart(
+            device_key="11" * 32,
+            nonce="22" * 16,
+            code_challenge=challenge,
+            return_to=browser.return_to,
+            login_hint="fake-lock-check",
+        )
+    )
+    back = browser.open(started["authorize_url"])
+    assert back["code"] and lock_was_free
+
+    # Failed callbacks are capped at MAX_ATTEMPTS.
+    _, ch2 = pkce()
+    s2 = net.identity.orcid_signin.start(
+        FlowStart(
+            device_key="11" * 32,
+            nonce="33" * 16,
+            code_challenge=ch2,
+            return_to="http://127.0.0.1:9/cb",
+        )
+    )
+
+    def fail_exchange(code, callback_url):
+        if code == "bad":
+            raise OrcidError("bad code")
+        return OrcidUser("fake-ok", "Ok")
+
+    net.identity.orcid_signin.orcid.exchange = fail_exchange
+    for _ in range(MAX_ATTEMPTS):
+        with pytest.raises(Exception, match="bad code"):
+            net.identity.orcid_signin.callback(s2["flow_id"], "bad")
+    with pytest.raises(NodeError, match="unknown, used, or expired"):
+        net.identity.orcid_signin.callback(s2["flow_id"], "good")
+
+
+def test_backups_enforce_size_and_count_caps(net, tmp_path):
+    import base64
+
+    from anagram.identity.formats.backup import MAX_BACKUP_BYTES, seal_backup
+    from anagram.identity.node.backups import MAX_BACKUPS_PER_SUBJECT
+
+    c = net.join_invite(tmp_path / "m").client
+    sub = c.device.subject
+    keys = {
+        "device-ed25519": b"\x01" * 32,
+        "device-x25519": b"\x02" * 32,
+        "index-key": b"\x03" * 32,
+        "vault-key": b"\x04" * 32,
+    }
+    big = seal_backup(b"\x01" * 20, sub, keys)
+    big["ciphertext"] = base64.b64encode(b"x" * (MAX_BACKUP_BYTES + 1)).decode("ascii")
+    with pytest.raises(NodeError, match="too large"):
+        net.identity.backups.put(sub, big)
+    # Existing backup from join_invite counts as 1; fill up to MAX_BACKUPS_PER_SUBJECT.
+    existing = net.identity.db.execute(
+        "SELECT COUNT(*) FROM backups WHERE subject = ?", (sub,)
+    ).fetchone()[0]
+    for i in range(MAX_BACKUPS_PER_SUBJECT - existing):
+        doc = seal_backup(i.to_bytes(20, "big"), sub, keys)
+        net.identity.backups.put(sub, doc)
+    extra = seal_backup(b"\xff" * 20, sub, keys)
+    with pytest.raises(NodeError, match="too many"):
+        net.identity.backups.put(sub, extra)

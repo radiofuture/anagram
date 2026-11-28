@@ -44,6 +44,8 @@ def verify_fake(record: dict, digest: bytes, trust: AnchorTrust) -> AnchorCheck:
         return AnchorCheck("fake", False, detail="digest mismatch")
     when = parse_time(record["time"])
     ts = int(when.timestamp())
+    if ts < 0:
+        return AnchorCheck("fake", False, detail="time out of range")
     if not verify(key, TAG_FAKE_ANCHOR, digest + u64(ts), bytes.fromhex(record["signature"])):
         return AnchorCheck("fake", False, detail="bad signature")
     return AnchorCheck(

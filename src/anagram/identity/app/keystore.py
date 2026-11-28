@@ -26,8 +26,10 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from pathlib import Path
 
-_NAME = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
-_HEX = re.compile(r"^(?:[0-9a-f]{2})+$")
+from anagram.core.files import fsync_dir
+
+_NAME = re.compile(r"\A[a-z0-9][a-z0-9-]{0,62}\Z")
+_HEX = re.compile(r"\A(?:[0-9a-f]{2})+\Z")
 
 
 class KeystoreError(ValueError):
@@ -40,18 +42,21 @@ def check_name(name: str) -> str:
     return name
 
 
-def erase_file(path: str | Path) -> bool:
+def erase_file(path: str | Path, *, only_single_link: bool = False) -> bool:
     """Write zeros on the file, fsync, then unlink it. Return True if the file
-    was there. On an SSD or a copy-on-write file system the old blocks can stay;
-    the erase is best effort."""
+    was there. When `only_single_link` is True, skip files with `st_nlink != 1`
+    so a live hard-linked inode is never overwritten. On an SSD or a
+    copy-on-write file system the old blocks can stay; the erase is best effort."""
     try:
         fd = os.open(path, os.O_WRONLY)
     except FileNotFoundError:
         return False
     try:
-        size = os.fstat(fd).st_size
-        if size:
-            os.write(fd, b"\x00" * size)
+        st = os.fstat(fd)
+        if only_single_link and st.st_nlink != 1:
+            return False
+        if st.st_size:
+            os.write(fd, b"\x00" * st.st_size)
         os.fsync(fd)
     finally:
         os.close(fd)
@@ -196,9 +201,11 @@ class DirectoryKeystore(Keystore):
 
     def _erase_old(self, name: str) -> None:
         """Erase each old copy that an overwrite of this name left (also the
-        copy of an overwrite that stopped before its erase)."""
+        copy of an overwrite that stopped before its erase). Only zero files
+        with a single hard link so a concurrent overwrite cannot corrupt the
+        live key file."""
         for stale in self.dir.glob(f".{name}.*.old"):
-            erase_file(stale)
+            erase_file(stale, only_single_link=True)
 
     def replace(self, name: str, secret: bytes) -> None:
         """Write the new key atomically. The old key file stays as
@@ -238,11 +245,7 @@ class DirectoryKeystore(Keystore):
         return sorted(out)
 
     def fsync_dir(self) -> None:
-        fd = os.open(self.dir, os.O_RDONLY)
-        try:
-            os.fsync(fd)
-        finally:
-            os.close(fd)
+        fsync_dir(self.dir)
 
 
 class FileKeystore(DirectoryKeystore):

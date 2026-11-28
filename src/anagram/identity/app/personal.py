@@ -33,6 +33,7 @@ from typing import Any, Protocol
 from anagram.core.canonical import canonical_json
 from anagram.core.crypto import hpke
 from anagram.core.errors import ClientError, FormatError, LogMisbehaved
+from anagram.core.files import atomic_write
 from anagram.core.nodeapi import HttpNode, NodeHTTPError
 from anagram.core.timefmt import format_time
 from anagram.core.wraps import b64
@@ -291,13 +292,12 @@ class PersonalStore:
     # --------------------------------------------------------------- pull
 
     def _pull(self, keys: StoreKeys, listing: list[dict]) -> int:
-        """Import vault records that are newer on the node than here. A record
-        of chunk size is a snapshot chunk: it is read only for a restore."""
+        """Import vault records that are newer on the node than here. Non-vault
+        records (snapshot manifests and chunks) are recorded in `store_skip`
+        after decryption so they are not fetched again."""
         n = 0
         for item in sorted(listing, key=lambda r: r["record_id"]):
             rid, version = item["record_id"], int(item["version"])
-            if int(item.get("size") or 0) >= SNAPSHOT_CHUNK:
-                continue
             state = self.device.keys.store_records.get(rid)
             if state and int(state.split()[0]) >= version:
                 continue
@@ -392,9 +392,7 @@ class PersonalStore:
         if hashlib.sha256(data).hexdigest() != manifest["sha256"] or len(data) != manifest["size"]:
             raise ClientError(f"snapshot {name} does not match its manifest")
         target = path if not path.exists() else path.with_name(path.name + ".restored")
-        tmp = target.with_name(target.name + ".part")
-        tmp.write_bytes(data)
-        tmp.replace(target)
+        atomic_write(target, data, mode=0o600)
         st = {"at": self.device.clock(), "sha256": manifest["sha256"], "version": remote[mid]}
         self.device.keys.store_snapshots.dump(ref, st)
         return "restored" if target == path else f"restored to {target.name}"

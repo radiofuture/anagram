@@ -13,7 +13,7 @@ from typing import Any, overload
 from anagram.core.errors import FormatError
 
 TIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
-_TIME = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+_TIME = re.compile(r"\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\Z")
 
 
 def format_time(dt: datetime) -> str:
@@ -26,7 +26,10 @@ def format_time(dt: datetime) -> str:
 def parse_time(s: str) -> datetime:
     if not isinstance(s, str) or not _TIME.match(s):
         raise FormatError(f"bad time: {s!r}")
-    return datetime.strptime(s, TIME_FORMAT).replace(tzinfo=UTC)
+    try:
+        return datetime.strptime(s, TIME_FORMAT).replace(tzinfo=UTC)
+    except ValueError as exc:
+        raise FormatError(f"bad time: {s!r}") from exc
 
 
 def iso_seconds(t: float) -> str:

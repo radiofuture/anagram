@@ -17,6 +17,7 @@ from anagram.core.crypto import merkle
 from anagram.core.crypto.chunked import ContentDigest, hash_file
 from anagram.core.crypto.hashing import TAG_EVIDENCE_ROOT, TAG_FINDING_ROOT
 from anagram.core.errors import FormatError
+from anagram.core.validate import HEX32, hex_field, int_at_least
 from anagram.proofs.anchors.base import AnchorTrust, verify_anchor
 from anagram.proofs.anchors.defaults import describe_record
 from anagram.proofs.bundle import EvidenceOpening, LogProof, ProofBundle
@@ -118,9 +119,11 @@ def build_bundle(
     """Make a bundle from a subject and a node submit result."""
     log = LogProof(
         entry=subject.log_entry(),
-        leaf_index=int(submitted["leaf_index"]),
-        tree_size=int(submitted["tree_size"]),
-        inclusion=tuple(bytes.fromhex(h) for h in submitted["inclusion"]),
+        leaf_index=int_at_least(submitted["leaf_index"], "leaf_index", 0),
+        tree_size=int_at_least(submitted["tree_size"], "tree_size", 0),
+        inclusion=tuple(
+            bytes.fromhex(hex_field(h, HEX32, "inclusion")) for h in submitted["inclusion"]
+        ),
         checkpoint=submitted["checkpoint"],
     )
     return ProofBundle(
@@ -268,14 +271,14 @@ def _verify_openings(bundle: ProofBundle, r: VerifyReport) -> None:
                 r.add(f"opened {count} equals layout", r.opened[count] == n)
     for ev in bundle.evidence_openings:
         root_hex = r.opened.get(f"evidence.{ev.slot}")
-        if not isinstance(root_hex, str):
-            r.add(f"evidence.{ev.slot} opening", False, "finding field not opened")
+        if not isinstance(root_hex, str) or not HEX32.match(root_hex):
+            r.add(
+                f"evidence.{ev.slot} opening",
+                False,
+                "bad root" if isinstance(root_hex, str) else "finding field not opened",
+            )
             continue
-        try:
-            ev_root = bytes.fromhex(root_hex)
-        except ValueError:
-            r.add(f"evidence.{ev.slot} opening", False, "bad root")
-            continue
+        ev_root = bytes.fromhex(root_hex)
         fields: dict[str, Any] = {}
         for fp in ev.fields:
             label = f"opening evidence.{ev.slot}.{fp.name}"

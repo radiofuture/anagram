@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import json
+import os
 import secrets
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
@@ -29,6 +30,7 @@ from anagram.admission.formats import (
     make_lab_invite,
     parse_invite_url,
     parse_lab_invite_link,
+    sign_lab_invite_signin,
     verify_invite,
     verify_receipt,
 )
@@ -49,6 +51,7 @@ from anagram.identity.api import (
     SignInWith,
     bind_this_device,
     config_from_trust,
+    device_sign_in,
     fetch_trust,
     finish_join,
     new_person,
@@ -119,7 +122,8 @@ def _home_config(home: Path, trust: dict, node_key: str) -> dict:
         if cfg.get("identity", {}).get("node_key") != node_key:
             raise ClientError(f"{home} already belongs to another node; use another --home")
         return cfg
-    home.mkdir(parents=True, exist_ok=True)
+    home.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(home, 0o700)
     cfg = config_from_trust(trust, node_key, None)
     write_config(home, cfg)
     return cfg
@@ -142,6 +146,83 @@ def _claim_invite(node: HttpNode, trust: dict, token: str, subject: str) -> dict
     except FormatError as exc:
         raise ClientError(str(exc)) from exc
     return receipt
+
+
+def _join_sign_in(
+    client: JoinHome,
+    node: HttpNode,
+    trust: dict,
+    cfg: dict,
+    ks: Keystore,
+    invite: dict,
+    lab_link: dict | None,
+    *,
+    method: str,
+    now: datetime,
+    browser: Browser | None,
+    login_hint: str | None,
+    email: str | None,
+    email_code: Callable[[], str] | None,
+    stated_email: str | None,
+    on_code_sent: Callable[[str], None] | None,
+) -> tuple[str, dict | None]:
+    """Authenticate for `join`: use device sign-in if this device is already
+    bound, else sign in via invite / email / ORCID."""
+    dev_key = client.device.device_key()
+    me = dev_key.public_bytes()
+    existing_subject = cfg["identity"].get("subject")
+    if method == "invite" and existing_subject:
+        state = client.directory.lookup(existing_subject, allow_empty=True)
+        if me.hex() in state.devices:
+            session = device_sign_in(node, existing_subject, dev_key, invite["node_key"])
+            write_session(ks, session)
+            node.token = session["token"]
+            return existing_subject, None
+    invite_ref = None
+    sign_invite = None
+    if method == "invite":
+        if lab_link is not None:
+            invite_ref = "lab:" + lab_invite_id(invite)
+            inv_sign_key, _ = invite_keys(bytes.fromhex(lab_link["seed"]))
+
+            def sign_invite(inv: str, dk: str, nonce: str) -> str:
+                return sign_lab_invite_signin(inv, dk, nonce, inv_sign_key)
+        else:
+            invite_ref = invite["token"]
+    via = SignInWith(
+        browser=browser,
+        login_hint=login_hint,
+        email=email,
+        email_code=email_code,
+        invite=invite_ref,
+        stated_email=stated_email,
+        on_code_sent=on_code_sent,
+        device_key=dev_key if method == "invite" else None,
+        sign_invite=sign_invite,
+    )
+    assertion, signed = sign_in(
+        node,
+        trust,
+        invite["node_key"],
+        me,
+        via,
+        now=now,
+        person={"pid": existing_subject} if existing_subject else new_person(),
+    )
+    subject = assertion["subject"]
+    if existing_subject not in (None, subject):
+        node.token = signed["session"]["token"]
+        try:
+            node.call("POST", "/auth/logout", {}, auth=True)
+        finally:
+            node.token = None
+            client.device.vault.close()
+        raise ClientError("this home belongs to another person")
+    write_session(ks, signed["session"])
+    node.token = signed["session"]["token"]
+    remember_person(cfg, assertion, signed)
+    client.device.save_config(cfg)
+    return subject, assertion
 
 
 def join(
@@ -191,43 +272,25 @@ def join(
     cfg = _home_config(home, trust, invite["node_key"])
     ks = _device_keystore(home)
     client = open_home(home, node, clock)
-    me = client.device.device_key().public_bytes()
     if lab_link is not None:
         client.admission.check_lab_invite(invite)  # the creator device, with log proofs
-    invite_ref = None
-    if method == "invite":
-        if lab_link is not None:
-            invite_ref = "lab:" + lab_invite_id(invite)
-        else:
-            invite_ref = invite["token"]
-
-    via = SignInWith(
+    subject, assertion = _join_sign_in(
+        client,
+        node,
+        trust,
+        cfg,
+        ks,
+        invite,
+        lab_link,
+        method=method,
+        now=now,
         browser=browser,
         login_hint=login_hint,
         email=email,
         email_code=email_code,
-        invite=invite_ref,
         stated_email=stated_email,
         on_code_sent=on_code_sent,
     )
-    assertion, signed = sign_in(
-        node,
-        trust,
-        invite["node_key"],
-        me,
-        via,
-        now=now,
-        person={"pid": cfg["identity"]["subject"]}
-        if cfg["identity"].get("subject")
-        else new_person(),
-    )
-    subject = assertion["subject"]
-    write_session(ks, signed["session"])
-    node.token = signed["session"]["token"]
-    if cfg["identity"].get("subject") not in (None, subject):
-        raise ClientError("this home belongs to another person")
-    remember_person(cfg, assertion, signed)
-    client.device.save_config(cfg)
 
     if lab_link is None:
         receipt = _claim_invite(node, trust, invite["token"], subject)

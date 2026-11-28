@@ -69,11 +69,12 @@ PERSON_KEYS_PAYLOAD_SCHEMA = "anagram.person_keys_payload.v1"
 PERSON_KEY_NAMES = ("index-key", "vault-key")
 PAD = 512
 MAX_RECORD_BYTES = 4 << 20  # ciphertext bytes in one record
+MAX_PERSON_KEYS_BYTES = 16 << 10
 
-_HEX8 = re.compile(r"^[0-9a-f]{16}$")
-_HEX12 = re.compile(r"^[0-9a-f]{24}$")
-_HEX16 = re.compile(r"^[0-9a-f]{32}$")
-_HEX32 = re.compile(r"^[0-9a-f]{64}$")
+_HEX8 = re.compile(r"\A[0-9a-f]{16}\Z")
+_HEX12 = re.compile(r"\A[0-9a-f]{24}\Z")
+_HEX16 = re.compile(r"\A[0-9a-f]{32}\Z")
+_HEX32 = re.compile(r"\A[0-9a-f]{64}\Z")
 _RECORD_FIELDS = {"alg", "ciphertext", "key_id", "nonce", "record_id", "schema", "version"}
 
 
@@ -245,9 +246,11 @@ def validate_person_keys(doc: Any) -> dict:
             raise FormatError(f"person keys: bad {name}")
     parse_time(doc["created_at"])
     try:
-        base64.b64decode(doc["ciphertext"], validate=True)
+        ct = base64.b64decode(doc["ciphertext"], validate=True)
     except (binascii.Error, ValueError, TypeError) as exc:
         raise FormatError("person keys: bad ciphertext encoding") from exc
+    if len(ct) > MAX_PERSON_KEYS_BYTES:
+        raise FormatError("person keys package is too large")
     return doc
 
 

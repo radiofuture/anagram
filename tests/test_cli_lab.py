@@ -1,4 +1,4 @@
-"""CLI `anagram lab ...` (plan R2, step S8). The node is the in-process test
+"""CLI `anagram lab ...`. The node is the in-process test
 node; no network."""
 
 from __future__ import annotations

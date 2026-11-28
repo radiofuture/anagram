@@ -1,4 +1,4 @@
-"""Contract test of the retrieval store port (plan net 01 step 1).
+"""Contract test of the retrieval store port.
 
 One fixed query set runs against each adapter. Each answer must be the exact
 top `k` of a brute-force pass (`storekit`): cosine distance for vectors, the

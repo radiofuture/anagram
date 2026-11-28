@@ -1,4 +1,4 @@
-"""Vault formats (P3b): grant receipt, grant, grant payload, public release.
+"""Vault formats: grant receipt, grant, grant payload, public release.
 See spec/vault.md. The guardian and recovery formats are in `recovery.py`
 (L1), and the key wraps in `anagram.core.wraps`.
 

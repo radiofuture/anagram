@@ -1,9 +1,9 @@
-"""Browser test of the slot view "This computer" in Account (plan R1 step
-S8b; Playwright, headless Chromium).
+"""Browser test of the slot view "This computer" in Account (Playwright,
+headless Chromium).
 
 A joined member, a real `UIServer` on 127.0.0.1 with a fake app runtime and
 a fake systemd login service (no real login item). The switch changes
-`start_at_login`; with keys in files, the sentence of R1 plan section 10
+`start_at_login`; with keys in files, the plain-file keys notice
 shows; no raw path shows; a helper event changes the state with no reload.
 
 Set ANAGRAM_UI_SHOTS=DIR to save screenshots.

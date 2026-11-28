@@ -12,7 +12,7 @@ Layout of <dir>:
     witness.sqlite   state of the local witness
     identity.sqlite  invites, members, sessions, directory index, key backups
                      (hashes of secrets and ciphertext only)
-    vault.sqlite     grants, public releases, guardian sets, recovery requests (P3b)
+    vault.sqlite     grants, public releases, guardian sets, recovery requests
     store.sqlite     personal store records and person-key packages (ciphertext only)
     labs.sqlite      lab rosters, invite authorisations, lab key packages and lab space
                      records (ciphertext only), lab names and members

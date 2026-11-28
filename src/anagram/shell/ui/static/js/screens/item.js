@@ -1,7 +1,7 @@
 // One item of the library: what Anagram read in it, and what it links to.
-// R4 owns this screen after step 9b. The kind is a select: one choice
-// corrects it (`PUT /api/items/{ref}/kind`). Other tracks
-// add actions through the slot `item.actions` (share, put in the lab space).
+// The kind is a select: one choice corrects it (`PUT /api/items/{ref}/kind`).
+// Other modules add actions through the slot `item.actions` (share, put in
+// the lab space).
 import { html, useState } from '../core/html.js';
 import { t } from '../core/copy.js';
 import { announce } from '../core/a11y.js';

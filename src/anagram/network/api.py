@@ -31,12 +31,6 @@ from anagram.network.groups.node.labdirectory import LabDirectory
 from anagram.network.groups.node.labs import LabService, lab_policy_from_env
 from anagram.network.groups.node.routes import lab_router
 from anagram.network.matching.app.enclave_matching import EnclaveMatching, typed_draft
-from anagram.network.matching.enclave.real_engines import (
-    LlmJointJudge,
-    OnnxEmbedder,
-    engines_from_env,
-    real_engines,
-)
 from anagram.network.matching.hosting.clients import HttpFeed, HttpLog
 from anagram.network.matching.hosting.enclave import EnclaveHost, enclave_app
 from anagram.network.matching.hosting.log import HttpCosigner, LogService, log_app
@@ -55,11 +49,7 @@ from anagram.network.matching.node.enclave_node import (
     member_session,
     node_record,
 )
-from anagram.network.matching.node.enclave_relay import (
-    EnclaveRelay,
-    enclave_router,
-)
-from anagram.network.matching.trust.release import NOTICE
+from anagram.network.matching.node.enclave_relay import enclave_router
 from anagram.network.matching.trust.translog import EntryWitness, LogStore, TransparencyLog
 from anagram.network.sharing.app.grants import COMMUNITY, Grants, ThirdPartyWarning
 from anagram.network.sharing.app.invites import ReaderInvites
@@ -83,7 +73,6 @@ __all__ = [
     "HttpLog",
     "LogService",
     "LogStore",
-    "NOTICE",
     "Operator",
     "ReleaseFile",
     "RosterService",
@@ -147,18 +136,13 @@ __all__ = [
     "reads_router",
     "vault_router",
     # Matching
-    "EnclaveRelay",
-    "LlmJointJudge",
     "NodeEnclave",
     "EnclaveMatching",
-    "OnnxEmbedder",
     "control_router",
     "credential_router",
     "enclave_config",
-    "engines_from_env",
     "member_session",
     "node_record",
     "enclave_router",
-    "real_engines",
     "typed_draft",
 ]

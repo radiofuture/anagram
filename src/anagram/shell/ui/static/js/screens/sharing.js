@@ -1,7 +1,7 @@
 // Sharing, in three views (`#/sharing/:tab?`): what other people shared
-// with you, what you shared and who opened it, and your rings. Track R5 owns
-// this screen (step 7c). The history of one person is `history.js`; the
-// share sheet and "Shared with" on a finding are `slots/share.js`.
+// with you, what you shared and who opened it, and your rings. The history
+// of one person is `history.js`; the share sheet and "Shared with" on a
+// finding are `slots/share.js`.
 import { html, useState } from '../core/html.js';
 import { t } from '../core/copy.js';
 import { search } from '../core/api.js';
@@ -197,8 +197,8 @@ function Tabs({ current, counts }) {
     </nav>`;
 }
 
-// Review P1-3: a person joined with a reader invite. The owner says yes
-// before the finding goes. One question for each claim, then it goes away.
+// A person joined with a reader invite. The owner confirms before the
+// finding is shared. One question for each claim, then it goes away.
 function Claims() {
   const claims = useResource('/api/reader-claims', { topics: ['share'] });
   const rows = claims.data.value || [];

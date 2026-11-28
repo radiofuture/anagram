@@ -140,6 +140,9 @@ class ShareHooks:
     def read_gate(self, grant_id: str) -> str | None:
         return self.receipts.gate(grant_id)
 
+    def gated_call(self, grant_id: str, method: str, path: str):
+        return self.receipts.gated_call(grant_id, method, path)
+
     def fetch_blob(self, blob_id: str, grant_id: str | None = None) -> bytes:
         http = self.device.http
         if grant_id is None or self.device.config.get("identity") is None:

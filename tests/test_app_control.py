@@ -1,5 +1,5 @@
 """The control route, one-time open links, the runtime file, and the
-launcher (R1 plan, sections 6.3 and 12). The app runs in this process on a
+launcher. The app runs in this process on a
 loopback port. No real keychain. Each test stops its app."""
 
 from __future__ import annotations

@@ -11,6 +11,15 @@ coverage.xml
 **/__pycache__
 **/*.pyc
 .anagram
+dist/
+build/
+.gitleaks.toml
+.pre-commit-config.yaml
+biome.json
+CHANGELOG.md
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+SECURITY.md
 tests
 spec
 docs

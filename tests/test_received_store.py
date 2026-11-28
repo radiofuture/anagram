@@ -1,4 +1,4 @@
-"""R5 step 5: the encrypted received store. The reader keeps only ciphertext
+"""The encrypted received store. The reader keeps only ciphertext
 on disk; the payload is sealed in the vault; old plaintext folders move in.
 No network."""
 

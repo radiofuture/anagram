@@ -1,4 +1,4 @@
-"""The login service of each system (R1 plan, section 6.4). The unit files go
+"""The login service of each system. The unit files go
 to a temp directory and the system tools are a fake runner: no test installs
 a real launchd agent, systemd unit, or task. Golden files are in
 tests/fixtures/autostart/ (`ANAGRAM_UPDATE_GOLDEN=1` writes them again)."""

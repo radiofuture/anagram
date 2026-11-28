@@ -53,7 +53,6 @@ from anagram.identity.app.keystore import (
     FileKeystore,
     Keystore,
     KeystoreError,
-    MemoryKeystore,
     erase_file,
 )
 from anagram.identity.app.kit import (
@@ -144,7 +143,7 @@ __all__ = [
     "validate_ror",
     "validate_subject",
     "verify_assertion",
-    # Device
+    # App
     "Account",
     "Browser",
     "CONFIG_SCHEMA",
@@ -163,7 +162,6 @@ __all__ = [
     "LOCAL_STORE_KEY",
     "LogCheck",
     "LoopbackBrowser",
-    "MemoryKeystore",
     "PasteBrowser",
     "PersonalStore",
     "RecoveryKit",

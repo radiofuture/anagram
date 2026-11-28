@@ -8,7 +8,7 @@
 This is layer 1 of the defence against planted instructions (primitive
 `planted-instructions.md`). Layer 2 is detection (`planted.py`). Detection
 must recognise an order; it is English only, and a new wording can get
-through (step 18 fix: 2 of 10 held-out orders with llama3.2 and gemma3:4b).
+through (in local-model tests, 2 of 10 held-out orders passed with llama3.2 and gemma3:4b).
 Layer 1 does not need to recognise the order. The model writes no free text
 into a kept fact:
 

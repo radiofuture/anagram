@@ -112,7 +112,7 @@ def test_non_member_cannot_resolve(net, tmp_path):
 
 
 def test_email_member_is_findable_by_email_only(net, tmp_path):
-    """R5 step 4a: "findable" also covers the email addresses of a person. An
+    """ "findable" also covers the email addresses of a person. An
     email member has no ORCID iD, so no ORCID lookup finds them."""
 
     def code():

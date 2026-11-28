@@ -1,4 +1,4 @@
-// "Add to the lab space" on an item (track R2 step S12). Slot `item.actions`.
+// "Add to the lab space" on an item. Slot `item.actions`.
 // The action shows only for a person in a lab, and not for an item that is
 // already in a lab space. A finding goes to the lab through the share sheet
 // ("My lab"), so the finding screen has one path to the lab.

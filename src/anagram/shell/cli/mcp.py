@@ -61,9 +61,8 @@ def http_setup_json(port: int, key: str, name: str = "anagram") -> dict:
 
 def policy(client: Any, index: Any):
     """The trust policy port of the gateway: the signed policy of the person
-    in the index store, checked with the key of this device (net 05 step
-    1). It raises when the saved policy does not verify; the gateway then
-    gives no text."""
+    in the index store, checked with the key of this device. It raises when
+    the saved policy does not verify; the gateway then gives no text."""
     from anagram.local.api import TrustStore
 
     device = client.device

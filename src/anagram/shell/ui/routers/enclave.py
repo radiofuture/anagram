@@ -34,7 +34,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return part.state()
 
     @app.put("/api/enclave/setup")
-    def setup(body: dict = Body(...)) -> dict:  # noqa: B008
+    def setup(body: dict = Body(...)) -> dict:
         body = body_dict(body)
         return part.setup(body_text(body, "log_url"), body_dict(body.get("pins")))
 
@@ -43,7 +43,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return part.draft()
 
     @app.put("/api/enclave/draft")
-    def save_draft(body: dict = Body(...)) -> dict:  # noqa: B008
+    def save_draft(body: dict = Body(...)) -> dict:
         return part.save_draft(body_dict(body))
 
     @app.post("/api/enclave/suggestions/apply")
@@ -63,15 +63,15 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return part.consent()
 
     @app.post("/api/enclave/approve")
-    def approve(body: dict = Body(...)) -> dict:  # noqa: B008
+    def approve(body: dict = Body(...)) -> dict:
         return part.approve(body_text(body_dict(body), "statement_hash"))
 
     @app.post("/api/enclave/on")
-    def set_on(body: dict = Body(...)) -> dict:  # noqa: B008
+    def set_on(body: dict = Body(...)) -> dict:
         return part.set_on(bool(body_dict(body).get("on")))
 
     @app.put("/api/enclave/weekly-cap")
-    def weekly_cap(body: dict = Body(...)) -> dict:  # noqa: B008
+    def weekly_cap(body: dict = Body(...)) -> dict:
         return part.set_weekly_cap(body_dict(body).get("weekly_cap"))
 
     @app.post("/api/enclave/run")
@@ -79,7 +79,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return part.run()
 
     @app.post("/api/enclave/answer")
-    def answer(body: dict = Body(...)) -> dict:  # noqa: B008
+    def answer(body: dict = Body(...)) -> dict:
         body = body_dict(body)
         card = body.get("card")
         return part.answer(

@@ -1,6 +1,5 @@
-"""The agent gateway (layers plan, section 2.5; open-agents plan stages 1
-to 3): the only path from an outside agent (the person's own Claude, a local
-model, a lab agent) to the person's data. The agent never holds a key.
+"""The agent gateway: the only path from an outside agent (the person's own
+Claude, a local model, a lab agent) to the person's data. The agent never holds a key.
 
 - `access.py`: agent grant v2 (primitive `agent-grant`), one for each agent,
   in the encrypted index store (meta key `agent_grants`; it replaces the v1

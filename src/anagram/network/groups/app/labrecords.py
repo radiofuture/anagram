@@ -78,7 +78,7 @@ class LabPolicy:
 
     def allows_cloud_assistant(self) -> bool:
         """May an agent of class `cloud` read the lab space? It needs
-        `allows_assistant` too (open-agents plan 2.2)."""
+        `allows_assistant` too."""
         return self.allows_assistant() and bool(self.disclosure.get("allow_cloud_assistant"))
 
     def allows_source(self, kind: str) -> bool:
@@ -506,7 +506,8 @@ class LabSpace:
 
     def take_settings(self, lab_id: str, state: labfmt.LabState, value) -> labfmt.LabState:
         """Keep a settings record if it verifies: signature, roster head in
-        the chain, the writer was PI or admin at that roster seq, the device
+        the chain, monotonic `roster.seq >= max(prev_roster_seq, epoch_seq)`,
+        the writer was PI or admin at `max(roster.seq, epoch_seq)`, the device
         was a key of the writer, and a higher `rev`. Else drop it."""
         try:
             labsettings.verify_settings(value)
@@ -515,7 +516,14 @@ class LabSpace:
         if value["lab_id"] != lab_id:
             return state
         state = self._roster_check(lab_id, state, value["roster"])
-        role = self.roster.state_at(lab_id, value["roster"]["seq"]).members.get(value["updated_by"])
+        prev = self.roster.labcache.settings(lab_id)
+        prev_roster_seq = prev["roster"]["seq"] if prev else -1
+        epoch_seq = self.roster.labcache.epoch_seq(lab_id)
+        min_seq = max(prev_roster_seq, epoch_seq)
+        if value["roster"]["seq"] < min_seq:
+            return state
+        check_seq = max(value["roster"]["seq"], epoch_seq)
+        role = self.roster.state_at(lab_id, check_seq).members.get(value["updated_by"])
         if role not in (labfmt.PI, labfmt.ADMIN):
             return state
         at = parse_time(value["updated_at"])
@@ -560,18 +568,36 @@ class LabSpace:
         sections = {n: old[n] for n in labsettings.SECTIONS if n in old}
         sections.update(changes)
         rev = self.settings_rev(lab_id) + 1
-        doc = labsettings.make_settings(
-            lab_id=lab_id,
-            rev=rev,
-            sections=sections,
-            updated_by=self.device.subject,
-            key=self.device.device_key(),
-            roster=labfmt.roster_ref(state),
-            updated_at=self.device.now(),
-        )
         ref = labsettings.SETTINGS_REF
-        rec = SpaceRecord(labsettings.KIND_SETTINGS, ref, doc, rev, topic="settings")
-        self.put_record(lab_id, sk, rec)
+        rid = sk.record_id(labsettings.KIND_SETTINGS, ref)
+        for _ in range(2):
+            doc = labsettings.make_settings(
+                lab_id=lab_id,
+                rev=rev,
+                sections=sections,
+                updated_by=self.device.subject,
+                key=self.device.device_key(),
+                roster=labfmt.roster_ref(state),
+                updated_at=self.device.now(),
+            )
+            rec = SpaceRecord(labsettings.KIND_SETTINGS, ref, doc, rev, topic="settings")
+            try:
+                self.put_record(lab_id, sk, rec)
+                break
+            except LabError as exc:
+                if not isinstance(exc.__cause__, NodeHTTPError) or exc.__cause__.status != 409:
+                    raise
+                try:
+                    stored = self.device.http.call(
+                        "GET", f"/labs/{lab_id}/space/records/{rid}", auth=True
+                    ).get("record")
+                except NodeHTTPError:
+                    raise exc from None
+                if not isinstance(stored, dict) or not isinstance(stored.get("version"), int):
+                    raise
+                if stored["version"] < rev:
+                    raise
+                rev = stored["version"] + 1
         self.roster.labcache.set_settings(lab_id, doc)
         return self.lab_settings(lab_id)
 

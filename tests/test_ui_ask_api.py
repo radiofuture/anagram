@@ -1,4 +1,4 @@
-"""The search and ask routes of the local UI (R4 step 15, the part that Home
+"""The search and ask routes of the local UI (the part that Home
 needs): the boundary, the scope, and the `ask.*` events in order on the one
 stream with the thread id as their key. Fake models only; no network."""
 

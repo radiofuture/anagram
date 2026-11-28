@@ -1,4 +1,4 @@
-"""CLI (P3b): rings, grant, inbox, open, publish, guardians.
+"""CLI vault commands: rings, grant, inbox, open, publish, guardians.
 
 The HTTP transport is a FastAPI TestClient, so no network is used.
 """

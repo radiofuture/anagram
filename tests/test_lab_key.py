@@ -1,4 +1,4 @@
-"""Lab key epochs (plan R2, step S4): packages, invite package, rotation on
+"""Lab key epochs: packages, invite package, rotation on
 remove, leave, and device change, second device, readable spaces."""
 
 from __future__ import annotations
@@ -86,7 +86,7 @@ def test_removed_member_cannot_open_the_next_epoch(net, trio):
 
 
 def test_removed_joiner_cannot_come_back_with_the_same_link(net, trio, tmp_path):
-    """P0-3: a member who joined with a link for many people is removed. The
+    """A member who joined with a link for many people is removed. The
     link is revoked in the remove entry, the new epoch has no package for it,
     the node gives the removed person no package, and the join is refused."""
     pi, _, _ = trio

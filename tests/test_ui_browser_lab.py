@@ -1,4 +1,4 @@
-"""The lab screens in a browser (track R2, step S12).
+"""The lab screens in a browser.
 
 A real node (uvicorn, fake ORCID) and two real apps (`AppRuntime`) run on
 loopback ports. A PI starts a lab and makes an invite link with one click.

@@ -120,8 +120,9 @@ def _joined(proof: JsonObject, facts: cred.MemberFacts, gate: Gate) -> None:
     at, salt = cred.check_join(proof, proof["index"])
     subj = subject_hash(bytes.fromhex(facts.subject))
     join = check_join(gate.issuance, at, facts.node, facts.subject, salt, gate.issuance_limit)
-    gone = None if subj in gate.net.moved else gate.net.gone_subjects.get(subj)
-    after = gone is None or gone[0] != facts.node or gate.issuance.appended_after(join) > gone[1]
+    key = (subj, facts.node)
+    gone = None if key in gate.net.moved else gate.net.gone_by_node.get(key)
+    after = gone is None or gate.issuance.appended_after(join) > gone
     need(after, "bad_credential", "the join entry is older than the member's removal")
 
 

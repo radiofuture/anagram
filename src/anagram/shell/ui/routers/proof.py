@@ -125,7 +125,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
             return {"available": available, "url": url}
 
     @app.post("/api/findings/{root}/public-proof")
-    def publish_proof(root: str, body: dict = Body(default={})) -> dict:  # noqa: B008
+    def publish_proof(root: str, body: dict = Body(default={})) -> dict:
         from anagram.proofs.certificate import certificate_bundle
 
         opts = body if isinstance(body, dict) else {}
@@ -164,7 +164,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return {"url": None}
 
     @app.post("/api/findings/{root}/preprint")
-    def preprint(root: str, body: dict = Body(default={})) -> Response:  # noqa: B008
+    def preprint(root: str, body: dict = Body(default={})) -> Response:
         import tempfile
         from pathlib import Path
 

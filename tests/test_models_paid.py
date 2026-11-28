@@ -28,7 +28,7 @@ from anagram.models.providers.openai_compat import (
 )
 
 TODAY = date(2026, 11, 16)
-BUDGET = {"approved_by": "Ashish", "budget_usd": "0.01", "expires": "2026-12-31"}
+BUDGET = {"approved_by": "researcher", "budget_usd": "0.01", "expires": "2026-12-31"}
 HAIKU_PRICES = (Decimal("0.10"), Decimal("0.50"))
 
 
@@ -187,7 +187,7 @@ def test_anthropic_needs_a_key_and_makes_no_client_without_one():
 
 
 def test_anthropic_sdk_does_not_retry_outside_the_reservation(monkeypatch):
-    """Security review P2: `Gate` reserves for the attempts of one `generate`
+    """`Gate` reserves for the attempts of one `generate`
     call (`max_attempts`). An SDK retry is not in that count, so it is off."""
     import sys
 

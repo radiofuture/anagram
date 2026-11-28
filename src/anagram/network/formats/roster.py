@@ -14,6 +14,7 @@ from anagram.network.formats.strict import (
     DOMAIN,
     HEX16,
     HEX32,
+    HEX64,
     MAX_SAFE,
     NODE_ID,
     ROR,
@@ -143,17 +144,36 @@ class Network:
     nodes: dict[str, JsonObject] = field(default_factory=dict)
     removed: set[str] = field(default_factory=set)
     old_keys: dict[str, tuple[str, int]] = field(default_factory=dict)  # node -> (key, last seq)
+    old_roster_keys: list[tuple[str, int]] = field(default_factory=list)  # [(key, last seq)]
     bans: set[str] = field(default_factory=set)
     policy: JsonObject | None = None  # the newest policy received
     policies: list[tuple[int, JsonObject]] = field(default_factory=list)  # (effective, policy)
     revoked_credentials: set[str] = field(default_factory=set)
     gone_subjects: dict[str, tuple[str, int]] = field(default_factory=dict)  # hash -> (node, time)
-    moved: set[str] = field(default_factory=set)  # subject hashes whose last exit was `moved`
+    gone_by_node: dict[tuple[str, str], int] = field(default_factory=dict)  # (hash, node) -> time
+    moved: set[tuple[str, str]] = field(
+        default_factory=set
+    )  # (subject hash, node) with last exit `moved`
     chains: dict[str, Chain] = field(default_factory=dict)
     seen: dict[tuple[str, int], bytes] = field(default_factory=dict)
 
     def chain(self, name: str) -> Chain:
         return self.chains.setdefault(name, Chain(name))
+
+    def _signer_for(self, chain: str, seq: int) -> str:
+        if chain == ROSTER:
+            for old_key, last_seq in self.old_roster_keys:
+                if seq <= last_seq:
+                    return old_key
+            return self.roster_key
+        node = self.nodes.get(chain)
+        if node is None:
+            raise Refused("stale_roster", "node chain before admission")
+        old = self.old_keys.get(chain)
+        if old is not None and seq <= old[1]:
+            return old[0]
+        key: str = node["key"]  # checked by `check_node_record`
+        return key
 
     def receive(self, event: JsonObject) -> None:
         """Take one event in any order. Apply it and any events that it unblocks."""
@@ -163,8 +183,19 @@ class Network:
             "event",
         )
         need(event["schema"] == "anagram.control_event.v1", "unsupported_schema", "event")
+        chain = event["chain"]
+        need(
+            isinstance(chain, str) and (chain == ROSTER or bool(NODE_ID.match(chain))),
+            "bad_message",
+            "chain",
+        )
         seq = intval(event["seq"], 0, MAX_SAFE, "seq")
-        ch = self.chain(event["chain"])
+        hexval(event["signer"], HEX32, "signer")
+        hexval(event["signature"], HEX64, "signature")
+        signer = self._signer_for(chain, seq)
+        need(event["signer"] == signer, "bad_signature", "signer")
+        need(sig_ok(event, TAG_SIGN_EVENT, signer), "bad_signature", "event")
+        ch = self.chain(chain)
         key = (ch.name, seq)
         digest = event_hash(event)
         if key in self.seen and self.seen[key] != digest:
@@ -184,7 +215,7 @@ class Network:
         need(bytes.fromhex(hexval(ev["prev"], HEX32, "prev")) == ch.head, "bad_message", "prev")
         t = parse_time(ev["time"], "time")
         need(t >= ch.last_time, "bad_message", "time goes back")
-        signer = self._signer(ch, ev)
+        signer = self._signer_for(ch.name, ev["seq"])
         need(ev["signer"] == signer, "bad_signature", "signer")
         need(sig_ok(ev, TAG_SIGN_EVENT, signer), "bad_signature", "event")
         if ch.name == ROSTER:
@@ -194,18 +225,6 @@ class Network:
         ch.count += 1
         ch.head = event_hash(ev)
         ch.last_time = t
-
-    def _signer(self, ch: Chain, ev: JsonObject) -> str:
-        if ch.name == ROSTER:
-            return self.roster_key
-        node = self.nodes.get(ch.name)
-        if node is None:
-            raise Refused("stale_roster", "node chain before admission")
-        old = self.old_keys.get(ch.name)
-        if old is not None and ev["seq"] <= old[1]:
-            return old[0]
-        key: str = node["key"]  # checked by `check_node_record`
-        return key
 
     def _roster_event(self, ev: JsonObject, t: int) -> None:
         kind, body = enum(ev["kind"], ROSTER_KINDS, "kind"), ev["body"]
@@ -228,7 +247,9 @@ class Network:
             self.removed.add(body["node"])
         elif kind == "roster_key_rotated":
             exact(body, {"new_key"}, "body")
-            self.roster_key = hexval(body["new_key"], HEX32, "new_key")
+            new_key = hexval(body["new_key"], HEX32, "new_key")
+            self.old_roster_keys.append((self.roster_key, ev["seq"]))
+            self.roster_key = new_key
         elif kind in ("ban", "unban"):
             self._ban(kind, body)
         else:
@@ -260,7 +281,7 @@ class Network:
             inviter = self.nodes.get(body["endorser"])
             if inviter is None or body["endorser"] in self.removed:
                 raise Refused("bad_message", "endorser")
-            sig = bytes.fromhex(str(body["endorsement"]))
+            sig = bytes.fromhex(hexval(body["endorsement"], HEX64, "endorsement"))
             ok = verify(
                 bytes.fromhex(inviter["key"]), TAG_SIGN_ENDORSEMENT, canonical_json(rec), sig
             )
@@ -274,9 +295,8 @@ class Network:
             raise Refused("bad_message", "unknown node")
         new_key = hexval(body["new_key"], HEX32, "new_key")
         proof = canonical_json({"new_key": new_key, "node": body["node"]})
-        ok = verify(
-            bytes.fromhex(node["key"]), TAG_SIGN_KEY_PROOF, proof, bytes.fromhex(body["proof"])
-        )
+        proof_sig = bytes.fromhex(hexval(body["proof"], HEX64, "proof"))
+        ok = verify(bytes.fromhex(node["key"]), TAG_SIGN_KEY_PROOF, proof, proof_sig)
         need(ok, "bad_signature", "key proof")
         seq = intval(body["chain_seq"], -1, MAX_SAFE, "chain_seq")
         self.old_keys[body["node"]] = (node["key"], seq)
@@ -302,10 +322,11 @@ class Network:
         enum(body["reason"], REASONS[kind], "reason")
         subj = hexval(body["subject"], HEX32, "subject")
         self.gone_subjects[subj] = (node, t)
+        self.gone_by_node[(subj, node)] = t
         if kind == "member_left" and body["reason"] == "moved":
-            self.moved.add(subj)
+            self.moved.add((subj, node))
         else:
-            self.moved.discard(subj)
+            self.moved.discard((subj, node))
 
     def credential_usable(self, facts: cred.MemberFacts, raw: bytes) -> None:
         """Network checks of a member credential (spec/network.md section 6.4)."""
@@ -319,8 +340,8 @@ class Network:
         )
         subj = subject_hash(bytes.fromhex(facts.subject))
         need(subj not in self.bans, "revoked", "banned")
-        gone = self.gone_subjects.get(subj)
-        need(gone is None or gone[0] != facts.node or facts.issued > gone[1], "revoked", "member")
+        gone = self.gone_by_node.get((subj, facts.node))
+        need(gone is None or facts.issued > gone, "revoked", "member")
 
     def removes(self, facts: cred.MemberFacts, raw: bytes) -> bool:
         """True when a control event removed the member of this credential
@@ -332,8 +353,12 @@ class Network:
         try:
             self.credential_usable(facts, raw)
         except Refused as exc:
-            moved = subject_hash(bytes.fromhex(facts.subject)) in self.moved
-            return exc.code == "revoked" and not moved
+            if exc.code != "revoked":
+                return False
+            if exc.detail == "member":
+                subj = subject_hash(bytes.fromhex(facts.subject))
+                return (subj, facts.node) not in self.moved
+            return True
         return False
 
 
@@ -341,7 +366,7 @@ def roster_checkpoint(
     network: str, seq: int, head: bytes, time: int, key: SigningKey
 ) -> JsonObject:
     """A roster checkpoint. It is also a `roster_checkpoint` entry of the
-    enclave transparency log (W4 ruling 2), so it has a `kind`."""
+    enclave transparency log, so it has a `kind`."""
     doc = {
         "head": head.hex(),
         "kind": "roster_checkpoint",

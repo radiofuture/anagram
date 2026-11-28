@@ -447,6 +447,29 @@ def test_a_copy_is_proposed_only_if_its_queue_delivers_it_in_time() -> None:
     assert not led.deliverable("f" * 64, 5)
 
 
+def test_m16_negative_stage1_scores_keep_reasons_and_invalid_judge_type_is_disagreement() -> None:
+    from anagram.network.matching.enclave.funnel import JointJudge, _reasons
+
+    hits = [(-0.4, "a", "w01"), (-0.4, "b", "o01"), (-0.9, "a", "w02")]
+    assert _reasons(hits, "a") == ["w01"]
+    assert _reasons(hits, "b") == ["o01"]
+
+    class BadTypeJudge(JointJudge):
+        def decide(self, first, second, kinds):
+            return {"fit_a": "fit", "fit_b": "fit", "type": "method_help"}  # not in kinds
+
+    a = party("a" * 64, "a", pack(CRYO, MD))
+    b = party("b" * 64, "b", pack(MD, CRYO))
+    c = party("c" * 64, "c", pack("Soil microbes", "Fungal genomics"))
+    led = ledger_with(a, b, c)
+    eng = Engines(engines().vectors, BadTypeJudge())
+    res = PackMatch(eng, Rules(1, 1, 5, 7)).sweep(
+        led, {a.subject: a, b.subject: b, c.subject: c}, NOW
+    )
+    assert res.proposals == []
+    assert res.disagreements >= 1
+
+
 def test_cap_10_with_answer_day_7_never_gives_a_one_sided_proposal() -> None:
     """Ten good fits in one sweep, a weekly cap of 10 and answer_day 7: the
     person's queue can deliver 7 copies before the first checkpoint, so 7

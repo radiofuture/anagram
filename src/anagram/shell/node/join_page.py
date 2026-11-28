@@ -1,7 +1,7 @@
 """The join page of the node: `GET /join`.
 
 An invite link is `<node_url>/join#<fragment>`. The fragment holds a node
-invite or a lab invite (integration 1.5). A browser never sends the fragment
+invite or a lab invite. A browser never sends the fragment
 to the server, so this page is the same for each invite: it is static, and
 its one script (`ui/static/node/join.js`, served at `/brand/node/join.js`)
 reads `location.hash` and sets the "Open Anagram" link to

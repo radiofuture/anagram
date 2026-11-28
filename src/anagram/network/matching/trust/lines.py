@@ -21,7 +21,7 @@ from anagram.network.matching.trust.roots import Roots
 TAG_SHARD = "anagram/v1/enclave/shard"
 MAX_LEASE = 86_400  # 5.4: a lease of at most 24 hours
 TOTAL_LOSS_GAP = 30 * 86400
-V1_SHARDS = 1  # W4 re-check R4: n = 1 until plan 14c defines cross-shard matching
+V1_SHARDS = 1  # v1 uses a single shard until cross-shard matching is specified
 
 
 def lease(e: JsonObject) -> int:
@@ -91,7 +91,7 @@ def line_authorised(view: LogView, line_id: str, roots: Roots, subject: bytes | 
     ):
         raise Refused("line_not_authorised", "replaced by a total-loss line")
     if e["shard"]["n"] != V1_SHARDS:
-        raise Refused("line_not_authorised", "v1 has one shard (plan 14c)")
+        raise Refused("line_not_authorised", "v1 has one shard")
     if subject is not None and shard(subject, e["shard"]["n"]) != e["shard"]["k"]:
         raise Refused("line_not_authorised", "another shard")
 
@@ -190,11 +190,10 @@ class _Walk:
 
 
 def _walk(view: LogView, line_id: str, roots: Roots) -> _Walk:
-    keys = {
-        e["instance_id"]: e["signer"]
-        for _, e in view.of_kind("enclave_instance_key")
-        if e["line_id"] == line_id
-    }
+    keys: dict[str, str] = {}
+    for _, e in view.of_kind("enclave_instance_key"):
+        if e["line_id"] == line_id:
+            keys.setdefault(e["instance_id"], e["signer"])
     walk = _Walk(keys)
     steps: list[tuple[int, int, JsonObject | Failover]] = [
         (i, 0, e) for i, e in view.of_kind("enclave_state_epoch") if e["line_id"] == line_id

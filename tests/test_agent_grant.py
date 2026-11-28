@@ -1,9 +1,8 @@
 # ruff: noqa: F811 - the fixture `lib` from test_mcp
-"""Agent grant v2 (open-agents plan stage 1, net 06 steps 1 and 4, primitive
-`agent-grant`): migration of the v1 record `mcp`, tool scopes, end date,
-revoke, recipient class, the lab rule for cloud agents, the trust policy at
-the gateway (net 05 interaction point I2), no negotiation tool in v1
-(decision C22), and no secret in any output (secret fuzz)."""
+"""Agent grant v2 (primitive `agent-grant`): migration of the v1 record `mcp`,
+tool scopes, end date, revoke, recipient class, the lab rule for cloud agents,
+the trust policy at the gateway, no negotiation tool in v1, and no secret in
+any output (secret fuzz)."""
 
 from __future__ import annotations
 
@@ -179,7 +178,7 @@ def test_a_lab_needs_to_permit_cloud_agents(lib):
     assert "allow_cloud_assistant" not in base["disclosure"]  # the vectors stay
 
 
-# ------------------------------------------------- trust policy (I2, net 05)
+# -------------------------------------------------------------- trust policy
 
 
 def _signed(idx, **marks) -> TrustPolicy:
@@ -202,7 +201,7 @@ def _every_read(peer: Peer, refs: list[str]) -> str:
 
 def test_grant_cannot_read_past_tier(lib, tmp_path):
     """A `private` item of the trust policy never goes to an agent, through
-    any read tool (net 05 step 2b, row I2). 200 random policies."""
+    any read tool. 200 random policies."""
     idx, client, session, (a, b, c) = lib
     client.lab_context.allow_assistant = client.lab_context.allow_cloud = True
     extra = tmp_path / "mine" / "more.md"
@@ -267,7 +266,7 @@ NEGOTIATE_NAMES = (
 
 
 def test_an_outside_agent_cannot_negotiate_in_v1(lib):
-    """Net 06 step 1: 1,000 sim attempts of an outside agent with every
+    """1,000 sim attempts of an outside agent with every
     grant tool; each negotiation call is refused."""
     idx, _, session, _ = lib
     for scope in access.NEGOTIATION:
@@ -314,7 +313,7 @@ def _junk(rng: random.Random, depth: int = 0):
 
 
 def test_no_secret_byte_leaves_through_any_tool(lib):
-    """Net 06 step 1: each tool, 1,000 random argument sets; no output holds
+    """Each tool, 1,000 random argument sets; no output holds
     a secret of the node (the index key in hex and base64, the loopback key
     of the grant, its hash, a planted keystore value)."""
     idx, _, session, _ = lib

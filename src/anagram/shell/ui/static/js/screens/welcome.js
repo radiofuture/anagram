@@ -130,7 +130,7 @@ function inviteWords(data) {
   };
 }
 
-// A reader invite to an email address: the node sent a code there (R8-8).
+// A reader invite to an email address: the node sent a code there.
 function Code({ status }) {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
@@ -312,8 +312,8 @@ function Kit() {
 }
 
 function Details() {
-  // A person who came for a shared finding (a reader invite, R5 plan 6.5
-  // rule 8) has no lab, and the setup ends on "Shared with me".
+  // A person who came for a shared finding (a reader invite) has no lab, and
+  // the setup ends on "Shared with me".
   const shared = useResource('/api/shared', { topics: ['shared'] });
   const reader = (optional(shared) || []).length > 0;
   return html`

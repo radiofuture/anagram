@@ -1,4 +1,4 @@
-// Slot view `lab.models` of track R4 (step 11b): the model of a lab, in the
+// Slot view `lab.models`: the model of a lab, in the
 // lab settings. A PI or an admin sets the default model of the members and
 // whether an outside model may read the text of the lab space (the settings
 // sections `models` and `disclosure`). A member reads them. No key goes into

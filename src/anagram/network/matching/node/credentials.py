@@ -199,7 +199,7 @@ def credential_router(issuer: CredentialIssuer, member_of: Callable[..., Member]
     router = APIRouter(prefix="/net")
 
     @router.post("/credential")
-    async def issue(request: Request, member: Any = Depends(member_of)) -> JsonObject:  # noqa: B008
+    async def issue(request: Request, member: Any = Depends(member_of)) -> JsonObject:
         body = await request.body()
         try:
             # In a worker thread: the issue writes to the log over HTTP.
@@ -208,7 +208,7 @@ def credential_router(issuer: CredentialIssuer, member_of: Callable[..., Member]
             raise HTTPException(exc.status, exc.detail) from exc
 
     @router.get("/credential/{digest}/proof")
-    def proof(digest: str, member: Any = Depends(member_of)) -> JsonObject:  # noqa: B008
+    def proof(digest: str, member: Any = Depends(member_of)) -> JsonObject:
         if not HEX32.match(digest):
             raise HTTPException(400)
         found = issuer.proof(digest, member)

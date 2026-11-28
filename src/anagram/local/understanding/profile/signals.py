@@ -4,10 +4,10 @@
 
 The reader sends numbered own sentences in chunks of up to `BATCH_SIZE`
 sentences per model call, classifying each sentence's kind (`ask`, `offer`,
-`stuck`, `method`, `solved`, `other`), its class (plan 12 line classes), and
-an optional concise <=140-character self-contained `summary` grounded in that
-sentence (falling back to the verbatim sentence if malformed or ungrounded).
-One more question gives the research topics of the item.
+`stuck`, `method`, `solved`, `other`), its line class, and an optional
+concise <=140-character self-contained `summary` grounded in that sentence
+(falling back to the verbatim sentence if malformed or ungrounded). One more
+question gives the research topics of the item.
 
 Rules (layer 1 and 2 of primitive `planted-instructions`):
 

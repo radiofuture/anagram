@@ -1,4 +1,4 @@
-"""Tables of the understanding track (integration 1.15, migration I-2).
+"""Tables of the understanding pipeline.
 
 `CREATE TABLE IF NOT EXISTS` only: `SCHEMA_VERSION` stays 2. `ensure(store)`
 applies the tables one time for each open store. Each understanding module calls

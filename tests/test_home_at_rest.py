@@ -1,4 +1,4 @@
-"""What a copy of the data directory shows (R1 plan, section 12).
+"""What a copy of the data directory shows at rest.
 
 The keystore is the sealed keystore with a `MemorySlot` in the place of the
 OS keychain: the master key is not on the disk, as with a real keychain. The

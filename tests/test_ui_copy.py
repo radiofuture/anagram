@@ -1,4 +1,4 @@
-"""Copy lint of the local UI (plan R7 step 7b).
+"""Copy lint of the local UI.
 
 All visible text is in `ui/static/copy/*.json`, and screens and components
 get it with `t('file.key')`. These checks keep the copy plain and the code

@@ -1,4 +1,4 @@
-"""Ports of identity (layers plan, section 4): who may become a node member.
+"""Ports of identity: who may become a node member.
 L4 (`anagram.admission`) gives the `RegistrationGate`; the identity service
 makes a member only from an `Admission` of the gate, and does not import L4."""
 

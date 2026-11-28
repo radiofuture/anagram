@@ -28,7 +28,7 @@ from anagram.local.understanding.kinds import (
     TAXONOMY,
 )
 
-# 2: a note with claim words is a note (step 18 fix).
+# 2: a note with claim words stays a note.
 # 3: extractive outputs: a title by number, claims and summary copied word for word.
 # 4: a second check (`VERIFY_*`) for each item that triage calls a finding.
 # 5: the polarity of a finding or a result, a closed choice.
@@ -117,7 +117,7 @@ TRIAGE_BATCH_SCHEMA = {
     },
 }
 
-# The finding check (step 18 precision): one focused call for each item that
+# The finding check: one focused call for each item that
 # triage calls a finding. The answer has no text: the number of an item
 # sentence, two closed answers about that sentence ("whose", "in_paper"), and
 # a role from a closed set. All four must agree to keep the kind `finding`;

@@ -1,4 +1,4 @@
-"""Lab space records (plan R2, step S5): publish, read, revise, tombstone,
+"""Lab space records: publish, read, revise, tombstone,
 node holds no plaintext, non-member author, fork alert, quota."""
 
 from __future__ import annotations

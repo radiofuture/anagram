@@ -48,7 +48,7 @@ def lab_router(labs, subject_of: Callable[[str | None], str]) -> APIRouter:
 
     @router.post("/labs")
     def create_lab(
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         subject = subject_of(authorization)
@@ -77,7 +77,7 @@ def lab_router(labs, subject_of: Callable[[str | None], str]) -> APIRouter:
     @router.post("/labs/{lab_id}/roster")
     def submit(
         lab_id: str,
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         return labs.submit_entry(subject_of(authorization), lab_id, field(body, "entry"))
@@ -86,7 +86,7 @@ def lab_router(labs, subject_of: Callable[[str | None], str]) -> APIRouter:
     def put_keys(
         lab_id: str,
         epoch: int,
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         return labs.put_keys(subject_of(authorization), lab_id, epoch, field(body, "packages"))
@@ -95,7 +95,7 @@ def lab_router(labs, subject_of: Callable[[str | None], str]) -> APIRouter:
     def put_record(
         lab_id: str,
         record_id: str,
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         return labs.put_record(

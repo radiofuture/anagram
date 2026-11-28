@@ -1,4 +1,4 @@
-// The "Labs" section of the organizer page (`/admin`, plan R2 5.4). It reads
+// The "Labs" section of the organizer page (`/admin`). It reads
 // `GET /admin/api/labs` and replaces the plain list in `#ag-admin-labs`.
 // For each lab: counts and sizes (never content), the space limit, and
 // read-only on or off. A change sends the CSRF value of the session.

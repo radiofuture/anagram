@@ -1,6 +1,6 @@
-"""The act queue (open-agents stage 2, net 06 step 4, primitive
-`agent-grant` rule 5): an act tool only queues a proposal; the person
-approves or declines it in the local UI, never in the agent's chat. A
+"""The act queue (primitive `agent-grant` rule 5): an act tool only queues a
+proposal; the person approves or declines it in the local UI, never in the
+agent's chat. A
 planted order that the agent obeys does not create an approved act.
 
 The UI is the real local UI app (test client); the gateway runs on the same
@@ -175,7 +175,7 @@ def test_bad_lines_and_too_many_proposals(tmp_path):
         {"offers": [""]},
         {"offers": "one"},
         {"offers": ["x" * 141]},
-        {"wants": ["y"] * 6},
+        {"wants": ["y"] * 11},
         {"offers": [1]},
     ):
         text, error = agent.call("propose_lines", **args)

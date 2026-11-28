@@ -1,4 +1,4 @@
-"""Lab routes of the local UI (plan R2 5.5, step S9a).
+"""Lab routes of the local UI.
 
 Two people use the UI on one in-process node: a PI (Mei-Lin Chen) and a
 person who joins with a lab invite link (Ada Okafor). Each route is called

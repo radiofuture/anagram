@@ -69,7 +69,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return sharing.reader_claims()
 
     @app.post("/api/reader-claims/{invite_id}")
-    def reader_claim_answer(invite_id: str, body: dict = Body(...)) -> dict:  # noqa: B008
+    def reader_claim_answer(invite_id: str, body: dict = Body(...)) -> dict:
         give = body_dict(body).get("give")
         if not isinstance(give, bool):
             raise UIError(400, "Give give as true or false.")
@@ -80,7 +80,7 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return sharing.targets(q)
 
     @app.post("/api/findings/{root}/shares")
-    def share(root: str, body: dict = Body(...)) -> dict:  # noqa: B008
+    def share(root: str, body: dict = Body(...)) -> dict:
         return sharing.share(root, body_dict(body))
 
     @app.get("/api/findings/{root}/shares")
@@ -88,11 +88,11 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return sharing.audience(root)
 
     @app.post("/api/findings/{root}/shares/stop")
-    def stop(root: str, body: dict = Body(...)) -> dict:  # noqa: B008
+    def stop(root: str, body: dict = Body(...)) -> dict:
         return sharing.stop(root, body_dict(body))
 
     @app.post("/api/findings/{root}/rekey")
-    def rekey(root: str, body: dict = Body(default={})) -> dict:  # noqa: B008
+    def rekey(root: str, body: dict = Body(default={})) -> dict:
         return sharing.rekey(root, body_dict(body))
 
     @app.get("/api/findings/{root}/preview")
@@ -128,17 +128,17 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return _download(*sharing.proof(grant_id))
 
     @app.post("/api/shared/{grant_id}/save")
-    def save_shared(grant_id: str, body: dict = Body(...)) -> dict:  # noqa: B008
+    def save_shared(grant_id: str, body: dict = Body(...)) -> dict:
         return sharing.save(grant_id, body_dict(body))
 
     # ------------------------------------------------------ rings and inbox
 
     @app.post("/api/findings/{root}/share")
-    def share_ring(root: str, body: dict = Body(...)) -> dict:  # noqa: B008
+    def share_ring(root: str, body: dict = Body(...)) -> dict:
         return sharing.share_ring(root, body_text(body, "ring"), bool(body.get("ack_third_party")))
 
     @app.post("/api/findings/{root}/revoke")
-    def revoke_ring(root: str, body: dict = Body(...)) -> dict:  # noqa: B008
+    def revoke_ring(root: str, body: dict = Body(...)) -> dict:
         return sharing.revoke_ring(root, body_text(body, "ring"), bool(body.get("ack_third_party")))
 
     @app.get("/api/rings")
@@ -146,15 +146,15 @@ def register(app: FastAPI, ctx: UIContext) -> None:
         return sharing.rings()
 
     @app.post("/api/rings")
-    def ring_create(body: dict = Body(...)) -> list[dict]:  # noqa: B008
+    def ring_create(body: dict = Body(...)) -> list[dict]:
         return sharing.ring_create(body_text(body, "name"))
 
     @app.post("/api/rings/{ring}/members")
-    def ring_add(ring: str, body: dict = Body(...)) -> list[dict]:  # noqa: B008
+    def ring_add(ring: str, body: dict = Body(...)) -> list[dict]:
         return sharing.ring_add(ring, body_text(body, "member"))
 
     @app.post("/api/rings/{ring}/members/remove")
-    def ring_remove(ring: str, body: dict = Body(...)) -> list[dict]:  # noqa: B008
+    def ring_remove(ring: str, body: dict = Body(...)) -> list[dict]:
         return sharing.ring_remove(ring, body_text(body, "member"))
 
     @app.get("/api/inbox")

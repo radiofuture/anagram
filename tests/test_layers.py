@@ -9,7 +9,7 @@ It is a ratchet and it is empty: the test fails when a new crossing appears.
 Do not add a pair to `KNOWN`; use a port (a `Protocol` in the lower layer)
 instead.
 
-`LAYER` is the target layout of section 6.1 of the plan: one package for
+`LAYER` maps each package to its layer or cross-cutting part: one package for
 each layer and each cross-cutting part. Layer codes: L1 identity, L2 app
 (local data), L3 network and discovery, L4 admission; XC core, XM models,
 XP proofs, XG agent gateway, XS shell, XT test tools.
@@ -54,7 +54,7 @@ ALLOWED = {
     "XT": {"XM", "XC", "XP", "L1", "L2", "L3", "L4", "XS", "XG", "XT"},
 }
 
-# Crossings of today (layers plan section 3.4). The list only gets shorter.
+# Known layer crossings (kept empty as a ratchet).
 KNOWN: set[tuple[str, str]] = set()
 
 
@@ -136,7 +136,7 @@ def test_a_new_crossing_fails(tmp_path, monkeypatch):
     assert set(crossings()) == {("anagram.identity", "anagram.shell.ui.server")}
 
 
-# The public face of a layer (layers plan, step M10): code outside a layer
+# The public face of a layer: code outside a layer
 # imports only the layer's `api` module. Code inside the layer imports its
 # own modules. The cross-cutting parts (core, proofs, models) are libraries
 # and keep their modules public. The test tools (layer XT: the vector makers
@@ -197,6 +197,83 @@ def test_an_import_past_the_api_fails(tmp_path, monkeypatch):
     ]
 
 
+def _api_exports(layer: str) -> set[str]:
+    path = SRC / "anagram" / layer / "api.py"
+    if not path.exists():
+        return set()
+    tree = ast.parse(path.read_text(), str(path))
+    exports: set[str] = set()
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == "__all__":
+                    if isinstance(node.value, ast.List | ast.Tuple):
+                        for elt in node.value.elts:
+                            if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                                exports.add(elt.value)
+    return exports
+
+
+def unused_api_exports() -> list[str]:
+    """Return `<layer>.api.<name>` for every name in `<layer>/api.py` `__all__`
+    that has no consumer outside its layer in non-XT production code."""
+    exports = {layer: _api_exports(layer) for layer in _API_LAYERS}
+    used: dict[str, set[str]] = {layer: set() for layer in _API_LAYERS}
+    for module, path, _ in _modules():
+        if layer_of(module) == "XT":
+            continue
+        mine = module.split(".")[1] if "." in module else ""
+        tree = ast.parse(path.read_text(), str(path))
+        aliases: dict[str, str] = {}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module:
+                for layer in _API_LAYERS:
+                    if layer == mine:
+                        continue
+                    if node.module == f"anagram.{layer}.api":
+                        for alias in node.names:
+                            if alias.name == "*":
+                                used[layer].update(exports[layer])
+                            else:
+                                used[layer].add(alias.name)
+                    elif node.module == f"anagram.{layer}":
+                        for alias in node.names:
+                            if alias.name == "api":
+                                aliases[alias.asname or "api"] = layer
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    for layer in _API_LAYERS:
+                        if layer != mine and alias.name == f"anagram.{layer}.api" and alias.asname:
+                            aliases[alias.asname] = layer
+        if aliases:
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+                    layer_hit = aliases.get(node.value.id)
+                    if layer_hit is not None:
+                        used[layer_hit].add(node.attr)
+    return [
+        f"anagram.{layer}.api.{name}"
+        for layer in sorted(_API_LAYERS)
+        for name in sorted(exports[layer] - used[layer])
+    ]
+
+
+def test_no_unused_api_exports():
+    found = unused_api_exports()
+    assert found == [], f"unused facade export (remove from <layer>.api): {found}"
+
+
+def test_an_unused_api_export_fails(tmp_path, monkeypatch):
+    root = tmp_path / "anagram"
+    for pkg in ("", "local", "network"):
+        (root / pkg).mkdir(parents=True, exist_ok=True)
+        (root / pkg / "__init__.py").write_text("")
+    (root / "local" / "api.py").write_text('__all__ = ["used_name", "unused_name"]\n')
+    (root / "network" / "a.py").write_text("from anagram.local.api import used_name\n")
+    monkeypatch.setitem(globals(), "SRC", tmp_path)
+    assert unused_api_exports() == ["anagram.local.api.unused_name"]
+
+
 # The two sides of a layer: the app (`*/app/`, on the computer
 # of a person) and the node (`*/node/`, the server) share code only through
 # the rest of their layer (formats, trust), never through each other.
@@ -250,7 +327,7 @@ def test_a_node_import_of_the_app_fails(tmp_path, monkeypatch):
     ]
 
 
-# Knots between the node services (layers plan step M5): the composition root
+# Boundaries between the node services: the composition root
 # gives each service what it needs; no service sets or reads the inside of
 # another one.
 _SERVICES = {"identity", "labs", "admission", "vault", "reads", "matching", "directory"}
@@ -292,7 +369,7 @@ def test_no_node_service_reads_a_private_name_of_another():
     assert found == []
 
 
-# The UI and the app (layers plan step M7): a UI part calls the public API of
+# The UI and the app: a UI part calls the public API of
 # the client parts, of the index, and of the other UI parts. No code reads a
 # private name (`x._name`) of an object that is not `self`, and no module
 # imports a private name of another module.
@@ -317,7 +394,7 @@ def _private(name: str) -> bool:
     return name.startswith("_") and not name.startswith("__")
 
 
-# Duck typing of the client (clean-up wave 7): a layer names what it needs
+# Duck typing of the client: a layer names what it needs
 # from the app client as a typed port (`local/ports.py`), not as a
 # parameter `client` with no type, `Any`, or `object` that it reads with
 # `getattr`.

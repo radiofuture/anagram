@@ -6,6 +6,8 @@ import re
 import unicodedata
 from typing import Any
 
+from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
+
 from anagram.core import timefmt, validate
 from anagram.core.canonical import JsonObject, canonical_json
 from anagram.core.crypto.hashing import u32
@@ -143,6 +145,22 @@ def sign(doc: JsonObject, tag: str, key: SigningKey) -> JsonObject:
     out = {k: v for k, v in doc.items() if k != "signature"}
     out["signature"] = key.sign(tag, canonical_json(out)).hex()
     return out
+
+
+# Probe key for validating X25519 public keys against RFC 7748 small-order points.
+_X25519_PROBE = X25519PrivateKey.from_private_bytes(bytes([9] * 32))
+
+
+def check_x25519_public(raw: bytes, code: str = "bad_message", what: str = "key") -> bytes:
+    """Reject 32-byte X25519 public keys that are low-order or invalid points."""
+    need(len(raw) == 32, code, what)
+    try:
+        pub = X25519PublicKey.from_public_bytes(raw)
+        shared = _X25519_PROBE.exchange(pub)
+    except ValueError as exc:
+        raise Refused(code, f"low-order {what}") from exc
+    need(any(shared), code, f"low-order {what}")
+    return raw
 
 
 def sig_ok(doc: JsonObject, tag: str, public_hex: str) -> bool:

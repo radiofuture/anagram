@@ -1,5 +1,4 @@
-"""Text that another person wrote stays context (security review findings
-P0-1, P0-2, P1-1, P1-2, and the P2 owner test; spec/threat-model.md section
+"""Text that another person wrote stays context (spec/threat-model.md section
 16). No network; fake Google, fake models.
 
 The promise: a received mail (its subject, body, and attachments), a quoted
@@ -66,7 +65,7 @@ def _eml(sender: str, subject: str, body: str) -> bytes:
     )
 
 
-# ------------------------------------------------------- P1-1: quote blocks
+# --------------------------------------------------------------- quote blocks
 
 
 OUTLOOK_REPLY = f"""Yes, the {OWN} run is fine.
@@ -129,7 +128,7 @@ def test_an_own_reply_keeps_its_own_text():
     assert OWN in own and OWN not in quoted
 
 
-# ---------------------------------------------------- P0-1 and the P2 owner test
+# ---------------------------------------------------- third-party and owner tests
 
 
 def test_a_received_mail_has_no_own_text_no_title_and_no_subject():

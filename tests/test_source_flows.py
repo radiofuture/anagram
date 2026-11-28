@@ -1,5 +1,4 @@
-"""The "What leaves this computer" entries of connected sources (plan R3
-section 6, step S13)."""
+"""The "What leaves this computer" entries of connected sources."""
 
 from __future__ import annotations
 

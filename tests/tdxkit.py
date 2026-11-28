@@ -153,6 +153,8 @@ class FakeIntel:
     def _cert(
         self, subject: str, issuer: str, pub: object, signer: ec.EllipticCurvePrivateKey,
         serial: int, exts: list[tuple[str, bytes]] = (),  # type: ignore[assignment]
+        *, ca: bool | None = None, crl_sign: bool = False,
+        not_before: dt.datetime | None = None, not_after: dt.datetime | None = None,
     ) -> x509.Certificate:  # fmt: skip
         b = (
             x509.CertificateBuilder()
@@ -160,9 +162,26 @@ class FakeIntel:
             .issuer_name(_name(issuer))
             .public_key(pub)  # type: ignore[arg-type]
             .serial_number(serial)
-            .not_valid_before(NOW - dt.timedelta(days=1))
-            .not_valid_after(NOW + dt.timedelta(days=3650))
+            .not_valid_before(not_before or (NOW - dt.timedelta(days=1)))
+            .not_valid_after(not_after or (NOW + dt.timedelta(days=3650)))
         )
+        if ca is not None:
+            b = b.add_extension(x509.BasicConstraints(ca=ca, path_length=None), critical=True)
+            if ca:
+                b = b.add_extension(
+                    x509.KeyUsage(
+                        digital_signature=False,
+                        content_commitment=False,
+                        key_encipherment=False,
+                        data_encipherment=False,
+                        key_agreement=False,
+                        key_cert_sign=True,
+                        crl_sign=crl_sign,
+                        encipher_only=False,
+                        decipher_only=False,
+                    ),
+                    critical=True,
+                )
         for oid, raw in exts:
             b = b.add_extension(x509.UnrecognizedExtension(x509.ObjectIdentifier(oid), raw), False)
         return b.sign(signer, hashes.SHA256())
@@ -176,18 +195,25 @@ class FakeIntel:
 
     def _make_chain(self) -> dict[str, bytes]:
         root_cn = "Intel SGX Root CA"
-        root = self._cert(root_cn, root_cn, self.root_key.public_key(), self.root_key, 0x100)
-        ca = self._cert(self.ca_cn, root_cn, self.ca_key.public_key(), self.root_key, 0x101)
+        root = self._cert(
+            root_cn, root_cn, self.root_key.public_key(), self.root_key, 0x100,
+            ca=True, crl_sign=True,
+        )  # fmt: skip
+        ca = self._cert(
+            self.ca_cn, root_cn, self.ca_key.public_key(), self.root_key, 0x101,
+            ca=True, crl_sign=True,
+        )  # fmt: skip
         signer = self._cert(
-            "Intel SGX TCB Signing", root_cn, self.signer_key.public_key(), self.root_key, 0x102
-        )
+            "Intel SGX TCB Signing", root_cn, self.signer_key.public_key(), self.root_key, 0x102,
+            ca=False,
+        )  # fmt: skip
         ext = self.sgx_ext
         if ext is None:
             ext = sgx_extensions(self.comps, self.pce_svn, self.pce_id, self.fmspc, self.cpusvn)
         exts = [(SGX, ext), *self.extra_leaf_exts] if ext else list(self.extra_leaf_exts)
         leaf = self._cert(
             "Intel SGX PCK Certificate", self.ca_cn, self.leaf_key.public_key(), self.ca_key,
-            0x200, exts,
+            0x200, exts, ca=False,
         )  # fmt: skip
 
         def crl(issuer_cn: str, k: ec.EllipticCurvePrivateKey, revoked: list[int]) -> bytes:

@@ -1,4 +1,4 @@
-"""R5 step 3: the reader's client posts read receipts (also from an offline
+"""Read receipts: the reader's client posts read receipts (also from an offline
 queue); the owner's client fetches and checks them (forged read, event gap)."""
 
 from __future__ import annotations
@@ -186,3 +186,27 @@ def test_node_with_no_read_ledger(tmp_path):
     assert p["okafor"].reads.gate(gid) is None
     assert p["okafor"].grants.open_grant(gid, tmp_path / "out")["verified"]
     assert p["chen"].read_records.sync_reads() == []
+
+
+def test_m15_fetch_payload_checks_grant_id_and_uses_gated_call(world, monkeypatch):
+    from anagram.core.errors import ClientError
+
+    net, p, root, gid = world
+    okafor = p["okafor"]
+    # Expire the node's receipt window while client cache still thinks it's fresh -> 428 retry.
+    okafor.reads.gate(gid)
+    net.clock.t += 25 * 3600
+    payload, env = okafor.grants.fetch_payload(gid)
+    assert env["grant_id"] == gid and payload["receipt"]["grant_id"] == gid
+
+    # Mismatched grant_id returned by a misbehaving node is rejected.
+    orig = okafor.grants.hooks.gated_call
+
+    def swapped(grant_id, method, path):
+        res = orig(grant_id, method, path)
+        res["grant"]["grant_id"] = "00" * 16
+        return res
+
+    monkeypatch.setattr(okafor.grants.hooks, "gated_call", swapped)
+    with pytest.raises(ClientError, match="grant ID"):
+        okafor.grants.fetch_payload(gid)

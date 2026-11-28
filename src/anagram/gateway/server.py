@@ -104,7 +104,7 @@ def lab_names(labs: LabContext | None) -> dict[str, str]:
 
 def lab_allows(labs: LabContext | None, lab_id: str, recipient_class: str) -> bool:
     """May an agent of this class read this lab space? A cloud agent needs
-    `allow_cloud_assistant` too (open-agents plan 2.2)."""
+    `allow_cloud_assistant` too."""
     try:
         if labs is None:
             return False

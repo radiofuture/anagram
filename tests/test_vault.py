@@ -1,4 +1,4 @@
-"""P3b: encrypted blobs, rings, grants, receipts, revocation, public release.
+"""Encrypted blobs, rings, grants, receipts, revocation, public release.
 
 End to end over FastAPI TestClient with the synthetic community. No network.
 """
@@ -209,7 +209,7 @@ def test_lab_ring_member(world, sim):
     net, p = world
     chen, okafor = p["chen"], p["okafor"]
     lab = okafor.labs.lab_create("Okafor Lab")
-    # Only a member of the lab sees its members (plan R2, L10).
+    # Only a member of the lab sees its members.
     okafor.labs.lab_add(lab["lab_id"], chen.device.subject)
     root, _ = commit_chen(sim, chen, third_party=False)
     chen.grants.ring_create("labs")

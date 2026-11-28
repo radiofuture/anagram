@@ -1,4 +1,4 @@
-"""Grants: client vault sharing (P3b): encrypted upload, rings, grants, grant receipts,
+"""Grants: client vault sharing: encrypted upload, rings, grants, grant receipts,
 public release, revocation, and the recipient side. See spec/vault.md.
 
 Rules:
@@ -108,6 +108,10 @@ class GrantHooks(Protocol):
 
     def read_gate(self, grant_id: str) -> str | None:
         """Called before a grant is fetched (a read receipt)."""
+        ...
+
+    def gated_call(self, grant_id: str, method: str, path: str) -> dict:
+        """A receipt-gated call (retries once on 428 with a fresh receipt)."""
         ...
 
     def fetch_blob(self, blob_id: str, grant_id: str | None = None) -> bytes: ...
@@ -480,9 +484,11 @@ class Grants:
         """Fetch (after a read receipt), decrypt, and check the payload of a
         grant to me. Return (payload, envelope)."""
         self.hooks.read_gate(grant_id)  # a read receipt before the fetch
-        g = self.device.http.call(
-            "GET", f"/grants/{urllib.parse.quote(grant_id, safe='')}", auth=True
+        g = self.hooks.gated_call(
+            grant_id, "GET", f"/grants/{urllib.parse.quote(grant_id, safe='')}"
         )["grant"]
+        if not isinstance(g, dict) or g.get("grant_id") != grant_id:
+            raise ClientError("grant envelope does not match the requested grant ID")
         me = self.device.my_device()["ed25519"]
         ct = find_wrap(g["wraps"], me)
         if ct is None:

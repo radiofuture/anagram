@@ -57,7 +57,7 @@ def settled(w: World, p, digest: str) -> dict:
 
 def pair(w: World):
     """Alice (node A) and Bob (node B): one proposal each, delivered on day 1.
-    Carol (node A) makes the anonymity pool large enough (14b step 6)."""
+    Carol (node A) makes the anonymity pool large enough."""
     alice = w.person("Alice Okafor", "A", lines(CRYO, MD))
     bob = w.person("Bob Lindqvist", "B", lines(MD, CRYO))
     carol = w.person("Carol Nakamura", "A", lines(FIELD, CRYO))
@@ -133,7 +133,7 @@ def test_a_removal_erases_at_once_and_nothing_names_the_member_after(how: str) -
     assert alice_copy not in ledger.proposals
     tomb = ledger.tombstones[tombstone_id(alice.subject)]
     assert tomb["reason"] == "removed" and tomb["version"] == alice.version
-    # Bob's delivered copy lives on and ends at its own expiry (W4 ruling 1).
+    # Bob's delivered copy lives on and ends at its own expiry.
     bob_copies = [c for c in ledger.proposals.values() if c.subject == bob.subject]
     assert len(bob_copies) == 1
     # 20 days later: Bob's copy expired, Alice's slot state ended.

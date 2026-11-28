@@ -50,7 +50,7 @@ def fetch_all(per_page: int = 200, pause: float = 0.3) -> list[dict]:
 
 
 def short_id(url: str) -> str:
-    """https://openalex.org/T10044 -> openalex:t10044 (fits the room chip pattern)."""
+    """https://openalex.org/T10044 -> openalex:t10044 (lowercase prefix:id format)."""
     return "openalex:" + url.rsplit("/", 1)[-1].lower()
 
 

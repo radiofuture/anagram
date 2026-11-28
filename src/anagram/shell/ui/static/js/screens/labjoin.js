@@ -1,4 +1,4 @@
-// Join a lab (`#/lab/join`, track R2 step S12). The app opens this screen
+// Join a lab (`#/lab/join`). The app opens this screen
 // for an `anagram://` lab link (control route "lab-join"): the link is the
 // pending invite of the app, and `GET /api/labs/invite` shows what it is.
 // With no pending link, the person pastes the link. The join is one click;

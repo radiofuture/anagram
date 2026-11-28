@@ -10,8 +10,8 @@ The log signs a checkpoint after each entry and at least every
 it. A checkpoint without a quorum is not kept; the next tick tries again.
 A refused entry gets `400` with `{"detail": {"code", "detail"}}`.
 
-The write API takes any entry that passes its form and its signature
-(2.2), as the in-process `SimulatedLog` does. The entries, the cosigned
+The write API takes only entries that pass their form, signature, signer
+authorization and line/epoch invariants (2.2, 2.3). The entries, the cosigned
 notes and the attestation documents are in `log.sqlite`, so a restart
 serves the same log.
 """
@@ -145,7 +145,7 @@ def log_app(service: LogService, tick_every: float = TICK_SECONDS) -> FastAPI:
     app.include_router(log_read_router(Reads()))
 
     @app.post("/log/write/entries")
-    def append(body: JsonObject = Body(...)) -> JsonObject:  # noqa: B008
+    def append(body: JsonObject = Body(...)) -> JsonObject:
         entry: Any = body.get("entry")  # untrusted: `check_entry` refuses a bad one
         try:
             return {"index": service.append(entry)}
@@ -153,7 +153,7 @@ def log_app(service: LogService, tick_every: float = TICK_SECONDS) -> FastAPI:
             raise _refused(exc) from exc
 
     @app.post("/log/write/instance-keys")
-    def append_instance_key(body: JsonObject = Body(...)) -> JsonObject:  # noqa: B008
+    def append_instance_key(body: JsonObject = Body(...)) -> JsonObject:
         entry: Any = body.get("entry")  # untrusted: checked by the log, as above
         document: Any = body.get("document")
         try:

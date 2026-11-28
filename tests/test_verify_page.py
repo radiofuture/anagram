@@ -1,4 +1,4 @@
-"""Public verify page and published proofs (R5 step 13). No network: the
+"""Public verify page and published proofs. No network: the
 in-process node of `conftest`, with the verify service attached.
 
 The file drop and the digest in the browser are in
@@ -156,7 +156,7 @@ def test_ui_routes_publish_and_remove(vnet):
 
 
 def test_a_node_with_no_proof_page_offers_no_public_link(tmp_path):
-    """R7 step 10: "Make a public link" shows only when the node has the page."""
+    """ "Make a public link" shows only when the node has the page."""
     from conftest import make_net
 
     from anagram.shell.ui.server import create_ui_app

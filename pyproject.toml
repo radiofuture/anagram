@@ -28,13 +28,14 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Topic :: Security :: Cryptography",
 ]
+# Pinned to Python 3.13 (the tested runtime and prebuilt native wheels).
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "asn1crypto>=1.5.1",
     "cryptography>=50.0.0",
     "fastapi>=0.115.0",
     "fastembed>=0.9.1",
-    # The HTTP client of the app (node, enclave and model calls).
+    # HTTP client for enclave/matching, node, model, and demo network calls.
     "httpx>=0.28.1",
     "keyring>=25.6.0",
     "markitdown[docx,pdf,pptx,xlsx]>=0.1.9",
@@ -67,16 +68,8 @@ Changelog = "https://github.com/radiofuture/anagram/blob/main/CHANGELOG.md"
 anagram = "anagram.shell.cli.main:main"
 
 [dependency-groups]
-bench = [
-    "chromadb>=1.5.9",
-    "lancedb>=0.41.0",
-    "psutil>=7.2.2",
-    "usearch>=2.26.6",
-]
 dev = [
     "biscuit-python==0.4.0",
-    "fastapi>=0.115.0",
-    "httpx>=0.28.1",
     "jsonschema>=4.26.0",
     "mypy>=2.4.1",
     "pip-audit>=2.10.1",
@@ -102,9 +95,12 @@ line-length = 100
 [tool.ruff.lint]
 select = [
     "E4", "E7", "E9", "F", "I", "UP", "B", "S",
-    # Code quality (clean-up wave 6): complexity and no reach into private names.
+    # Code quality: complexity limits and no reach into private names.
     "C901", "PLR0911", "PLR0912", "PLR0915", "SLF001",
 ]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Body", "fastapi.Depends", "fastapi.Header", "fastapi.Query"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 15
@@ -128,22 +124,13 @@ testpaths = ["tests"]
 
 # Type checking: mypy. It reads this file, runs from the uv lock with no Node
 # runtime, and sets strictness per module, so the strict set can grow one
-# module at a time.
+# package at a time.
 #
-# Plan:
-#   1. Strict now: the packages and modules in `files` below. A package is
-#      named by its directory, so a new module in it is strict at once. CI
-#      keeps them at zero errors (`uv run mypy`).
-#   2. Polish pass (2026-11-26): core, network.formats and network.matching
-#      went to 0 strict errors (from core 46, formats 175, matching.trust 102,
-#      and 555 in the rest of network.matching: room 327, app 122, services
-#      65, node 41).
-#   3. Then: one layer at a time (identity, proofs, admission, local, the rest
-#      of network, gateway, models, shell): add the layer to the strict
-#      override and to `files`. Lenient count of the rest on 2026-11-26:
-#      `uv run mypy src/anagram` gives 333 errors in 103 files.
-#   4. When all layers pass: move the strict flags up to [tool.mypy] and drop
-#      the override.
+# Strict packages are listed in `files` below (named by directory, so every
+# new module in them is strict immediately) and kept at zero errors in CI
+# (`uv run mypy`). Remaining layers (identity, proofs, admission, local, the
+# rest of network, gateway, models, shell) will be added one at a time until
+# the strict flags can move up to [tool.mypy].
 [tool.mypy]
 python_version = "3.13"
 mypy_path = "src"
@@ -157,6 +144,7 @@ files = [
     "src/anagram/core",
     "src/anagram/network/formats",
     "src/anagram/network/matching",
+    "src/anagram/sim",
 ]
 
 # The strict set: the same flags as `mypy --strict`. The packages are named
@@ -166,6 +154,7 @@ module = [
     "anagram.core.*",
     "anagram.network.formats.*",
     "anagram.network.matching.*",
+    "anagram.sim.*",
 ]
 disallow_any_generics = true
 disallow_subclassing_any = true
@@ -180,7 +169,7 @@ no_implicit_reexport = true
 strict_equality = true
 extra_checks = true
 
-# Coverage: CI fails below fail_under (the total on 2026-11-25 minus 1 point).
+# Coverage: CI fails below fail_under.
 [tool.coverage.run]
 source = ["src/anagram"]
 branch = true

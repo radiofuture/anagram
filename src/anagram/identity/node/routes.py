@@ -81,7 +81,7 @@ def _orcid_email_device_routes(router: APIRouter, identity, subject_of: SubjectO
 
     @router.post("/auth/orcid/start")
     def orcid_start(
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         link = subject_of(authorization) if body.get("purpose") == "link" else None
@@ -98,13 +98,13 @@ def _orcid_email_device_routes(router: APIRouter, identity, subject_of: SubjectO
         return orcid.start(req, link)
 
     @router.post("/auth/orcid/exchange")
-    def orcid_exchange(body: dict = Body(...)) -> dict:  # noqa: B008
+    def orcid_exchange(body: dict = Body(...)) -> dict:
         return orcid.exchange(
             field(body, "flow_id"), field(body, "code"), field(body, "code_verifier")
         )
 
     @router.post("/auth/email/start")
-    def email_start(body: dict = Body(...)) -> dict:  # noqa: B008
+    def email_start(body: dict = Body(...)) -> dict:
         return email.start(
             field(body, "email"),
             field(body, "device_key"),
@@ -114,15 +114,15 @@ def _orcid_email_device_routes(router: APIRouter, identity, subject_of: SubjectO
         )
 
     @router.post("/auth/email/verify")
-    def email_verify(body: dict = Body(...)) -> dict:  # noqa: B008
+    def email_verify(body: dict = Body(...)) -> dict:
         return email.verify(field(body, "challenge_id"), field(body, "code"))
 
     @router.post("/auth/device/start")
-    def device_start(body: dict = Body(...)) -> dict:  # noqa: B008
+    def device_start(body: dict = Body(...)) -> dict:
         return device.start(field(body, "subject"), field(body, "device_key"))
 
     @router.post("/auth/device/verify")
-    def device_verify(body: dict = Body(...)) -> dict:  # noqa: B008
+    def device_verify(body: dict = Body(...)) -> dict:
         return device.verify(field(body, "challenge_id"), field(body, "signature"))
 
 
@@ -133,7 +133,7 @@ def _passkey_routes(router: APIRouter, passkeys, subject_of: SubjectOf) -> None:
 
     @router.post("/auth/passkeys/register/verify")
     def pk_reg_verify(
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         return passkeys.register_verify(
@@ -141,11 +141,11 @@ def _passkey_routes(router: APIRouter, passkeys, subject_of: SubjectOf) -> None:
         )
 
     @router.post("/auth/passkeys/login/options")
-    def pk_login_options(body: dict = Body(...)) -> dict:  # noqa: B008
+    def pk_login_options(body: dict = Body(...)) -> dict:
         return passkeys.login_options(field(body, "subject"))
 
     @router.post("/auth/passkeys/login/verify")
-    def pk_login_verify(body: dict = Body(...)) -> dict:  # noqa: B008
+    def pk_login_verify(body: dict = Body(...)) -> dict:
         return passkeys.login_verify(field(body, "challenge_id"), field(body, "credential"))
 
 
@@ -168,7 +168,7 @@ def _member_routes(
 
     @router.put("/me/identity")
     def put_identity(
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         subject = subject_of(authorization)
@@ -186,7 +186,7 @@ def _member_routes(
 def _people_and_backup_routes(router: APIRouter, people, backups, subject_of: SubjectOf) -> None:
     @router.put("/me/findable")
     def put_findable(
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         return people.set_findable(subject_of(authorization), field(body, "on"))
@@ -205,7 +205,7 @@ def _people_and_backup_routes(router: APIRouter, people, backups, subject_of: Su
 
     @router.put("/recovery/backup")
     def put_backup(
-        body: dict = Body(...),  # noqa: B008
+        body: dict = Body(...),
         authorization: str | None = Header(default=None),
     ) -> dict:
         return backups.put(subject_of(authorization), field(body, "backup"))

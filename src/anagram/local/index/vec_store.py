@@ -1,5 +1,5 @@
 """The present retrieval store: sqlite-vec and FTS5 in the SQLCipher index
-(adapter of `store_port.RetrievalStore`, plan net 01 step 1).
+(adapter of `store_port.RetrievalStore`).
 
 - Vectors: the `vec0` table `chunk_vec` (float32, cosine). `vec0` is a flat
   index: each search reads all vectors, so the result is exact.
@@ -11,7 +11,7 @@ The filter fields come from the index tables (`chunk`, `version`, `item`,
 filter asks `vec0` for a pool of the nearest chunks and keeps the chunks that
 match; the pool doubles until `k` chunks match or the pool holds all
 vectors. So the result stays exact. `tiers` and `kinds` are refused: the
-index has no tier column yet (plan net 05), and the kind of an item is a
+index has no tier column yet, and the kind of an item is a
 ranked fact that `retrieve.search` applies above the port.
 
 The adapter does not own the store: `close` does nothing.
@@ -41,7 +41,7 @@ def _where(f: Filter) -> tuple[str, list]:
     """The SQL condition of the filter on the joined rows `c` (chunk or
     context chunk), `v` (version), `i` (item), and `ss` (source state)."""
     if f.tiers is not None:
-        raise UnsupportedFilter("the index has no trust tier yet (plan net 05)")
+        raise UnsupportedFilter("the index has no trust tier yet")
     if f.kinds is not None:
         raise UnsupportedFilter("filter kinds above the port (retrieve.search)")
     sql: list[str] = []

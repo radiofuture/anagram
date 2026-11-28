@@ -1,4 +1,4 @@
-"""Types of the `profile` lens (plan net-03b step 2, plan net-12 step 2).
+"""Types of the `profile` lens.
 
 The lens reads the own items of one person and gives person-level readings
 and a draft of typed OFFERS and WANTS lines for a person beacon.
@@ -7,9 +7,9 @@ and a draft of typed OFFERS and WANTS lines for a person beacon.
   `stuck`, `method`.
 - Reading kinds (person level, `combine.py`): `asks`, `offers`, `stuck_on`,
   `tacit_skill`, `trajectory`.
-- Line class (plan 12 step 1): `problem`, `method`, `skill`, `instrument`,
+- Line class: `problem`, `method`, `skill`, `instrument`,
   `data`, `material`, `replication`, `supervision`.
-- Match types (plan 13 step 1): T1 to T6. Each line names the types that it
+- Match types: T1 to T6. Each line names the types that it
   serves, from its side and its class (`MATCH_TYPES`).
 
 The line text is one own sentence of the person, word for word, cut to 140
@@ -41,7 +41,7 @@ MATCH = {
     "T5": "replication",
     "T6": "co_supervision",
 }
-# (side, class) -> the match types of plan 13 that a line serves.
+# (side, class) -> the match types that a line serves.
 MATCH_TYPES: dict[tuple[str, str], tuple[str, ...]] = {
     ("want", "problem"): ("T1", "T2"),
     ("want", "method"): ("T1", "T2"),
@@ -72,8 +72,8 @@ MEETS: dict[str, frozenset[str]] = {
     "supervision": frozenset({"supervision"}),
 }
 LINE_CHARS = 140
-MAX_LINES = 5  # person beacon: at most 5 offers and 5 wants (plan 12 step 1)
-HALF_LIFE_DAYS = 365.0  # recency weight (plan 03b step 2)
+MAX_LINES = 5  # person beacon: at most 5 offers and 5 wants
+HALF_LIFE_DAYS = 365.0  # recency weight half-life
 
 # Roles of an item, from its source and its kind (`items.py`).
 ROLES = ("sent", "doc", "code", "notebook", "protocol", "publication", "received")
@@ -90,7 +90,7 @@ class LensItem:
     role: str
     date: str  # YYYY-MM-DD
     text: str
-    tier: str = "discoverable"  # plan 05: "private", "discoverable", "shared"
+    tier: str = "discoverable"  # "private", "discoverable", or "shared"
     published: bool = False
 
 
@@ -120,13 +120,13 @@ class Reading:
 
 @dataclass
 class Line:
-    """One beacon draft line (plan 12 step 1). The basis stays on the app."""
+    """One beacon draft line. The basis stays on the app."""
 
     side: str  # "offer" or "want"
     cls: str
     match_types: tuple[str, ...]
     text: str
-    scope: str  # "inside" or "both" (plan 12 step 3, default N22)
+    scope: str  # "inside" or "both" (default "inside")
     weight: float
     reading: str  # the reading kind that made the line
     basis: list[Basis]

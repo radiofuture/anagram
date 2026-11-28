@@ -363,3 +363,44 @@ def test_collateral_past_its_next_update_is_expired() -> None:
     for cpu, now in (({"valid_until": 1000}, 1000), ({"valid_until": "1000"}, 0)):
         with pytest.raises(Refused, match="evidence_expired"):
             _check_collateral(cpu, now)
+
+
+def test_h9_snp_launch_tcb_and_cert_constraints_and_validity(fake: FakeAmd) -> None:
+    import datetime as dt
+
+    from cryptography.hazmat.primitives import serialization
+
+    # Lower launch_tcb than reported_tcb narrows effective TCB for floor checks.
+    low_launch = {**fake.tcb, "snp": 5}
+    report = fake.report(launch_tcb=low_launch)
+    got = snp_claims(fake.evidence(report), None, SimpleNamespace(amd_arks=fake.pins()))  # type: ignore[arg-type]
+    assert got.cpu["tcb"]["milan_snp"] == 5
+    assert "valid_from" in got.cpu and got.cpu["valid_from"] < got.cpu["valid_until"]
+
+    # ASK without BasicConstraints(ca=True) is refused.
+    t = fake.product.capitalize()
+    bad_ask = fake._cert(  # noqa: SLF001
+        f"SEV-{t}", f"ARK-{t}", fake.ask_key.public_key(), fake.ark_key, 0x10001, ca=False
+    )
+    err = _refused(fake, fake.report(), ask=bad_ask.public_bytes(serialization.Encoding.DER))
+    assert err.code == "untrusted_root"
+
+    # Leaf with BasicConstraints(ca=True) is refused.
+    bad_leaf = fake._cert(  # noqa: SLF001
+        "SEV-VCEK", f"SEV-{t}", fake.leaf_key.public_key(), fake.ask_key, 0x20000, ca=True
+    )
+    err2 = _refused(fake, fake.report(), leaf=bad_leaf.public_bytes(serialization.Encoding.DER))
+    assert err2.code == "untrusted_root"
+
+    # Non-overlapping cert validity window is refused.
+    expired_leaf = fake._cert(  # noqa: SLF001
+        "SEV-VCEK",
+        f"SEV-{t}",
+        fake.leaf_key.public_key(),
+        fake.ask_key,
+        0x20001,
+        not_before=dt.datetime(2020, 1, 1, tzinfo=dt.UTC),
+        not_after=dt.datetime(2020, 1, 2, tzinfo=dt.UTC),
+    )
+    err3 = _refused(fake, fake.report(), leaf=expired_leaf.public_bytes(serialization.Encoding.DER))
+    assert err3.code == "untrusted_root"

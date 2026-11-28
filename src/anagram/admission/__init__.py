@@ -1,4 +1,4 @@
-"""Admission and growth (layer L4 of the layers plan): how a community
+"""Admission and growth (layer L4): how a community
 grows. Node invites, lab invites, reader invites, the vouch record ("who
 invited whom"), and the admission policy of the node (today: invite only). See spec/admission.md.
 

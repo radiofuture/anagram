@@ -1,6 +1,6 @@
-"""The act queue (open-agents plan 2.3, stage 2; primitive `agent-grant`
-rule 5): an act tool only puts a proposal here. The person approves or
-declines it in the local UI, never in the agent's chat.
+"""The act queue (primitive `agent-grant` rule 5): an act tool only puts a
+proposal here. The person approves or declines it in the local UI, never in
+the agent's chat.
 
 The record is the meta key `agent_pending` of the encrypted index store: a
 list of entries, newest last. Each entry names the grant, the tool, the

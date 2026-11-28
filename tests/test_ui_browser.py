@@ -199,7 +199,7 @@ def test_walk_2_router_back_and_live_reload(walk):
 
     # Back restores the scroll position of the list. The window is short for
     # this check: the demo has nine proposed findings since received mail is
-    # context only (security fix P0-1), and the list must be taller than the
+    # context only, and the list must be taller than the
     # window for a scroll position to exist.
     page.set_viewport_size({"width": 1280, "height": 600})
     link = page.locator("main a[href^='#/draft/']").last

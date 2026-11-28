@@ -1,4 +1,4 @@
-"""The first end-to-end slice of the matching enclave (plan net 14b step 11).
+"""End-to-end slice of the matching enclave.
 
 Two nodes, four people, the `simulated` profile, real HTTP routes in one
 process. One run of the story below; each test checks one part of it:

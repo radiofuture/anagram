@@ -132,7 +132,7 @@ def test_link_orcid_is_optional_and_survives_a_restore(net, tmp_path):
 
 
 def test_orcid_join_still_works(net, tmp_path):
-    """Migration (R8-13): a person who joins with ORCID keeps the commitment."""
+    """Migration: a person who joins with ORCID keeps the commitment."""
     r = net.join(tmp_path / "old", "fake-old-person")
     assert r.client.account.orcid == "fake-old-person"
     assert r.client.directory.lookup(r.subject).orcid_commitment == net.commitment(

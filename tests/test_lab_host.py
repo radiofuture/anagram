@@ -1,4 +1,4 @@
-"""Node lab unit (plan R2, steps S2a and S2b): roster routes, access from the
+"""Node lab unit: roster routes, access from the
 roster only, invites, join, node membership, and the changes feed."""
 
 from __future__ import annotations
@@ -182,7 +182,7 @@ def test_state_survives_a_restart(net, people, tmp_path):
     assert again.get_lab(adm.subject, lab_id)["roles"][adm.subject] == "admin"
 
 
-# The second member cache of labs.sqlite from before layers plan step M5.
+# Legacy second member cache schema of labs.sqlite (migrated away from).
 OLD_LABS_TABLES = """
 CREATE TABLE lab_roles (lab_id TEXT NOT NULL, subject TEXT NOT NULL,
     role TEXT NOT NULL, joined_at INTEGER NOT NULL, PRIMARY KEY (lab_id, subject));

@@ -1,4 +1,4 @@
-// The verify page (R5 step 13). A person drops a proof certificate or a
+// The verify page. A person drops a proof certificate or a
 // proof file, and optionally the files of the finding. The node checks the
 // proof against its own log (POST /verify). This browser computes the
 // content digest of each other file and compares it with the opened

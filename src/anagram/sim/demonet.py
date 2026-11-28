@@ -41,7 +41,6 @@ import httpx
 
 from anagram.core.devclock import ENV, OffsetClock
 from anagram.network.api import (
-    NOTICE,
     DevNet,
     EnclaveHost,
     EntryWitness,
@@ -63,6 +62,8 @@ from anagram.network.api import (
     witness_app,
     witness_name,
 )
+from anagram.network.matching.trust.release import NOTICE
+from anagram.network.matching.trust.translog import Cosigner
 from anagram.shell.ui.server import bind_local
 
 NETWORK = "net.demo.localhost"
@@ -91,7 +92,9 @@ def start_server(app: Any, sock: Any, name: str) -> Any:
     until it serves."""
     import uvicorn
 
-    server = uvicorn.Server(uvicorn.Config(app, log_level="warning", timeout_graceful_shutdown=2))
+    server: Any = uvicorn.Server(
+        uvicorn.Config(app, log_level="warning", timeout_graceful_shutdown=2)
+    )
     thread = threading.Thread(
         target=server.run, kwargs={"sockets": [sock]}, daemon=True, name=f"demo-{name}"
     )
@@ -141,7 +144,7 @@ class DemoNetwork:
         path.write_text(json.dumps(ports, indent=2) + "\n")
         return socks
 
-    def node_settings(self, n: int = 1) -> dict:
+    def node_settings(self, n: int = 1) -> dict[str, Any]:
         """node.json "enclave" of demo node `n` (1, 2, 3)."""
         tag = "" if n == 1 else f" {n}"
         admin = "organizer@demo.localhost" if n == 1 else f"organizer-{n}@demo.localhost"
@@ -172,7 +175,7 @@ class DemoNetwork:
 
     def start_services(self) -> None:
         """The witnesses, the log and the roster."""
-        cosigners = []
+        cosigners: list[Cosigner] = []
         for n in (1, 2, 3):
             name = f"witness-{n}"
             pin = next(w for w in self.pins.witnesses if w.name == witness_name(NETWORK, n))

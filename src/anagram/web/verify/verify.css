@@ -1,4 +1,4 @@
-/* The verify page (R5 step 13). Load after the brand copy and node.css; the
+/* The verify page. Load after the brand copy and node.css; the
    colors are the --ag-* pairs of node.css, so the dark appearance follows. */
 
 .vf-drop {

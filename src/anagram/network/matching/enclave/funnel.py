@@ -1,26 +1,26 @@
-"""The match protocol `anagram_pack_match.v1` (plan net 14b steps 1, 2, 4).
+"""The match protocol `anagram_pack_match.v1`.
 
 The enclave decides pairs from packs only, in three steps:
 
-1. **Filters** before any use of a pack (14b step 1): two different people;
+1. **Filters** before any use of a pack: two different people;
    neither deny list names the peer's ROR ID, verified domain or node;
    neither block list names the peer; the charter rule of each match type
    (`any`, `inside`, `outside`); line scope (`inside` lines only for peers
    of the same node, `outside` only for other nodes); `hide` rules remove a
    line from the pair's input.
-2. **Stage 1** (14b step 2): the enclave embeds each line text itself with
+2. **Stage 1**: the enclave embeds each line text itself with
    the embedding model of the release, then for each want of a changed pack
    the nearest offers in scope by cosine, and the reverse, per match type;
-   top `k`. No app supplies a vector (review H5).
-3. **Joint judge** (option J, 14b step 4): one call reads both sides'
+   top `k`. No app supplies a vector.
+3. **Joint judge**: one call reads both sides'
    visible lines and gives `{"fit_a", "fit_b", "type"}`; it is asked twice
    with the order swapped, and both orders must agree.
 
 A pair may be proposed when both sides `fit` for one match type, the pair
 may be proposed for that type (no open pair, no decline record of the
 type, or a `not_now` that came back after 90 days), and each person's
-eligible set for the type passes the anonymity rule of the release (14b
-step 6; values from the `matching` descriptor). The sweep then **ranks**
+eligible set for the type passes the anonymity rule of the release
+(values from the `matching` descriptor). The sweep then **ranks**
 these pairs by their best stage-1 score and takes them in that order while
 both people stay under their weekly cap (the person's own value, at most
 `weekly_cap_max`) and under the node rule: at most max(1, ceil(m /
@@ -63,7 +63,7 @@ PROTOCOL_ID = "anagram_pack_match.v1"
 # 4). The name is locked; the node-run matching room used it first.
 TAG_EVIDENCE = "anagram/v1/room/evidence"
 INPUT_KEY = "pack"
-STAGE1_K = 50  # 14b step 2 default; the harness sets it
+STAGE1_K = 50  # stage-1 default; the harness can override it
 MAX_REASONS = 4  # spec/enclave-messages.md 6.4
 # A waiting pair keeps its score in the sealed snapshot, and canonical JSON
 # has no floats, so the ledger keeps it in millionths.
@@ -283,7 +283,7 @@ class Sweep:
 
 
 def line_digest(pack: JsonObject) -> str:
-    """Material change (plan net 14c step 3): the lines, the charter, scope
+    """Material change digest: the lines, the charter, scope
     and the lists that change the pair's input."""
     keys = ("block", "charter", "deny", "lines")
     return hashlib.sha256(canonical_json({k: pack[k] for k in keys})).hexdigest()
@@ -361,7 +361,7 @@ class PackMatch:
         return first if first == swapped else None
 
     def anonymous_enough(self, me: Party, parties: dict[str, Party], kind: str) -> bool:
-        """14b step 6: after my filters, the eligible set for the type holds
+        """Check that after my filters, the eligible set for the type holds
         at least `min_people` people in at least `min_nodes` nodes (for an
         `inside` rule: `min_people` members of my node)."""
         pool = [
@@ -446,6 +446,9 @@ class PackMatch:
                 out.disagreements += 1
                 continue
             kind = verdict["type"]
+            if kind not in kinds or (a, b, kind) not in candidates:
+                out.disagreements += 1
+                continue
             mutual = verdict["fit_a"] == verdict["fit_b"] == "fit"
             rows.append(Row.make(a, b, mutual, kind, kind, _evidence(parties[a], parties[b])))
             if mutual and self._may(ledger, parties, a, b, kind, now):
@@ -536,12 +539,19 @@ def _unique(lines: tuple[JsonObject, ...]) -> tuple[JsonObject, ...]:
 
 def _reasons(hits: list[Hit], subject: str) -> list[str]:
     """Up to 4 of my own line IDs that stage 1 matched for the pair and
-    type, at half the pair's best score or more: best first, then sorted."""
+    type, at half the pair's best score or more (or 2 * best when best <= 0,
+    with fallback to the subject's best hit): best first, then sorted."""
     best = hits[0][0] if hits else 0.0
+    threshold = best / 2 if best > 0 else best * 2
     mine: list[str] = []
     for score, owner, line_id in hits:
-        if owner == subject and line_id not in mine and score >= best / 2:
+        if owner == subject and line_id not in mine and score >= threshold:
             mine.append(line_id)
+    if not mine:
+        for _, owner, line_id in hits:
+            if owner == subject:
+                mine.append(line_id)
+                break
     return sorted(mine[:MAX_REASONS])
 
 

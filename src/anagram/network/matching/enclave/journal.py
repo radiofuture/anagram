@@ -49,13 +49,17 @@ class Journal:
         for old in [c for c in self.snapshots if c < self.cosigned]:
             del self.snapshots[old]
 
-    def restart(self) -> None:
-        """Lose the working state; load the latest cosigned snapshot."""
+    def restart(self, *, keep_pending: bool = False) -> None:
+        """Lose the working state; load the latest cosigned snapshot.
+        When `keep_pending` is True, snapshots with counter > cosigned are kept
+        on disk so an already-logged pre-crash epoch can still be loaded once
+        cosigned."""
         if self.cosigned < 0:
             self.ledger = Ledger()
         else:
             raw = self.unseal(self.cosigned, self.snapshots[self.cosigned])
             self.ledger = Ledger.from_json(loads_canonical(raw))
-        for later in [c for c in self.snapshots if c > self.cosigned]:
-            del self.snapshots[later]
+        if not keep_pending:
+            for later in [c for c in self.snapshots if c > self.cosigned]:
+                del self.snapshots[later]
         self.counter = self.cosigned + 1

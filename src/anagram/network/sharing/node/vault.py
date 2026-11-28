@@ -1,4 +1,4 @@
-"""Node vault service (P3b): encrypted blobs, grants, public releases, recovery
+"""Node vault service: encrypted blobs, grants, public releases, recovery
 guardians. See spec/vault.md section 8.
 
 The node stores only ciphertext and public data:
@@ -100,8 +100,9 @@ class NodeVault:
     # --------------------------------------------------------------- blobs
 
     def blob_owner(self, blob_id: str) -> str | None:
-        row = self._one("SELECT owner FROM blobs WHERE blob_id = ?", check_blob_id(blob_id))
-        return row[0] if row else None
+        with self._lock:
+            row = self._one("SELECT owner FROM blobs WHERE blob_id = ?", check_blob_id(blob_id))
+            return row[0] if row else None
 
     def check_upload(self, subject: str, blob_id: str) -> None:
         """Call before the upload. A blob ID belongs to its first uploader."""
@@ -135,29 +136,34 @@ class NodeVault:
         (`read_gate`, 428 without a read receipt). All refusals look the same
         (404)."""
         check_blob_id(blob_id)
-        row = self._one("SELECT owner FROM blobs WHERE blob_id = ?", blob_id)
-        if row is None:
+        with self._lock:
+            row = self._one("SELECT owner FROM blobs WHERE blob_id = ?", blob_id)
+            if row is None:
+                raise NotFound("unknown blob")
+            path = self.blob_dir / blob_id
+            if subject is not None and row[0] == subject:
+                return path
+            if self._one("SELECT 1 FROM release_blobs WHERE blob_id = ?", blob_id) is not None:
+                return path
+            has_grant = subject is not None and bool(self.grants_with_blob(subject, blob_id))
+            readers = list(self.readers)
+            gate = self.read_gate
+        if subject is not None and any(read(subject, blob_id) for read in readers):
+            return path
+        if not has_grant:
             raise NotFound("unknown blob")
-        path = self.blob_dir / blob_id
-        if subject is not None and row[0] == subject:
-            return path
-        if self._one("SELECT 1 FROM release_blobs WHERE blob_id = ?", blob_id) is not None:
-            return path
-        if subject is not None and any(read(subject, blob_id) for read in self.readers):
-            return path
-        if subject is None or not self.grants_with_blob(subject, blob_id):
-            raise NotFound("unknown blob")
-        if self.read_gate is not None:
-            self.read_gate(subject, blob_id=blob_id)
+        if gate is not None:
+            gate(subject, blob_id=blob_id)
         return path
 
     def grants_with_blob(self, subject: str, blob_id: str) -> list[str]:
         """IDs of the grants to `subject` that list the blob."""
-        rows = self._db.execute(
-            "SELECT g.grant_id FROM grant_blobs b JOIN grants g ON g.grant_id = b.grant_id"
-            " WHERE b.blob_id = ? AND g.recipient = ? ORDER BY g.grant_id",
-            (blob_id, subject),
-        )
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT g.grant_id FROM grant_blobs b JOIN grants g ON g.grant_id = b.grant_id"
+                " WHERE b.blob_id = ? AND g.recipient = ? ORDER BY g.grant_id",
+                (blob_id, subject),
+            ).fetchall()
         return [r[0] for r in rows]
 
     def delete_blob(self, owner: str, blob_id: str) -> dict:
@@ -170,8 +176,14 @@ class NodeVault:
                 raise NotFound("unknown blob")
             if self._one("SELECT 1 FROM release_blobs WHERE blob_id = ?", blob_id):
                 raise Conflict("a public release lists this blob")
-            self._db.execute("DELETE FROM blobs WHERE blob_id = ?", (blob_id,))
-            self._db.execute("DELETE FROM grant_blobs WHERE blob_id = ?", (blob_id,))
+            self._db.execute("BEGIN")
+            try:
+                self._db.execute("DELETE FROM blobs WHERE blob_id = ?", (blob_id,))
+                self._db.execute("DELETE FROM grant_blobs WHERE blob_id = ?", (blob_id,))
+                self._db.execute("COMMIT")
+            except BaseException:
+                self._db.execute("ROLLBACK")
+                raise
             (self.blob_dir / blob_id).unlink(missing_ok=True)
         return {"blob_id": blob_id, "deleted": True}
 
@@ -199,16 +211,22 @@ class NodeVault:
                 old = json.loads(row[2])
                 if row[0] != sender or row[1] != doc["recipient"] or old["blobs"] != doc["blobs"]:
                     raise Conflict("grant ID is in use")
-            self._db.execute(
-                "INSERT OR REPLACE INTO grants (grant_id, sender, recipient, doc, created_at)"
-                " VALUES (?, ?, ?, ?, ?)",
-                (doc["grant_id"], sender, doc["recipient"], json.dumps(doc), self.now()),
-            )
-            for b in doc["blobs"]:
+            self._db.execute("BEGIN")
+            try:
                 self._db.execute(
-                    "INSERT OR IGNORE INTO grant_blobs (grant_id, blob_id) VALUES (?, ?)",
-                    (doc["grant_id"], b),
+                    "INSERT OR REPLACE INTO grants (grant_id, sender, recipient, doc, created_at)"
+                    " VALUES (?, ?, ?, ?, ?)",
+                    (doc["grant_id"], sender, doc["recipient"], json.dumps(doc), self.now()),
                 )
+                for b in doc["blobs"]:
+                    self._db.execute(
+                        "INSERT OR IGNORE INTO grant_blobs (grant_id, blob_id) VALUES (?, ?)",
+                        (doc["grant_id"], b),
+                    )
+                self._db.execute("COMMIT")
+            except BaseException:
+                self._db.execute("ROLLBACK")
+                raise
         return {"grant_id": doc["grant_id"]}
 
     def _grant_row(self, r) -> dict:
@@ -219,11 +237,12 @@ class NodeVault:
         list opens nothing: the full envelope comes from `get_grant`, through
         the receipt gate."""
         self.identity.require_member(subject)
-        rows = self._db.execute(
-            "SELECT sender, recipient, doc, created_at FROM grants WHERE recipient = ?"
-            " ORDER BY created_at, grant_id",
-            (subject,),
-        )
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT sender, recipient, doc, created_at FROM grants WHERE recipient = ?"
+                " ORDER BY created_at, grant_id",
+                (subject,),
+            ).fetchall()
         out = []
         for r in rows:
             g = self._grant_row(r)
@@ -232,7 +251,10 @@ class NodeVault:
         return out
 
     def grant_meta(self, grant_id: str) -> dict | None:
-        row = self._one("SELECT sender, recipient FROM grants WHERE grant_id = ?", str(grant_id))
+        with self._lock:
+            row = self._one(
+                "SELECT sender, recipient FROM grants WHERE grant_id = ?", str(grant_id)
+            )
         if row is None:
             return None
         return {"grant_id": grant_id, "recipient": row[1], "sender": row[0]}
@@ -241,13 +263,15 @@ class NodeVault:
         """The full envelope. The sender has no gate; the recipient needs a
         read receipt (`read_gate`)."""
         self.identity.require_member(subject)
-        row = self._one(
-            "SELECT sender, recipient, doc, created_at FROM grants WHERE grant_id = ?", grant_id
-        )
+        with self._lock:
+            row = self._one(
+                "SELECT sender, recipient, doc, created_at FROM grants WHERE grant_id = ?", grant_id
+            )
+            gate = self.read_gate
         if row is None or subject not in (row[0], row[1]):
             raise NotFound("unknown grant")
-        if subject != row[0] and self.read_gate is not None:
-            self.read_gate(subject, grant_id=grant_id)
+        if subject != row[0] and gate is not None:
+            gate(subject, grant_id=grant_id)
         return self._grant_row(row)
 
     def delete_grant(self, sender: str, grant_id: str) -> dict:
@@ -258,8 +282,14 @@ class NodeVault:
             meta = self.grant_meta(grant_id)
             if meta is None or meta["sender"] != sender:
                 raise NotFound("unknown grant")
-            self._db.execute("DELETE FROM grants WHERE grant_id = ?", (grant_id,))
-            self._db.execute("DELETE FROM grant_blobs WHERE grant_id = ?", (grant_id,))
+            self._db.execute("BEGIN")
+            try:
+                self._db.execute("DELETE FROM grants WHERE grant_id = ?", (grant_id,))
+                self._db.execute("DELETE FROM grant_blobs WHERE grant_id = ?", (grant_id,))
+                self._db.execute("COMMIT")
+            except BaseException:
+                self._db.execute("ROLLBACK")
+                raise
         return {"deleted": True, "grant_id": grant_id}
 
     # ------------------------------------------------------ public releases
@@ -278,31 +308,41 @@ class NodeVault:
             self._require_own_blobs(owner, blob_ids)
             if self._one("SELECT 1 FROM releases WHERE release_id = ?", release_id):
                 raise Conflict("release ID is in use")
-            self._db.execute(
-                "INSERT INTO releases (release_id, owner, finding_id, doc, created_at)"
-                " VALUES (?, ?, ?, ?, ?)",
-                (release_id, owner, doc["finding_id"], json.dumps(doc), self.now()),
-            )
-            for b in blob_ids:
+            self._db.execute("BEGIN")
+            try:
                 self._db.execute(
-                    "INSERT OR IGNORE INTO release_blobs (release_id, blob_id) VALUES (?, ?)",
-                    (release_id, b),
+                    "INSERT INTO releases (release_id, owner, finding_id, doc, created_at)"
+                    " VALUES (?, ?, ?, ?, ?)",
+                    (release_id, owner, doc["finding_id"], json.dumps(doc), self.now()),
                 )
+                for b in blob_ids:
+                    self._db.execute(
+                        "INSERT OR IGNORE INTO release_blobs (release_id, blob_id) VALUES (?, ?)",
+                        (release_id, b),
+                    )
+                self._db.execute("COMMIT")
+            except BaseException:
+                self._db.execute("ROLLBACK")
+                raise
         return {"release_id": release_id}
 
     def get_release(self, release_id: str) -> dict:
-        row = self._one("SELECT doc FROM releases WHERE release_id = ?", str(release_id))
+        with self._lock:
+            row = self._one("SELECT doc FROM releases WHERE release_id = ?", str(release_id))
         if row is None:
             raise NotFound("unknown release")
         return json.loads(row[0])
 
     def list_releases(self, finding_id: str | None = None) -> list[dict]:
         sql = "SELECT release_id, owner, finding_id, created_at FROM releases"
-        rows = (
-            self._db.execute(sql + " WHERE finding_id = ? ORDER BY created_at", (finding_id,))
-            if finding_id
-            else self._db.execute(sql + " ORDER BY created_at")
-        )
+        with self._lock:
+            rows = (
+                self._db.execute(
+                    sql + " WHERE finding_id = ? ORDER BY created_at", (finding_id,)
+                ).fetchall()
+                if finding_id
+                else self._db.execute(sql + " ORDER BY created_at").fetchall()
+            )
         return [
             {"created_at": c, "finding_id": f, "owner": o, "release_id": r} for r, o, f, c in rows
         ]
@@ -321,20 +361,27 @@ class NodeVault:
             if not self.identity.is_member(g["subject"]):
                 raise NotFound(f"guardian {g['subject']} is not a member of this community")
         with self._lock:
-            self._db.execute(
-                "INSERT OR REPLACE INTO guardian_sets (subject, doc) VALUES (?, ?)",
-                (owner, json.dumps(doc)),
-            )
-            self._db.execute("DELETE FROM guardian_index WHERE subject = ?", (owner,))
-            for g in doc["guardians"]:
+            self._db.execute("BEGIN")
+            try:
                 self._db.execute(
-                    "INSERT INTO guardian_index (subject, guardian, idx) VALUES (?, ?, ?)",
-                    (owner, g["subject"], g["index"]),
+                    "INSERT OR REPLACE INTO guardian_sets (subject, doc) VALUES (?, ?)",
+                    (owner, json.dumps(doc)),
                 )
+                self._db.execute("DELETE FROM guardian_index WHERE subject = ?", (owner,))
+                for g in doc["guardians"]:
+                    self._db.execute(
+                        "INSERT INTO guardian_index (subject, guardian, idx) VALUES (?, ?, ?)",
+                        (owner, g["subject"], g["index"]),
+                    )
+                self._db.execute("COMMIT")
+            except BaseException:
+                self._db.execute("ROLLBACK")
+                raise
         return {"set_id": doc["set_id"]}
 
     def guardian_set(self, owner: str) -> dict | None:
-        row = self._one("SELECT doc FROM guardian_sets WHERE subject = ?", owner)
+        with self._lock:
+            row = self._one("SELECT doc FROM guardian_sets WHERE subject = ?", owner)
         return json.loads(row[0]) if row else None
 
     def my_guardian_set(self, owner: str) -> dict:
@@ -348,22 +395,25 @@ class NodeVault:
         """The share wraps that this guardian holds, one item per owner."""
         self.identity.require_member(guardian)
         out = []
-        rows = self._db.execute(
-            "SELECT subject, idx FROM guardian_index WHERE guardian = ? ORDER BY subject",
-            (guardian,),
-        ).fetchall()
-        for owner, idx in rows:
-            doc = self.guardian_set(owner)
-            item = doc["guardians"][idx - 1]
-            out.append(
-                {
-                    "index": idx,
-                    "owner": owner,
-                    "set_id": doc["set_id"],
-                    "threshold": doc["threshold"],
-                    "wraps": item["wraps"],
-                }
-            )
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT subject, idx FROM guardian_index WHERE guardian = ? ORDER BY subject",
+                (guardian,),
+            ).fetchall()
+            for owner, idx in rows:
+                doc = self.guardian_set(owner)
+                if doc is None:
+                    continue
+                item = doc["guardians"][idx - 1]
+                out.append(
+                    {
+                        "index": idx,
+                        "owner": owner,
+                        "set_id": doc["set_id"],
+                        "threshold": doc["threshold"],
+                        "wraps": item["wraps"],
+                    }
+                )
         return out
 
     # ------------------------------------------------------------- recovery
@@ -410,34 +460,42 @@ class NodeVault:
         their approvals."""
         cutoff = self.now() - RECOVERY_REQUEST_MAX_AGE
         with self._lock:
-            self._db.execute(
-                "DELETE FROM approvals WHERE request_id IN"
-                " (SELECT request_id FROM recovery_requests WHERE created_at < ?)",
-                (cutoff,),
-            )
-            self._db.execute("DELETE FROM recovery_requests WHERE created_at < ?", (cutoff,))
+            self._db.execute("BEGIN")
+            try:
+                self._db.execute(
+                    "DELETE FROM approvals WHERE request_id IN"
+                    " (SELECT request_id FROM recovery_requests WHERE created_at < ?)",
+                    (cutoff,),
+                )
+                self._db.execute("DELETE FROM recovery_requests WHERE created_at < ?", (cutoff,))
+                self._db.execute("COMMIT")
+            except BaseException:
+                self._db.execute("ROLLBACK")
+                raise
 
     def _request(self, request_id: str) -> tuple[str, str, dict, int]:
-        self._expire_requests()
-        row = self._one(
-            "SELECT subject, set_id, doc, created_at FROM recovery_requests WHERE request_id = ?",
-            str(request_id),
-        )
+        with self._lock:
+            self._expire_requests()
+            row = self._one(
+                "SELECT subject, set_id, doc, created_at FROM recovery_requests WHERE request_id = ?",
+                str(request_id),
+            )
         if row is None:
             raise NotFound("unknown recovery request")
         return row[0], row[1], json.loads(row[2]), row[3]
 
     def requests_for_guardian(self, guardian: str) -> list[dict]:
         self.identity.require_member(guardian)
-        self._expire_requests()
-        rows = self._db.execute(
-            "SELECT r.request_id, r.doc, r.created_at, g.idx FROM recovery_requests r"
-            " JOIN guardian_index g ON g.subject = r.subject"
-            " JOIN guardian_sets s ON s.subject = r.subject"
-            " WHERE g.guardian = ? AND json_extract(s.doc, '$.set_id') = r.set_id"
-            " ORDER BY r.created_at",
-            (guardian,),
-        ).fetchall()
+        with self._lock:
+            self._expire_requests()
+            rows = self._db.execute(
+                "SELECT r.request_id, r.doc, r.created_at, g.idx FROM recovery_requests r"
+                " JOIN guardian_index g ON g.subject = r.subject"
+                " JOIN guardian_sets s ON s.subject = r.subject"
+                " WHERE g.guardian = ? AND json_extract(s.doc, '$.set_id') = r.set_id"
+                " ORDER BY r.created_at",
+                (guardian,),
+            ).fetchall()
         return [
             {"index": idx, "request": json.loads(d), "request_id": rid, "received_at": c}
             for rid, d, c, idx in rows
@@ -450,35 +508,38 @@ class NodeVault:
         raise NotFound("unknown recovery request")
 
     def add_approval(self, guardian: str, request_id: str, doc: dict) -> dict:
-        req = self.get_request_for_guardian(guardian, request_id)
-        try:
-            validate_approval(doc)
-        except FormatError as exc:
-            raise NodeError(str(exc)) from exc
-        if (
-            doc["guardian"] != guardian
-            or doc["request_id"] != request_id
-            or doc["index"] != req["index"]
-        ):
-            raise Forbidden("approval does not match your guardian slot")
-        self._db.execute(
-            "INSERT OR REPLACE INTO approvals (request_id, idx, guardian, doc) VALUES (?, ?, ?, ?)",
-            (request_id, doc["index"], guardian, json.dumps(doc)),
-        )
+        with self._lock:
+            req = self.get_request_for_guardian(guardian, request_id)
+            try:
+                validate_approval(doc)
+            except FormatError as exc:
+                raise NodeError(str(exc)) from exc
+            if (
+                doc["guardian"] != guardian
+                or doc["request_id"] != request_id
+                or doc["index"] != req["index"]
+            ):
+                raise Forbidden("approval does not match your guardian slot")
+            self._db.execute(
+                "INSERT OR REPLACE INTO approvals (request_id, idx, guardian, doc)"
+                " VALUES (?, ?, ?, ?)",
+                (request_id, doc["index"], guardian, json.dumps(doc)),
+            )
         return {"request_id": request_id, "index": doc["index"]}
 
     def get_request(self, subject: str, request_id: str) -> dict:
         """The owner reads its request with all approvals so far."""
-        owner, set_id, doc, _ = self._request(request_id)
-        if owner != subject:
-            raise NotFound("unknown recovery request")
-        gset = self.guardian_set(owner)
-        approvals = [
-            json.loads(r[0])
-            for r in self._db.execute(
-                "SELECT doc FROM approvals WHERE request_id = ? ORDER BY idx", (request_id,)
-            )
-        ]
+        with self._lock:
+            owner, set_id, doc, _ = self._request(request_id)
+            if owner != subject:
+                raise NotFound("unknown recovery request")
+            gset = self.guardian_set(owner)
+            approvals = [
+                json.loads(r[0])
+                for r in self._db.execute(
+                    "SELECT doc FROM approvals WHERE request_id = ? ORDER BY idx", (request_id,)
+                ).fetchall()
+            ]
         return {
             "approvals": approvals,
             "backup_id": gset["backup_id"] if gset else None,

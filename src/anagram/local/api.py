@@ -12,7 +12,7 @@ from anagram.local.index.convert.base import Blob
 from anagram.local.index.convert.builtin import PDF, MarkItDownConverter
 from anagram.local.index.convert.document import blocks_from_markdown, wire_blocks_v1
 from anagram.local.index.indexer import POLL_S, STATUS_KEY, Indexer, helper_running
-from anagram.local.index.local import ItemView, LocalIndex
+from anagram.local.index.local import LocalIndex
 from anagram.local.index.media import DOCX, media_type_for
 from anagram.local.index.retention import remove_source
 from anagram.local.index.retrieve import Hit
@@ -74,7 +74,6 @@ from anagram.local.understanding.ask import clear_history as clear_ask_history
 from anagram.local.understanding.ask import history as ask_history
 from anagram.local.understanding.ask import prepare as prepare_question
 from anagram.local.understanding.ask import record as record_answer
-from anagram.local.understanding.chips import NEED, OFFER, split_units, unit_polarity
 from anagram.local.understanding.drafter import Drafter, ProviderDrafter
 from anagram.local.understanding.drafts import FindingDraft, approve_finding, draft_findings
 from anagram.local.understanding.kinds import (
@@ -92,7 +91,7 @@ from anagram.local.understanding.profile.items import from_index as lens_items
 from anagram.local.understanding.profile.lens import ProfileLens, SqliteLensCache
 from anagram.local.understanding.titles import humanize as humanize_title
 from anagram.local.understanding.understand_schema import ensure as ensure_understanding_schema
-from anagram.local.understanding.vocabulary import VOCAB_VERSION, default_vocabulary
+from anagram.local.understanding.vocabulary import default_vocabulary
 from anagram.local.vault import Vault
 
 __all__ = [
@@ -137,7 +136,6 @@ __all__ = [
     "Hit",
     "IndexStore",
     "Indexer",
-    "ItemView",
     "LocalIndex",
     "MarkItDownConverter",
     "PDF",
@@ -166,13 +164,10 @@ __all__ = [
     "FindingDraft",
     "KINDS",
     "KIND_IDS",
-    "NEED",
-    "OFFER",
     "ProviderDrafter",
     "RELATED",
     "SEED_KINDS",
     "SUPPORTS",
-    "VOCAB_VERSION",
     "ProfileLens",
     "SqliteLensCache",
     "answer_question",
@@ -193,8 +188,6 @@ __all__ = [
     "proposals",
     "record_answer",
     "set_kind_override",
-    "split_units",
-    "unit_polarity",
     # Trust policy
     "TRUST_DISCOVERABLE",
     "TrustPolicy",

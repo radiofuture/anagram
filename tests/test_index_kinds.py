@@ -1,4 +1,4 @@
-"""Pass 0 of understanding: rules kinds, titles, the new tables (R4 step 7)."""
+"""Pass 0 of understanding: rules kinds, titles, and the understanding tables."""
 
 from __future__ import annotations
 

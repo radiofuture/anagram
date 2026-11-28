@@ -275,8 +275,8 @@ class EnclaveHost:
 
     def finish_standby(self, note: object) -> None:
         with self.lock:
-            self.instance.check_ready(note)
-            self.instance.finish_hand_off()
+            sid = self.instance.check_ready(note)
+            self.instance.finish_hand_off(sid)
             self.save()
 
     def close(self) -> None:
@@ -326,7 +326,7 @@ def enclave_app(
     app.include_router(relay_router(host.front))
 
     @app.post("/v1/handoff/standby")
-    def standby(body: JsonObject = Body(...)) -> JsonObject:  # noqa: B008
+    def standby(body: JsonObject = Body(...)) -> JsonObject:
         document: Any = body.get("document")  # untrusted: the hand-off checks it
         try:
             return {"message": host.give_standby(document)}
@@ -334,7 +334,7 @@ def enclave_app(
             raise HTTPException(409, {"code": exc.code}) from exc
 
     @app.post("/v1/handoff/finish")
-    def finish(body: JsonObject = Body(...)) -> JsonObject:  # noqa: B008
+    def finish(body: JsonObject = Body(...)) -> JsonObject:
         try:
             host.finish_standby(body.get("ready"))  # untrusted: `check_ready` is total
         except Refused as exc:

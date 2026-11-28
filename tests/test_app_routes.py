@@ -236,7 +236,7 @@ def test_recovery_kit_shape_keeps_the_keys_of_today(tmp_path, systemd):
     tc = client(home, runtime=FakeRuntime(systemd[0]), transport=net.transport, clock=net.clock)
     body = tc.get("/api/recovery-kit").json()
     assert body["pending"] is True and body["saved"] is False and body["code"]
-    assert body["available"] is True  # the key of today stays until R7 step 11
+    assert body["available"] is True
     tc.post("/api/recovery-kit/saved", json={}, headers=ORIGIN)
     body = tc.get("/api/recovery-kit").json()
     assert body == {"available": False, "pending": False, "saved": True}

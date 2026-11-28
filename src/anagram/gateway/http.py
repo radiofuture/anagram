@@ -1,5 +1,4 @@
-"""MCP over loopback HTTP (open-agents plan 2.4, stage 3; decision A1:
-stdio and loopback only, no public URL).
+"""MCP over loopback HTTP (stdio and loopback only, no public URL).
 
 For a local agent that cannot start a process (for example a lab's own
 agent service on this computer). The Streamable HTTP transport of MCP,

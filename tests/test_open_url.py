@@ -1,4 +1,4 @@
-"""The `anagram://` links (R1 plan, section 7 and 12; integration 1.5).
+"""The `anagram://` links.
 
 `anagram open-url <link>` gives an invite to the running app as a pending
 invite only. The app runs in this process on a loopback port; the node is the

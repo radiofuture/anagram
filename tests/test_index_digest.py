@@ -1,4 +1,4 @@
-"""The timeline (R4 step 14): weeks from facts with no model, the scope in SQL,
+"""The timeline: weeks from facts with no model, the scope in SQL,
 the summary with the citation check, and the cache key with the scope. Fake
 models only; no network."""
 

@@ -1,6 +1,6 @@
-"""Proposed findings from content (R4 step 9): links, groups, titles, state.
+"""Proposed findings from content: links, groups, titles, state.
 
-Review items V1 and V2: a draft title is a short clean phrase, with a model
+A draft title is a short clean phrase, with a model
 and with no model. Fake models only; no network."""
 
 from __future__ import annotations

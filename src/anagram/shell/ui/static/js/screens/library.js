@@ -1,7 +1,7 @@
 // Library: what Anagram found in your sources. Today it holds the findings:
 // proposals (drafts) and the findings that you timestamped. New proposals
 // come first, then the timestamped findings, then the proposals that you saw
-// before. When the item routes of track R4 exist (`/api/kinds`,
+// before. When the item routes exist (`/api/kinds`,
 // `/api/items`), the kinds show above the list and each kind is one route.
 import { html, useEffect } from '../core/html.js';
 import { t, tx } from '../core/copy.js';
@@ -22,7 +22,7 @@ export function sharedLine(version) {
     : t('library.not_shared');
 }
 
-// Decision C12: a negative result (a null or negative outcome) shows one
+// A negative result (a null or negative outcome) shows one
 // quiet word in the facts line. It is still a finding: proof and share.
 export function polarityWord(x) {
   return x && x.polarity === 'negative' ? t('library.negative') : null;

@@ -1,4 +1,4 @@
-// Finding screen: the outputs of a proven finding (R5 steps 12 to 14).
+// Finding screen: the outputs of a proven finding.
 //
 // finding.actions:  "Save certificate" (the primary output for a reader: one
 //                   HTML file to print, save as PDF, or send; it holds the
@@ -81,7 +81,7 @@ export async function saveFrom(method, path, body, fallback) {
 const linkPath = (root) => `/api/findings/${root}/public-proof`;
 
 /**
- * The public link of the proof on the verify page of the node (step 13).
+ * The public link of the proof on the verify page of the node.
  * Not offered when the node has no public proof page (`available` false).
  */
 function PublicLink({ root, link, parts, setError }) {
@@ -181,7 +181,7 @@ function ownerLine(ov) {
 }
 
 /**
- * The preprint draft (step 14): a zip with the manuscript and the proofs.
+ * The preprint draft: a zip with the manuscript and the proofs.
  * The authors start as the owner; the person can add co-authors and an
  * abstract before the save.
  */

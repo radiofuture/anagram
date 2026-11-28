@@ -101,7 +101,7 @@ def wants_job(index: LocalIndex, vid: int, doc: Document | None, info: ItemInfo)
     kind, confidence = rules_guess(index, vid)
     text = titles.owner_text(doc.markdown)
     size = len(text)
-    # A rules finding always gets the finding check (step 18). A short item
+    # A rules finding always gets the finding check. A short item
     # with words of a null outcome and a rules kind that is not sure gets a
     # job too: a model gives the kind and the polarity.
     null = kind_rules.null_outcome(text) and confidence < kind_rules.SURE

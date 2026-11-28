@@ -255,7 +255,7 @@ LONG_PROMPT_TOKENS = 100_000
 
 def check_paid_runs(paid_runs: object, today: date | None = None) -> dict:
     """A paid engine needs `paid_runs: {approved_by, budget_usd, expires}`.
-    `expires` is an ISO date. Each approval comes from Ashish."""
+    `expires` is an ISO date. Each approval names the approver."""
     if not isinstance(paid_runs, dict) or set(paid_runs) != {
         "approved_by",
         "budget_usd",

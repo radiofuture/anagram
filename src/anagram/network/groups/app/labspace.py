@@ -73,12 +73,12 @@ if TYPE_CHECKING:
     )
     from anagram.network.groups.app.labcontext import AppLabs
 
-log = logging.getLogger("anagram.local.index")
+log = logging.getLogger(__name__)
 
 KIND = "labspace"
 ITEM_KIND = "lab_item"
 MEDIA_TYPE = "text/markdown"
-NEVER_IN_LAB = frozenset({"gmail"})  # integration 1.6: mail stays private
+NEVER_IN_LAB = frozenset({"gmail"})  # mail stays private
 _FACT_KINDS = FACT_KINDS_FROM_LAB
 _TITLE_MAX = 500
 _FACT_MAX = 2000

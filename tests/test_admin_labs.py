@@ -1,4 +1,4 @@
-"""The "Labs" section of the organizer page (plan R2 5.4, step S11)."""
+"""The "Labs" section of the organizer page."""
 
 from __future__ import annotations
 

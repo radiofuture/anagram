@@ -1,5 +1,5 @@
 """A small web app that serves the reading view (`web/reader/`) with the
-routes of plan R5 section 11 for fixed reading models, under the CSP of the
+sharing API routes for fixed reading models, under the CSP of the
 local UI. Used by `test_reader_assets.py` and to look at the view:
 
     uv run python tests/readerkit.py [port]     # then open /reader/#<grant>

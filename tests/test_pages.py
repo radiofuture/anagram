@@ -1,4 +1,4 @@
-"""Node pages in the brand (anagram.shell.pages; plan R7 step 8)."""
+"""Node pages in the brand (`anagram.shell.pages`)."""
 
 from __future__ import annotations
 

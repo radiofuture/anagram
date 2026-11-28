@@ -698,8 +698,8 @@ Rules:
   9. The report signature: ECDSA P-384 with SHA-384 by the leaf key over
      bytes 0x000 to 0x29F; R and S are little-endian, and their bytes
      48 to 71 are zero.
-- Rule 3: `POLICY.DEBUG = 0`; `POLICY.MIGRATE_MA = 0`; `VMPL` equals the
-  reference `vmpl` (0 for a guest with no SVSM). Then `POLICY.SMT = 0`
+- Rule 3: `POLICY.DEBUG = 0`; `POLICY.MIGRATE_MA = 0`. (`VMPL` is in the
+  reference object, so rule 1 fixes it: 0 for a guest with no SVSM.) Then `POLICY.SMT = 0`
   (else `smt_allowed`), `POLICY.CIPHERTEXT_HIDING = 1` (else
   `ciphertext_hiding_off`) and `POLICY.PAGE_SWAP_DISABLE = 1` (else
   `page_swap_allowed`). The firmware launches a guest only on a platform
@@ -1036,7 +1036,7 @@ expected code).
 | Profile | Cloud (rule 9) | SMT off | Ciphertext hiding | Page swap off | Other bits (rule 3) |
 | --- | --- | --- | --- | --- | --- |
 | `simulated` | none (refused in production by rule 8) | no | no | no | debug, migration |
-| `raw-snp` | VLEK `csp_id` in `csp_ids` | `smt_allowed` | `ciphertext_hiding_off` | `page_swap_allowed` | debug, migration, VMPL |
+| `raw-snp` | VLEK `csp_id` in `csp_ids` | `smt_allowed` | `ciphertext_hiding_off` | `page_swap_allowed` | debug, migration (VMPL is fixed by rule 1) |
 | `raw-tdx` | refused in production | not shown: risk | not shown: risk | not applicable (TDX has no host swap of private pages) | debug, migration |
 | `gcp-cs` | project and zone pinned | not shown: risk | not shown: risk | not shown: risk | debug, migration, `secure_boot_off`, `image_not_stable`, `launch_override`, GPU mode |
 | `azure-cvm-gpu` | refused (parked, section 20) | not shown | not shown | not shown | (none: parked) |

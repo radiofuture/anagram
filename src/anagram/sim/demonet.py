@@ -4,8 +4,9 @@ Matching runs only in the matching enclave of the network. The demo runs
 the services of a development network (as `deploy/compose.enclave.yaml`
 does with one container each) as real HTTP servers on loopback ports, in
 one process: the enclave log, its 3 witnesses, the roster, and one enclave
-instance (the writer of the line; no standby). The node relays sealed
-messages to the enclave, as a deployed node does.
+instance (the writer of the line; no standby). The roster admits each demo
+node (1 to 3), and each node relays sealed messages to the enclave, as a
+deployed node does.
 
 SIMULATED PROFILE: development only, no privacy. Nothing leaves this
 computer.
@@ -80,6 +81,11 @@ EPOCH_GAP = 660  # past the next epoch of the writer (10 minutes)
 DEMO_ANSWER_DAY = 2
 
 
+def record_url(n: int) -> str:
+    """The https URL in the roster record of demo node `n`."""
+    return RECORD_URL if n == 1 else f"https://node-{n}.demo.localhost"
+
+
 def start_server(app: Any, sock: Any, name: str) -> Any:
     """Run `app` on the bound socket `sock` in a thread (uvicorn), and wait
     until it serves."""
@@ -105,7 +111,7 @@ class DemoNetwork:
     servers: list[Any] = field(default_factory=list)
     clients: list[httpx.Client] = field(default_factory=list)
     host: EnclaveHost | None = None
-    relay: Any = None  # the relay of the node (`NodeEnclave.relay`), set by the demo
+    relays: list[Any] = field(default_factory=list)  # `NodeEnclave.relay` of each node
 
     def __post_init__(self) -> None:
         self.root.mkdir(parents=True, exist_ok=True)
@@ -135,13 +141,15 @@ class DemoNetwork:
         path.write_text(json.dumps(ports, indent=2) + "\n")
         return socks
 
-    def node_settings(self) -> dict:
-        """node.json "enclave" of the demo node."""
+    def node_settings(self, n: int = 1) -> dict:
+        """node.json "enclave" of demo node `n` (1, 2, 3)."""
+        tag = "" if n == 1 else f" {n}"
+        admin = "organizer@demo.localhost" if n == 1 else f"organizer-{n}@demo.localhost"
         return {
             "enabled": True,
             "log_url": self.url["log"],
             "pins": self.pins.to_json(),
-            "record": {"admin": "organizer@demo.localhost", "affiliation": "Anagram demo node"},
+            "record": {"admin": admin, "affiliation": f"Anagram demo node{tag}"},
             "tick_seconds": 2.0,
             "urls": [self.url["enclave"]],
         }
@@ -203,15 +211,15 @@ class DemoNetwork:
         )
         self.servers.append(start_server(roster_app(self.roster), self.socks["roster"], "roster"))
 
-    def start_line(self, nh: Any, node_url: str) -> None:
-        """First start: admit the node, log a release, move past the notice
-        period, and authorise the line. Then (each start) open the enclave
-        instance from its state directory."""
+    def start_line(self, nodes: list[tuple[Any, str]]) -> None:
+        """First start: admit each node (its `NodeHome` and loopback URL), log
+        a release, move past the notice period, and authorise the line. Then
+        (each start) open the enclave instance from its state directory."""
         release_path = self.root / "release.json"
         first = not release_path.exists()
         if first:
-            record = node_record(nh.enclave_config(), nh.network_key(), RECORD_URL)
-            self.roster.admit(record)
+            for n, (nh, _) in enumerate(nodes, start=1):
+                self.roster.admit(node_record(nh.enclave_config(), nh.network_key(), record_url(n)))
             operator = Operator(
                 self.devnet,
                 self.http_log(),
@@ -224,7 +232,8 @@ class DemoNetwork:
             operator.authorise_line(release)
             release.write(release_path)
         release = ReleaseFile.read(release_path)
-        feed = HttpFeed(self._client("roster"), {RECORD_URL: node_url})
+        rewrite = {record_url(n): url for n, (_, url) in enumerate(nodes, start=1)}
+        feed = HttpFeed(self._client("roster"), rewrite)
         self.host = EnclaveHost.open(
             self._dir("enclave"),
             release,
@@ -251,13 +260,13 @@ class DemoNetwork:
 
     def tick(self) -> None:
         """Each timer once, in the order of the data: roster, log, enclave,
-        node relay."""
+        node relays."""
         self.roster.tick()
         self.log_service.tick()
-        if self.host is not None:  # the relay needs the enclave
+        if self.host is not None:  # the relays need the enclave
             self.host.tick()
-            if self.relay is not None:
-                self.relay.tick()
+            for relay in self.relays:
+                relay.tick()
 
     def at(self, t: int) -> None:
         """Move to `t` with a timer run before and after the next epoch, so

@@ -129,7 +129,9 @@ person. In each tab:
 4. Open "Network matching", approve your lines, and turn matching on.
 
 One demo day is 2 minutes: the next day brings a proposal, and a reveal
-comes when both people said yes. Stop the demo with:
+comes when both people said yes. `--nodes 2` or `--nodes 3` spreads the
+labs over several local nodes that match through the same enclave. Stop the
+demo with:
 
 ```sh
 uv run anagram demo down --dir /tmp/anagram-demo

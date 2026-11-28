@@ -4,9 +4,11 @@
   "back": "Account",
   "lead": "Members of your community see these details, and so do the people you match with.",
   "name": "Your name",
-  "institution": "Your institution",
+  "institution": "Your institution (optional)",
+  "institution_help": "Optional. Leave blank if you are independent or your institution is not listed.",
   "institution_placeholder": "University or company",
-  "institution_now": "Now: {name}",
+  "institution_now": "Current institution: {name}",
+  "institution_clear": "Clear institution",
   "lab_legend": "Your lab",
   "lab_lead": "You lead this lab",
   "lab_member": "You are a member",
@@ -19,6 +21,5 @@
   "save_setup": "Save and continue",
   "save": "Save details",
   "save_busy": "Saving your details…",
-  "need_institution": "Choose your institution from the list.",
   "need_lab": "Enter a name for the new lab."
 }

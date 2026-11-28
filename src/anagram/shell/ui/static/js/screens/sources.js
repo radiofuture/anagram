@@ -166,13 +166,24 @@ function SourceRow({ source }) {
 // The kinds, and the setup of the one that the person chose.
 function AddSource({ kinds }) {
   const [chosen, setChosen] = useState(null);
+  const [notice, setNotice] = useState('');
   const kind = kinds.find((k) => k.kind === chosen);
-  const done = () => {
-    announce(t('sources.added_one', { kind: kind.label }));
+  const done = (result) => {
+    if (result && result.added === 0) {
+      setNotice(t('sources.already_added'));
+      announce(t('sources.already_added'));
+    } else {
+      setNotice('');
+      announce(t('sources.added_one', { kind: kind.label }));
+    }
     setChosen(null);
   };
   return html`
-    <${KindGrid} kinds=${kinds} chosen=${chosen} onChoose=${setChosen} />
+    <${StatusLine} state="saved" text=${notice} />
+    <${KindGrid} kinds=${kinds} chosen=${chosen} onChoose=${(k) => {
+      setNotice('');
+      setChosen(k);
+    }} />
     ${kind && html`<${Setup} key=${kind.kind} kind=${kind} onDone=${done} onCancel=${() => setChosen(null)} />`}`;
 }
 
@@ -315,6 +326,26 @@ function Controls({ source }) {
     </div>`;
 }
 
+function includeSummary(source, kind) {
+  if (kind.choose === 'folders' && source.include) {
+    const parts = [];
+    if (source.include.my_drive) parts.push(t('sources.include_my_drive'));
+    const shared = (source.include.shared_drives || []).length;
+    if (shared) parts.push(t('sources.include_shared_drives', { n: shared }));
+    const folders = (source.include.folders || []).length;
+    if (folders) parts.push(t('sources.include_folders', { n: folders }));
+    return parts.join(', ');
+  }
+  if (kind.choose === 'filter' && source.filter) {
+    const mode = source.filter.mode || 'mine';
+    if (mode === 'labels' && source.filter.labels?.length) {
+      return t('sources.include_mail_labels', { labels: source.filter.labels.join(', ') });
+    }
+    if (['mine', 'labels', 'all'].includes(mode)) return t(`sources.mail_${mode}`);
+  }
+  return '';
+}
+
 /** What a connected source reads; a change reads the new part and deletes what left. */
 function Include({ source, kind, open, onOpen }) {
   const [saved, setSaved] = useState('');
@@ -337,9 +368,11 @@ function Include({ source, kind, open, onOpen }) {
   }
   if (!body) return null;
   const always = kind.choose === 'provider';
+  const summary = !always && !open ? includeSummary(source, kind) : '';
   return html`
     <${Section} id="include-title" title=${t('sources.include_title')}>
       <${StatusLine} state="saved" text=${saved} />
+      ${summary && html`<p class="rf-ui-help">${summary}</p>`}
       ${
         always || open
           ? body

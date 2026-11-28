@@ -9,7 +9,7 @@ import { t } from '../core/copy.js';
 import { fmtTime } from '../core/format.js';
 import { mutate, optional, useResource } from '../core/resource.js';
 import { href } from '../core/router.js';
-import { ActionButton, Screen, Section } from '../components/index.js';
+import { ActionButton, Button, Screen, Section, Sheet, openSheet } from '../components/index.js';
 import { ALL, AskForm, AskResult, Examples, useAsk, useAskSetup } from '../parts/ask.js';
 
 const EARLIER = 8;
@@ -19,12 +19,27 @@ function keep(thread) {
   window.history.replaceState(window.history.state, '', href('ask', { thread }));
 }
 
+function ConfirmClear({ close }) {
+  return html`
+    <${Sheet} title=${t('ask.clear_confirm_title')}>
+      <p>${t('ask.clear_confirm')}</p>
+      <div class="rf-ui-actions">
+        <${Button} kind="danger" onClick=${() => close(true)}>${t('ask.clear_confirm_action')}<//>
+        <${Button} kind="quiet" onClick=${() => close(false)}>${t('common.cancel')}<//>
+      </div>
+    <//>`;
+}
+
 function Earlier({ rows, onAsk }) {
   if (!rows?.length) return null;
   // A question asked again shows one time, at its newest place.
   const seen = new Set();
   rows = rows.filter((r) => !seen.has(r.question) && seen.add(r.question));
-  const clear = () => mutate('DELETE', '/api/ask/history', null, { invalidate: ['/api/ask/history'] });
+  const clear = async () => {
+    const yes = await openSheet(ConfirmClear);
+    if (!yes) return;
+    await mutate('DELETE', '/api/ask/history', null, { invalidate: ['/api/ask/history'] });
+  };
   return html`
     <${Section} id="ask-earlier" title=${t('ask.earlier')}>
       <ul class="ag-rows" aria-labelledby="ask-earlier">

@@ -15,6 +15,7 @@ from anagram.shell.node.setup import (
     SetupError,
     check_dev_guard,
     check_existing,
+    forwarded_allow_ips,
     is_local_host,
     prepare,
     settings_from_env,
@@ -55,8 +56,14 @@ def test_real_env_to_config():
 def test_real_env_refusals():
     with pytest.raises(SetupError, match="ANAGRAM_DOMAIN"):
         settings_from_env({})
+    # Omitting both ORCID credentials is allowed; setting only one is refused.
+    no_orcid = settings_from_env({"ANAGRAM_DOMAIN": "a.example.org"})
+    assert no_orcid.orcid_mode == "production"
+    assert no_orcid.orcid_client_id == "" and no_orcid.orcid_client_secret == ""
     with pytest.raises(SetupError, match="redirect URI to register"):
-        settings_from_env({"ANAGRAM_DOMAIN": "a.example.org"})
+        settings_from_env({"ANAGRAM_DOMAIN": "a.example.org", "ANAGRAM_ORCID_CLIENT_ID": "APP-1"})
+    with pytest.raises(SetupError, match="redirect URI to register"):
+        settings_from_env({"ANAGRAM_DOMAIN": "a.example.org", "ANAGRAM_ORCID_CLIENT_SECRET": "sec"})
     with pytest.raises(SetupError, match="fake anchor"):
         settings_from_env({**REAL, "ANAGRAM_ANCHORS": "fake,opentimestamps"})
     with pytest.raises(SetupError, match="https"):
@@ -65,6 +72,74 @@ def test_real_env_refusals():
         settings_from_env({**REAL, "ANAGRAM_PUBLIC_URL": "https://other.example.org"})
     with pytest.raises(SetupError, match="whole number"):
         settings_from_env({**REAL, "ANAGRAM_ANCHOR_BATCH_SECONDS": "soon"})
+
+
+def test_real_node_without_orcid_starts_and_returns_503_on_orcid(tmp_path):
+    from fastapi.testclient import TestClient
+
+    nh = NodeHome(tmp_path / "node")
+    lines: list[str] = []
+    link = prepare(nh, {"ANAGRAM_DOMAIN": "a.example.org"}, out=lines.append)
+    assert link and "ORCID: off" in "\n".join(lines)
+    adapter = nh.orcid_adapter()
+    assert adapter.mode == "production" and getattr(adapter, "enabled", True) is False
+    app = nh.app()
+    tc = TestClient(app, base_url="https://a.example.org")
+    r = tc.post(
+        "/auth/orcid/start",
+        json={
+            "code_challenge": "a" * 43,
+            "device_key": "00" * 32,
+            "nonce": "11" * 16,
+            "return_to": "urn:anagram:oob",
+        },
+    )
+    assert r.status_code == 503 and "ORCID is not configured" in r.json()["detail"]
+
+
+def test_forwarded_allow_ips_default_and_override():
+    assert forwarded_allow_ips({}) == "127.0.0.1"
+    assert forwarded_allow_ips({"ANAGRAM_FORWARDED_ALLOW_IPS": "  "}) == "127.0.0.1"
+    assert forwarded_allow_ips({"ANAGRAM_FORWARDED_ALLOW_IPS": "10.0.0.2"}) == "10.0.0.2"
+
+
+def test_cmd_node_init_uses_real_local_host_check(tmp_path):
+    from anagram.shell.cli.main import main
+
+    # localhost.example.org is NOT a local host; fake ORCID must be refused.
+    code = main(
+        [
+            "node",
+            "--node-dir",
+            str(tmp_path / "bad"),
+            "init",
+            "--domain",
+            "localhost.example.org",
+            "--orcid-mode",
+            "fake",
+            "-y",
+        ]
+    )
+    assert code == 1
+    assert not (tmp_path / "bad" / "node.json").exists()
+    # Non-interactive init without ORCID credentials succeeds on a real domain.
+    code = main(
+        [
+            "node",
+            "--node-dir",
+            str(tmp_path / "ok"),
+            "init",
+            "--domain",
+            "node.example.org",
+            "--community",
+            "No ORCID Lab",
+            "-y",
+        ]
+    )
+    assert code == 0
+    cfg = NodeHome(tmp_path / "ok").config()
+    assert cfg["public_url"] == "https://node.example.org"
+    assert cfg["orcid"] == {"client_id": "", "mode": "production"}
 
 
 def test_dev_mode_guard():

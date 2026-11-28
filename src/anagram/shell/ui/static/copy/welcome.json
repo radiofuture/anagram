@@ -1,6 +1,6 @@
 {
   "invite_title": "Join your community",
-  "invite_open": "Open the invite link from your community organizer. Anagram opens on this screen.",
+  "invite_open": "Paste the invite link from your community organizer, or open the link in your browser.",
   "join_title": "Join {name}",
   "join_lead": "Your invite is from {host}. Anagram reads your work on this computer. Your files and keys do not leave it.",
   "join_lab_lead": "A lab in {community}. Your invite is from {host}. Anagram reads your work on this computer. Your files and keys do not leave it.",
@@ -13,7 +13,7 @@
   "again_title": "Sign in again",
   "again_lead": "Your sign-in has ended. Your keys and findings are still on this computer.",
   "again_action": "Sign in again",
-  "use_invite": "Use an invite link",
+  "use_invite": "Use a different invite link",
   "invite_action": "Join with this link",
   "pending_title": "You use Anagram on another computer",
   "pending_text": "Your keys are on your other computer. On that computer, open Account, then Add a device, and paste this text.",

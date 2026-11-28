@@ -3,6 +3,9 @@
   "title": "What leaves this computer",
   "lead": "You can give this page to your ethics board or your data office.",
   "list": "Data flows",
+  "group_local": "Stays on this computer",
+  "group_active": "Active now",
+  "group_optional": "Only if you turn it on",
   "what": "What",
   "when": "When",
   "can_see": "Who can see it"

@@ -12,12 +12,13 @@
 // Words: `copy/assistant.json`. No id or path shows.
 import { html, useState } from '../core/html.js';
 import { t } from '../core/copy.js';
-import { fmtTime } from '../core/format.js';
+import { fmtDate, fmtTime } from '../core/format.js';
 import { api } from '../core/api.js';
 import { invalidate, mutate, optional, useResource } from '../core/resource.js';
 import { provide } from '../core/slots.js';
 import {
   ActionButton,
+  Button,
   Check,
   CheckList,
   ChoiceGroup,
@@ -28,7 +29,9 @@ import {
   Row,
   RowList,
   Section,
+  Sheet,
   TextInput,
+  openSheet,
 } from '../components/index.js';
 
 const PATH = '/api/assistant';
@@ -75,20 +78,22 @@ function Setup({ row, open }) {
     <${Disclosure} summary=${t('assistant.setup_title')} open=${open} kind="add">
       <p class="rf-ui-help">${t('assistant.setup_help', { name: row.name })}</p>
       <${CopyField} id=${`assistant-setup-${row.id}`} label=${t('assistant.setup_label')} value=${row.setup} rows=${6} />
-      <p class="rf-ui-help">${t('assistant.http_help')}</p>
-      ${
-        http
-          ? html`
-          <p class="rf-ui-help">${t('assistant.http_once')}</p>
-          <${CopyField} id=${`assistant-http-${row.id}`} label=${t('assistant.http_label')} value=${http.setup} rows=${7} />
-          <${CopyField} id=${`assistant-http-cmd-${row.id}`} label=${t('assistant.http_command')} value=${http.command} rows=${2} />`
-          : html`
-          <div class="rf-ui-actions">
-            <${ActionButton} kind="quiet" label=${t(row.http ? 'assistant.http_new' : 'assistant.http_make')}
-              busyLabel=${t('assistant.http_making')} run=${makeKey} errorTo=${setError} />
-          </div>`
-      }
-      <${ErrorLine} text=${error} />
+      <${Disclosure} summary=${t('assistant.http_title')}>
+        <p class="rf-ui-help">${t('assistant.http_help')}</p>
+        ${
+          http
+            ? html`
+            <p class="rf-ui-help">${t('assistant.http_once')}</p>
+            <${CopyField} id=${`assistant-http-${row.id}`} label=${t('assistant.http_label')} value=${http.setup} rows=${7} />
+            <${CopyField} id=${`assistant-http-cmd-${row.id}`} label=${t('assistant.http_command')} value=${http.command} rows=${2} />`
+            : html`
+            <div class="rf-ui-actions">
+              <${ActionButton} kind="quiet" label=${t(row.http ? 'assistant.http_new' : 'assistant.http_make')}
+                busyLabel=${t('assistant.http_making')} run=${makeKey} errorTo=${setError} />
+            </div>`
+        }
+        <${ErrorLine} text=${error} />
+      <//>
     <//>`;
 }
 
@@ -141,16 +146,55 @@ function Reads({ row }) {
     <//>`;
 }
 
+function ConfirmStop({ name, close }) {
+  return html`
+    <${Sheet} title=${t('assistant.stop_confirm_title', { name })}>
+      <p>${t('assistant.stop_confirm', { name })}</p>
+      <div class="rf-ui-actions">
+        <${Button} kind="danger" onClick=${() => close(true)}>${t('assistant.stop_confirm_action')}<//>
+        <${Button} kind="quiet" onClick=${() => close(false)}>${t('common.cancel')}<//>
+      </div>
+    <//>`;
+}
+
+function Extend({ row }) {
+  const [expires, setExpires] = useState('');
+  const [error, setError] = useState('');
+  if (row.state !== 'expired') return null;
+  const save = async () => {
+    await mutate(
+      'PUT',
+      `${PATH}/${encodeURIComponent(row.id)}`,
+      { expires: expires || null },
+      { invalidate: [PATH] },
+    );
+    setExpires('');
+  };
+  return html`
+    <${Field} id=${`assistant-extend-${row.id}`} label=${t('assistant.extend_label')} help=${t('assistant.expires_help')}>
+      <${TextInput} type="date" value=${expires} onInput=${setExpires} />
+    <//>
+    <${ErrorLine} text=${error} />
+    <div class="rf-ui-actions">
+      <${ActionButton} kind="secondary" label=${t('assistant.extend_action')} busyLabel=${t('assistant.extend_busy')}
+        run=${save} errorTo=${setError} />
+    </div>`;
+}
+
 function Assistant({ row, spaces, fresh }) {
   const [error, setError] = useState('');
-  const stop = () => mutate('DELETE', `${PATH}/${encodeURIComponent(row.id)}`, null, { invalidate: [PATH] });
+  const stop = async () => {
+    const yes = await openSheet(ConfirmStop, { name: row.name });
+    if (!yes) return;
+    await mutate('DELETE', `${PATH}/${encodeURIComponent(row.id)}`, null, { invalidate: [PATH] });
+  };
   const meta = [
     placesLine(row, spaces),
     t(row.recipient_class === 'local' ? 'assistant.class_local' : 'assistant.class_cloud'),
     row.state === 'expired'
       ? t('assistant.expired')
       : row.expires
-        ? t('assistant.ends', { day: row.expires })
+        ? t('assistant.ends', { day: fmtDate(row.expires) })
         : t('assistant.no_end'),
     row.last_used ? t('assistant.last_used', { time: fmtTime(row.last_used) }) : t('assistant.not_used'),
   ].join('. ');
@@ -159,6 +203,7 @@ function Assistant({ row, spaces, fresh }) {
       action=${html`<${ActionButton} kind="quiet" label=${t('assistant.stop')} busyLabel=${t('assistant.stopping')}
         run=${stop} errorTo=${setError} aria-label=${t('assistant.stop_name', { name: row.name })} />`}>
       <${ErrorLine} text=${error} />
+      <${Extend} row=${row} />
       <${Places} row=${row} spaces=${spaces} />
       <${Proposals} row=${row} />
       <${Setup} row=${row} open=${fresh} />
@@ -234,9 +279,11 @@ function Add({ spaces, onAdded }) {
       <${CheckList} legend=${t('assistant.places')} name="assistant-new-places" items=${items}
         value=${places} onChange=${setChosen} />`
     }
-    <${Check} id="assistant-new-acts" label=${t('assistant.acts')} checked=${acts} onChange=${setActs} />
-    <${Field} id="assistant-expires" label=${t('assistant.expires')} help=${t('assistant.expires_help')}>
-      <${TextInput} type="date" value=${expires} onInput=${setExpires} />
+    <${Disclosure} summary=${t('assistant.more_options')}>
+      <${Check} id="assistant-new-acts" label=${t('assistant.acts')} checked=${acts} onChange=${setActs} />
+      <${Field} id="assistant-expires" label=${t('assistant.expires')} help=${t('assistant.expires_help')}>
+        <${TextInput} type="date" value=${expires} onInput=${setExpires} />
+      <//>
     <//>
     <p class="rf-ui-help ag-assistant-consent">${t(cls === 'local' ? 'assistant.consent_local' : 'assistant.consent', { name: shown })}</p>
     <${ErrorLine} text=${error} />

@@ -450,6 +450,15 @@ p.ag-empty {
 .ag-copy .rf-ui-actions {
   margin-top: 4px;
 }
+.ag-kit-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.ag-kit-row .ag-kit-code {
+  margin: 0;
+}
 
 /* ------------------------------------------------------------------- Sheet */
 

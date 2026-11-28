@@ -373,8 +373,9 @@ function itemMeta(row, kinds) {
 function SpaceList({ lab }) {
   const space = useResource(`${labPath(lab.id)}/space`, LIVE);
   const kinds = optional(useResource('/api/kinds', { topics: ['item'] })) || [];
+  if (space.error.value && !space.data.value) return html`<${ErrorLine} text=${space.error.value.message} />`;
   const data = space.data.value;
-  if (!data) return null;
+  if (!data) return html`<p class="ag-empty" role="status">${t('common.loading')}</p>`;
   return html`
     <${NoteForm} lab=${lab} />
     <${RowList} items=${data.items} keyOf=${(r) => r.id} label=${t('lab.space_title')}
@@ -390,11 +391,14 @@ function ItemView({ lab, itemId }) {
   const kinds = optional(useResource('/api/kinds', { topics: ['item'] })) || [];
   const [error, setError] = useState('');
   const back = href('lab', { id: lab.id, tab: 'space' });
-  if (absent(item) || (item.error.value && !item.data.value)) {
+  if (absent(item)) {
     return html`<${Empty} text=${t('lab.item_gone')} action=${{ href: back, label: t('lab.back_space') }} />`;
   }
+  if (item.error.value && !item.data.value) {
+    return html`<${ErrorLine} text=${item.error.value.message} />`;
+  }
   const data = item.data.value;
-  if (!data) return null;
+  if (!data) return html`<p class="ag-empty" role="status">${t('common.loading')}</p>`;
   const row = data.item;
   const remove = async () => {
     await mutate('DELETE', path, undefined, { invalidate: [`${labPath(lab.id)}/space`] });
@@ -563,8 +567,9 @@ function covered() {
 
 function SettingsView({ lab }) {
   const res = useResource(`${labPath(lab.id)}/settings`, LIVE);
+  if (res.error.value && !res.data.value) return html`<${ErrorLine} text=${res.error.value.message} />`;
   const st = res.data.value;
-  if (!st) return null;
+  if (!st) return html`<p class="ag-empty" role="status">${t('common.loading')}</p>`;
   const facts = setFacts(st);
   const others = covered();
   const plain = [];

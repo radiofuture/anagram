@@ -145,7 +145,7 @@ def cmd_orcid_link(args) -> int:
     try:
         orcid = c.account.link_orcid(browser or LoopbackBrowser(), login_hint=args.fake_orcid)
     finally:
-        c.vault.close()
+        c.close()
     print(f"ORCID iD linked: {orcid}. It shows on your matches and your proof certificate.")
     return 0
 

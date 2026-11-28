@@ -12,7 +12,8 @@ function View() {
     <p class="ag-lead">${t('launch.text')}</p>
     <div class="rf-ui-actions">
       <a class="rf-ui-button" href="anagram://open">${t('launch.open')}</a>
-    </div>`;
+    </div>
+    <p class="rf-ui-help">${t('launch.cli_hint')}</p>`;
 }
 
 export const screen = { id: 'launch', View };

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 import sys
+import urllib.parse
 from pathlib import Path
 
 from anagram.core.errors import ClientError
@@ -40,12 +41,13 @@ def cmd_node_serve(args) -> int:  # pragma: no cover - runs a server
         print("Install the node extra: uv pip install 'anagram[node]'", file=sys.stderr)
         return 2
     from anagram.shell.node.home import NodeHome
-    from anagram.shell.node.setup import serve_node
+    from anagram.shell.node.setup import check_existing, serve_node
 
     nh = NodeHome(_node_dir(args))
     if not nh.exists():
         print("No node here. Run `anagram node init` first.", file=sys.stderr)
         return 1
+    check_existing(nh)
     print(f"Node key fingerprint: {nh.fingerprint()}")
     print(f"Public URL: {nh.config()['public_url']}  ORCID: {nh.config()['orcid']['mode']}")
     return serve_node(nh, args.host, args.port)
@@ -69,23 +71,30 @@ def _ask(prompt: str, current, interactive: bool, secret: bool = False):
 
 
 def _orcid_client(args, mode: str, public_url: str, interactive: bool) -> tuple[str, str]:
-    """The ORCID client ID and secret. The fake mode needs none."""
+    """The ORCID client ID and secret. Optional in all modes; if one is given,
+    both are required."""
     from anagram.identity.api import REGISTER_URL
 
-    client_id, secret = args.orcid_client_id or "", args.orcid_client_secret or ""
+    client_id, secret = (
+        (args.orcid_client_id or "").strip(),
+        (args.orcid_client_secret or "").strip(),
+    )
     if mode == "fake":
         return client_id, secret
-    print(f"Register an ORCID client at {REGISTER_URL}")
-    print(f"Redirect URI to register (exact): {public_url}/auth/orcid/callback")
-    client_id = _ask("ORCID client ID", client_id, interactive)
-    secret = _ask("ORCID client secret", secret, interactive, secret=True)
-    if not client_id or not secret:
-        raise ClientError("ORCID needs --orcid-client-id and --orcid-client-secret")
+    if interactive and not client_id and not secret:
+        print(f"Optional: register an ORCID client at {REGISTER_URL}")
+        print(f"Redirect URI to register (exact): {public_url}/auth/orcid/callback")
+        client_id = _ask("ORCID client ID (leave empty to skip)", client_id, interactive)
+        if client_id:
+            secret = _ask("ORCID client secret", secret, interactive, secret=True)
+    if bool(client_id) != bool(secret):
+        raise ClientError("ORCID needs both --orcid-client-id and --orcid-client-secret")
     return client_id, secret
 
 
 def cmd_node_init(args) -> int:
     from anagram.shell.node.home import LOG_ORIGIN_PATH, NodeHome
+    from anagram.shell.node.setup import check_dev_guard, is_local_host
 
     nh = NodeHome(_node_dir(args))
     if nh.exists():
@@ -93,13 +102,15 @@ def cmd_node_init(args) -> int:
     interactive = not args.non_interactive and sys.stdin.isatty()
     domain = _ask("Domain of this node (for example anagram.example.org)", args.domain, interactive)
     domain = domain or "127.0.0.1:8787"
-    local = domain.startswith(("127.0.0.1", "localhost"))
+    parsed_host = urllib.parse.urlsplit(f"//{domain}").hostname
+    local = is_local_host(parsed_host)
     public_url = args.public_url or (f"http://{domain}" if local else f"https://{domain}")
     community = _ask("Community name", args.community, interactive) or "Anagram community"
     mode = args.orcid_mode or ("fake" if local else None)
     mode = _ask("ORCID mode (production, sandbox, fake)", mode, interactive) or "production"
+    check_dev_guard(public_url, mode == "fake")
     client_id, secret = _orcid_client(args, mode, public_url, interactive)
-    host = "local.anagram" if local else domain.split(":")[0]
+    host = "local.anagram" if local else (parsed_host or domain.split(":")[0])
     nh.create(
         origin=f"{host}/{LOG_ORIGIN_PATH}",
         anchors=args.anchor or None,

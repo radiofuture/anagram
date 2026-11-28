@@ -164,7 +164,7 @@ export function AskForm({ info, question, setQuestion, space, setSpace, busy, on
     e.preventDefault();
     onSubmit(question, space);
   };
-  const setupLink = html`<a href=${href('account')}>${t('ask.setup_link')}</a>`;
+  const setupLink = html`<a href=${href('account', {}, { section: 'models-title' })}>${t('ask.setup_link')}</a>`;
   return html`
     <form class="ag-ask-form" role="search" aria-labelledby="ask-label" onSubmit=${submit}>
       <label id="ask-label" for="ask-q" class=${hideLabel ? 'rf-ui-sr-only' : 'ag-ask-label'}>${t(model ? 'ask.label' : 'ask.label_search')}</label>

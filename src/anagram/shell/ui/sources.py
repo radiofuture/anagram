@@ -143,7 +143,10 @@ class SourcesUI:
                 reason = "This needs an ORCID sign-in."
             if info.auth == "oauth" and not clients.get(info.provider or ""):
                 name = PROVIDER_NAMES.get(info.provider or "", "the service")
-                reason = f"Not set up for this lab. Ask your lab admin to add a {name} client."
+                if labs:
+                    reason = f"Not set up for this lab. Ask your lab admin to add a {name} client."
+                else:
+                    reason = f"Start or join a lab to connect {name}."
             out.append(
                 {
                     "auth": info.auth,
@@ -277,6 +280,7 @@ class SourcesUI:
         return {
             "dirs": dirs[:500],
             "is_git": (p / ".git").exists(),
+            "is_obsidian": (p / VAULT_DIR).is_dir(),
             "parent": str(p.parent) if p.parent != p else None,
             "path": str(p),
         }

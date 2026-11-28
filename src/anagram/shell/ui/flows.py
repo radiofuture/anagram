@@ -8,11 +8,20 @@ data office. Keep the words plain. Add an entry when a new flow is added.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from anagram.shell.ui.service import UIService
+
+LOCAL_FLOW_IDS = frozenset({"files-stay", "match-drafting", "source-sign-in"})
+ALWAYS_ACTIVE_IDS = frozenset({"timestamps", "identity", "recovery-backup"})
+
 FLOWS: tuple[dict, ...] = (
     {
         "id": "files-stay",
         "to": "Nobody",
-        "what": "Your files, the text in them, and the chips that Anagram makes from them.",
+        "what": "Your files, the text in them, and the notes and summaries that Anagram makes from them.",
         "when": "Never. Anagram reads your files on this computer.",
         "can_see": "Only you.",
     },
@@ -91,7 +100,7 @@ FLOWS: tuple[dict, ...] = (
         "to": "Nobody",
         "what": "The draft of your matching lines. Anagram drafts them on this computer "
         "with a local model, or you type them.",
-        "when": "When you click 'Draft' on the Network matching screen.",
+        "when": "When you choose 'Draft from my work' on the Network matching screen.",
         "can_see": "Only you, until you approve the lines.",
     },
     {
@@ -171,3 +180,58 @@ FLOWS: tuple[dict, ...] = (
         "records each read. Stop the access of the assistant to stop new reads.",
     },
 )
+
+
+def _group(flow_id: str, active_ids: set[str]) -> tuple[str, bool]:
+    if flow_id in LOCAL_FLOW_IDS:
+        return "local", True
+    if flow_id in active_ids:
+        return "active", True
+    return "optional", False
+
+
+def _live_state(ui: UIService) -> tuple[set[str], list[dict] | None]:
+    """Read which optional flows are currently active on this computer."""
+    from anagram.gateway import access
+    from anagram.models import recipients
+
+    active = set(ALWAYS_ACTIVE_IDS)
+    model_rows: list[dict] | None = None
+    with ui.session(index=True) as (client, idx):
+        if client.account.orcid:
+            active.add("orcid")
+        if client.enclave.status().get("on"):
+            active.add("matching")
+        if any(s["config"].get("account") for s in idx.sources().values()):
+            active.add("connected-sources")
+        today = datetime.fromtimestamp(ui.clock(), UTC).date()
+        if any(g.state(today) == access.ACTIVE for g in access.grants(idx)):
+            active.add("assistant")
+        cfg, _ = ui.models.load(client, idx)
+        model_rows = recipients.flow_rows(cfg)
+    return active, model_rows
+
+
+def live_flows(ui: UIService) -> list[dict]:
+    """The data flows list with live active status and configured model providers."""
+    active: set[str] = set(ALWAYS_ACTIVE_IDS)
+    model_rows: list[dict] | None = None
+    if ui.joined():
+        try:
+            active, model_rows = _live_state(ui)
+        except Exception:  # noqa: BLE001 - fall back to static flows if offline/locked
+            active, model_rows = set(ALWAYS_ACTIVE_IDS), None
+
+    out: list[dict] = []
+    for flow in FLOWS:
+        fid = flow["id"]
+        if fid == "model-provider" and model_rows is not None:
+            for row in model_rows:
+                is_active = row["id"] != "model-provider"
+                out.append(
+                    {**row, "active": is_active, "group": "active" if is_active else "optional"}
+                )
+            continue
+        grp, is_active = _group(fid, active)
+        out.append({**flow, "active": is_active, "group": grp})
+    return out

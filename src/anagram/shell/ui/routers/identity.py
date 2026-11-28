@@ -48,6 +48,10 @@ def register(app: FastAPI, ctx: UIContext) -> None:
     def join_code(body: dict = Body(...)) -> dict:  # noqa: B008
         return join.give_code(_text(body, "code") or "")
 
+    @app.post("/api/join/cancel")
+    def join_cancel() -> dict:
+        return join.cancel()
+
     @app.post("/api/signin")
     def signin_start() -> dict:
         return join.start_signin()

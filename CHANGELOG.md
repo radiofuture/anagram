@@ -65,3 +65,20 @@ The first release for labs, and private matching through a network enclave.
 
 - The vector makers took `--help` as an output folder and wrote vector
   files into `./--help/`. They now print help.
+- Production nodes (`anagram node start` and `anagram node init`) now allow
+  starting without ORCID credentials (omitting both client ID and secret
+  disables ORCID sign-in cleanly and hides the ORCID form on `/admin`),
+  default `forwarded_allow_ips` to `127.0.0.1`, and disable raw access logs
+  while preserving structured ticker fields.
+- Hardened `/admin` login and passkey options against ORCID enumeration,
+  missing `Origin`, brute-force floods, and logout CSRF; hardened
+  `/auth/orcid/callback` redirect headers, UI `/auth/callback` state checks
+  (with a join cancel route), node-supplied redirect URL validation,
+  `received_file` path traversal/symlink checks, `Content-Disposition` header
+  escaping, systemd/XDG `%` and newline escaping, `Client.close()` cleanup,
+  Windows PID checks, Caddy environment isolation in `deploy/compose.yaml`,
+  and macOS packaging (`entry.py`, `anagram.spec`, `build.sh`).
+- Improved local app onboarding, model setup, live "What leaves this
+  computer" flow status, deep-linking to `#/account#models-title`, optional
+  institution entry, copy polish across screens, and confirmation dialogs for
+  destructive actions.

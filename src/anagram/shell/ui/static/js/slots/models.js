@@ -26,8 +26,10 @@ import {
   Row,
   RowList,
   Section,
+  Sheet,
   StatusLine,
   TextInput,
+  openSheet,
 } from '../components/index.js';
 import { ModelForm } from '../parts/model_form.js';
 
@@ -78,12 +80,13 @@ function Uses({ data }) {
     setError('');
     setAsk(null);
     const p = pid && byId[pid];
-    if (p?.external) {
+    const alreadyUsed = Boolean(pid && (now.reads === pid || now.answers === pid));
+    if (p?.external && !alreadyUsed) {
       setAsk({ role, p });
       return;
     }
     try {
-      await use(TASKS[role], pid, false);
+      await use(TASKS[role], pid, Boolean(p?.external));
       announce(t('models.saved'));
     } catch (err) {
       setError(err.message);
@@ -196,11 +199,25 @@ function Test({ p }) {
     <${StatusLine} ...${out || {}} />`;
 }
 
+function ConfirmRemoveModel({ name, close }) {
+  return html`
+    <${Sheet} title=${t('models.remove_confirm_title')}>
+      <p>${t('models.remove_confirm', { name })}</p>
+      <div class="rf-ui-actions">
+        <${Button} kind="danger" onClick=${() => close(true)}>${t('models.remove_confirm_action')}<//>
+        <${Button} kind="quiet" onClick=${() => close(false)}>${t('common.cancel')}<//>
+      </div>
+    <//>`;
+}
+
 function Model({ p, data }) {
   const [error, setError] = useState('');
   const keyed = p.needs_key || p.provider === 'openai_compatible';
-  const remove = () =>
-    mutate('DELETE', `${PATH}/profiles/${encodeURIComponent(p.id)}`, undefined, { invalidate: AFTER });
+  const remove = async () => {
+    const yes = await openSheet(ConfirmRemoveModel, { name: nameOf(p) });
+    if (!yes) return;
+    await mutate('DELETE', `${PATH}/profiles/${encodeURIComponent(p.id)}`, undefined, { invalidate: AFTER });
+  };
   return html`
     <${Row} title=${nameOf(p)} meta=${whereText(p)}>
       <div class="ag-model-more">
@@ -247,18 +264,17 @@ function Spend({ budget }) {
       <p class="rf-ui-help">${t('models.spend_help')}</p>
       ${form}`;
   }
-  return html`
-    <h3 class="ag-subtitle">${t('models.spend')}</h3>
-    <${Facts} rows=${[
-      [
-        t('models.spent'),
-        t('models.spent_of', {
-          spent: budget.spent_usd || '0',
+  const spentText =
+    budget.spent_usd === null
+      ? t('models.spent_expired', { limit: budget.budget_usd, date: fmtDate(budget.expires) })
+      : t(budget.open ? 'models.spent_of' : 'models.spent_closed', {
+          spent: budget.spent_usd,
           limit: budget.budget_usd,
           date: fmtDate(budget.expires),
-        }),
-      ],
-    ]} />
+        });
+  return html`
+    <h3 class="ag-subtitle">${t('models.spend')}</h3>
+    <${Facts} rows=${[[t('models.spent'), spentText]]} />
     <${Disclosure} kind="add" summary=${t('models.limit_change')}>${form}<//>`;
 }
 
@@ -266,20 +282,32 @@ function Spend({ budget }) {
 
 function Add({ data, onAdded }) {
   const paidOpen = Boolean(data.budget?.open);
-  const add = async ({ profile, key, budget }) => {
+  const privateSources = (data.sources || []).filter((s) => s.space === 'private');
+  const add = async ({ profile, key, budget, allow_sources: allowSources = [] }) => {
     const out = await mutate('PUT', `${PATH}/profiles/new`, profile, {});
     const pid = out.saved;
-    if (key) await mutate('PUT', `${PATH}/profiles/${encodeURIComponent(pid)}/key`, { key }, {});
-    if (budget) await mutate('PUT', `${PATH}/budget`, budget, {});
-    // The button says "Use this model", and the line above it says what leaves.
-    for (const task of ['understand', 'ask', 'draft']) await setUse(task, pid, true);
+    try {
+      if (key) await mutate('PUT', `${PATH}/profiles/${encodeURIComponent(pid)}/key`, { key }, {});
+      if (budget) await mutate('PUT', `${PATH}/budget`, budget, {});
+      for (const sid of allowSources) {
+        const src = privateSources.find((s) => s.id === sid);
+        if (!src) continue;
+        const allow = [...new Set([...src.allow, pid])].map((x) => `model:${x}`);
+        await mutate('PUT', `/api/sources/${encodeURIComponent(sid)}/recipients`, { allow }, {});
+      }
+      // The button says "Use this model", and the line above it says what leaves.
+      for (const task of ['understand', 'ask', 'draft']) await setUse(task, pid, true);
+    } catch (err) {
+      await mutate('DELETE', `${PATH}/profiles/${encodeURIComponent(pid)}`, undefined, {}).catch(() => null);
+      throw err;
+    }
     await invalidate(AFTER);
     announce(t('models.added', { name: profile.label }));
     onAdded();
   };
   const taken = data.profiles.filter((p) => p.provider === 'ollama').map((p) => p.model);
   return html`
-    <${ModelForm} ollama=${data.ollama} budget=${!paidOpen} taken=${taken} onSubmit=${add}
+    <${ModelForm} ollama=${data.ollama} budget=${!paidOpen} taken=${taken} sources=${privateSources} onSubmit=${add}
       submitLabel=${t('models.add_use')} busyLabel=${t('models.adding')} onLook=${() => invalidate([PATH])} />`;
 }
 

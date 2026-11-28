@@ -9,6 +9,7 @@ never a file in the data directory. The person gets it through the browser
 
 from __future__ import annotations
 
+import urllib.parse
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
@@ -70,13 +71,13 @@ class AccountUI:
             "findable_by_orcid": bool(me.get("findable_by_orcid")),
             "name": ident.get("display_name"),
             "orcid": orcid,
-            "setup_done": bool(st.get("kit_saved")) and bool(ror),
+            "setup_done": bool(st.get("kit_saved")) and (bool(ror) or bool(st.get("setup_done"))),
         }
 
     def set_identity(
         self,
         name: str,
-        ror: str,
+        ror: str | None,
         institution_name: str | None,
         lab_id: str | None = None,
         new_lab: str | None = None,
@@ -85,17 +86,24 @@ class AccountUI:
         name = (name or "").strip()
         if not name:
             raise UIError(400, "Enter your name as colleagues know it.")
-        try:
-            validate_ror(ror)
-        except FormatError as exc:
-            raise UIError(400, "Choose your institution from the list.") from exc
+        clean_ror = (ror or "").strip() or None
+        if clean_ror is not None:
+            try:
+                validate_ror(clean_ror)
+            except FormatError as exc:
+                raise UIError(400, "Choose your institution from the list.") from exc
         with ui.session() as c:
             if new_lab:
                 lab_id = c.labs.lab_create(new_lab.strip())["lab_id"]
-            c.account.set_identity(name, institution=ror, lab_id=lab_id or None)
+            c.account.set_identity(name, institution=clean_ror, lab_id=lab_id or None)
             if lab_id and "My lab" in {r["name"] for r in c.grants.ring_list()}:
                 c.grants.ring_add("My lab", [f"lab:{lab_id}"])
-        ui.state.update(institution_name=institution_name or ui.institutions.name(ror) or ror)
+        inst_label = (
+            (institution_name or ui.institutions.name(clean_ror) or clean_ror)
+            if clean_ror
+            else None
+        )
+        ui.state.update(institution_name=inst_label, setup_done=True)
         ui.people.forget()
         out = self.overview()
         ui.publish("overview.changed")
@@ -105,13 +113,17 @@ class AccountUI:
         """A one-time link to the organizer page of the node (an
         organizer needs no ORCID iD). Two minutes, one use."""
         with self.ui.session() as c:
+            node_url = c.config.get("node", {}).get("url") or ""
             try:
                 got = c.device.http.call("POST", "/admin/enter-link", {}, auth=True)
             except NodeHTTPError as exc:
                 raise UIError(
                     403, "Only an organizer of this community can open this page."
                 ) from exc
-        return {"url": got["url"]}
+        url = got.get("url") if isinstance(got, dict) else None
+        if not _valid_organizer_url(url, node_url):
+            raise UIError(502, "The community server returned an unexpected organizer link.")
+        return {"url": url}
 
     # ------------------------------------------------------------- account
 
@@ -223,7 +235,7 @@ class AccountUI:
                     erase_file(old)
                 yield client
             finally:
-                client.vault.close()
+                client.close()
 
     def recovery_kit(self) -> dict:
         """`pending`: a kit waits for the person to save it. `available` is
@@ -301,6 +313,17 @@ class AccountUI:
             try:
                 subject = client.device.subject
             finally:
-                client.vault.close()
+                client.close()
             ui.state.update(kit_saved=True)
         return {"state": "restored", "subject": subject}
+
+
+def _valid_organizer_url(url: object, node_url: str) -> bool:
+    if not isinstance(url, str) or not node_url:
+        return False
+    p = urllib.parse.urlsplit(url)
+    node = urllib.parse.urlsplit(node_url)
+    if p.scheme not in ("http", "https") or (p.scheme, p.netloc) != (node.scheme, node.netloc):
+        return False
+    expected_path = f"{node.path.rstrip('/')}/admin/enter"
+    return p.path == expected_path and bool(urllib.parse.parse_qs(p.query).get("code"))

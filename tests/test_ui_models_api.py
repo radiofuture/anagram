@@ -502,3 +502,24 @@ def test_a_pi_sets_the_lab_model_and_members_get_it(ui):
     bad = {"profile": {"model": "m", "provider": "x"}}
     err = ui.call("PUT", f"/api/labs/{lab_id}/models", bad, status=400)
     assert err["error"] == "Choose a provider and type a model name."
+
+
+def test_expired_budget_reports_real_spent_amount(ui, tmp_path):
+    pid = ui.add(HAIKU)
+    ui.call("PUT", f"/api/models/profiles/{pid}/key", {"key": NOT_A_KEY})
+    ui.call("PUT", "/api/models/use", {"acknowledged": True, "profile": pid, "task": "understand"})
+    ui.call("PUT", "/api/models/budget", {"budget_usd": "5", "expires": "2026-11-20"})
+    with ui.svc.session(index=True) as (client, idx):
+        gate = profile.resolve(
+            profile.load(idx), "understand", client.keystore, ui.home, today=TODAY
+        )
+    gate.ledger.reserve("test", 1_250_000_000)
+    # Advance past expiry: open becomes False, but spent_usd still shows 1.25 (not 0 or None).
+    ui.models.today = lambda: date(2026, 11, 25)
+    got = ui.call("GET", "/api/models")["budget"]
+    assert got == {
+        "budget_usd": "5",
+        "expires": "2026-11-20",
+        "open": False,
+        "spent_usd": "1.25",
+    }

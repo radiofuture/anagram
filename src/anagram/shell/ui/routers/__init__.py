@@ -75,10 +75,12 @@ def body_dict(body: object) -> dict:
 
 def json_download(name: str, text: str) -> Response:
     """A JSON file that the browser saves (a proof file)."""
+    from anagram.shell.ui.sharing import disposition
+
     return Response(
         text,
         media_type="application/json",
-        headers={"Content-Disposition": f'attachment; filename="{name}"'},
+        headers={"Content-Disposition": disposition("attachment", name)},
     )
 
 

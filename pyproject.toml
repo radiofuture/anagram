@@ -33,16 +33,16 @@ requires-python = ">=3.13,<3.14"
 dependencies = [
     "asn1crypto>=1.5.1",
     "cryptography>=50.0.0",
-    "fastapi>=0.115.0",
+    "fastapi>=0.165.0",
     "fastembed>=0.9.1",
     # HTTP client for enclave/matching, node, model, and demo network calls.
     "httpx>=0.28.1",
     "keyring>=25.6.0",
     "markitdown[docx,pdf,pptx,xlsx]>=0.1.9",
-    "opentimestamps>=0.4.5",
-    "pycryptodome>=3.20",
-    "pyyaml>=6.0",
-    "sqlcipher3>=0.6.4",
+    "opentimestamps>=0.5.0",
+    "pycryptodome>=4.6.0",
+    "pyyaml>=6.0.4",
+    "sqlcipher3>=0.6.5",
     "sqlite-vec>=0.1.9",
     "uvicorn>=0.30.0",
     "watchdog>=6.0.0",
@@ -55,7 +55,7 @@ node = [
     "webauthn>=2.5.0",
 ]
 anthropic = [
-    "anthropic>=2.3.0",
+    "anthropic>=2.14.0",
 ]
 
 [project.urls]
@@ -73,12 +73,12 @@ dev = [
     "jsonschema>=4.26.0",
     "mypy>=2.4.1",
     "pip-audit>=2.10.1",
-    "playwright>=1.47",
+    "playwright>=1.65.2",
     "pre-commit>=4.7.0",
-    "pytest>=9.1.1",
+    "pytest>=9.2.0",
     "pytest-cov>=7.1.0",
     "pytest-xdist>=3.8.0",
-    "ruff==0.11.13",
+    "ruff==0.17.6",
     "webauthn>=2.5.0",
 ]
 packaging = [
